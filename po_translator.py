@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 
 BATCH_SIZE = 50
 
-def translate_text_bulk(texts, target_language, po_file_path, current_batch, total_batches, is_bulk):
+def translate_text_bulk(texts, target_language, po_file_path, current_batch, total_batches, is_bulk, model):
     translated_texts = []
     
     for i in range(0, len(texts), BATCH_SIZE):
@@ -31,7 +31,7 @@ def translate_text_bulk(texts, target_language, po_file_path, current_batch, tot
                     logging.debug(f"Text to translate {batch_texts}")
                     logging.debug(f"Retries {retries}")
                 completion = client.chat.completions.create(
-                    model="gpt-4-1106-preview",
+                    model=model,
                     messages=[{"role": "user", "content": translation_request}])
                 batch_translations = completion.choices[0].message.content.strip().split('\n\n')
                 translated_texts.extend(batch_translations)
@@ -46,7 +46,7 @@ def translate_text_bulk(texts, target_language, po_file_path, current_batch, tot
 
     return translated_texts
 
-def scan_and_process_po_files(input_folder, languages, fuzzy, bulk_mode):
+def scan_and_process_po_files(input_folder, languages, fuzzy, bulk_mode, model):
     for root, dirs, files in os.walk(input_folder):
         for file in files:
             if file.endswith(".po"):
@@ -60,24 +60,24 @@ def scan_and_process_po_files(input_folder, languages, fuzzy, bulk_mode):
                         logging.info(f"Found {total_items} items to translate.")
 
                         if bulk_mode:
-                            translate_in_bulk(texts_to_translate, file_lang, po_file, po_file_path)
+                            translate_in_bulk(texts_to_translate, file_lang, po_file, po_file_path, model)
                         else:
-                            translate_one_by_one(texts_to_translate, file_lang, po_file, po_file_path)
+                            translate_one_by_one(texts_to_translate, file_lang, po_file, po_file_path, model)
 
                         po_file.save(po_file_path)
                         logging.info(f"Finished processing .po file: {po_file_path}")
                 except Exception as e:
                     logging.error(f"Error processing file {po_file_path}: {e}")
 
-def translate_in_bulk(texts, target_language, po_file, po_file_path):
+def translate_in_bulk(texts, target_language, po_file, po_file_path, model):
     total_batches = (len(texts) - 1) // BATCH_SIZE + 1
-    translated_texts = translate_text_bulk(texts, target_language, po_file_path, 0, total_batches, True)
+    translated_texts = translate_text_bulk(texts, target_language, po_file_path, 0, total_batches, True, model)
     apply_translations_to_po_file(translated_texts, texts, po_file)
 
-def translate_one_by_one(texts, target_language, po_file, po_file_path):
+def translate_one_by_one(texts, target_language, po_file, po_file_path, model):
     for index, text in enumerate(texts):
         logging.info(f"Translating text {index + 1}/{len(texts)} in file {po_file_path}")
-        translated_text = translate_text_bulk([text], target_language, po_file_path, index, len(texts), False)[0]
+        translated_text = translate_text_bulk([text], target_language, po_file_path, index, len(texts), False, model)[0]
         entry = po_file.find(text)  # Corrected this line
         if entry:
             entry.msgstr = translated_text
@@ -96,6 +96,7 @@ def main():
     parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")
     parser.add_argument("--bulk", action="store_true", help="Use bulk translation mode")
     parser.add_argument("--bulksize", type=int, default=50, help="Batch size for bulk translation")
+    parser.add_argument("--model", default="gpt-4-1106-preview", help="OpenAI model to use for translations")
 
     args = parser.parse_args()
     languages = [lang.strip() for lang in args.lang.split(',')]
@@ -104,7 +105,7 @@ def main():
     global BATCH_SIZE
     BATCH_SIZE = args.bulksize
 
-    scan_and_process_po_files(args.folder, languages, args.fuzzy, args.bulk)
+    scan_and_process_po_files(args.folder, languages, args.fuzzy, args.bulk, args.model)
 
 if __name__ == "__main__":
     main()
