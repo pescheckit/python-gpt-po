@@ -81,7 +81,7 @@ class TranslationService:
                 self.process_po_file(po_file_path, languages)
 
     def process_po_file(self, po_file_path, languages):
-        """Processes an individual .po file."""
+        """Processes an individual .po file by removing fuzzy entries if specified."""
         try:
             po_file = polib.pofile(po_file_path)
             file_lang = po_file.metadata.get('Language', '')
@@ -102,12 +102,16 @@ class TranslationService:
                     logging.warning("Skipping .po file due to language mismatch: %s", po_file_path)
                     return
 
-            # Process the file if language matches
             if file_lang in languages:
+                if self.config.fuzzy:
+                    self.remove_fuzzy_entries_with_polib(po_file_path)
+
+                # Reload the po file after modifications
+                po_file = polib.pofile(po_file_path)
                 texts_to_translate = [
                     entry.msgid
                     for entry in po_file
-                    if not entry.msgstr and entry.msgid and (self.config.fuzzy or 'fuzzy' not in entry.flags)
+                    if not entry.msgstr and entry.msgid and 'fuzzy' not in entry.flags
                 ]
                 self.process_translations(texts_to_translate, file_lang, po_file, po_file_path)
 
@@ -115,6 +119,14 @@ class TranslationService:
                 logging.info("Finished processing .po file: %s", po_file_path)
         except Exception as e:  # pylint: disable=W0718
             logging.error("Error processing file %s: %s", po_file_path, e)
+
+    def remove_fuzzy_entries_with_polib(self, po_file_path):
+        """Removes entries marked as 'fuzzy' from a .po file using the polib library."""
+        po_file = polib.pofile(po_file_path)
+        entries_to_remove = [entry for entry in po_file if 'fuzzy' in entry.flags]
+        for entry in entries_to_remove:
+            po_file.remove(entry)
+        po_file.save(po_file_path)
 
     def process_translations(self, texts, target_language, po_file, po_file_path):
         """Processes translations either in bulk or one by one."""
