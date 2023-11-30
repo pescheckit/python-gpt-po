@@ -45,7 +45,7 @@ You can provide your OpenAI API key in one of two ways:
 Run the script from the command line with the necessary arguments:
 
 ```
-python po_translator.py --folder [path_to_po_files] --lang [language_codes] [--api_key [your_openai_api_key]] [--fuzzy] [--bulk] [--bulksize [batch_size]]
+python python_gpt_po/po_translator.py --folder [path_to_po_files] --lang [language_codes] [--api_key [your_openai_api_key]] [--fuzzy] [--bulk] [--bulksize [batch_size]]
 ```
 
 - `--folder`: Path to the folder containing `.po` files.
@@ -58,7 +58,7 @@ python po_translator.py --folder [path_to_po_files] --lang [language_codes] [--a
 Example:
 
 ```
-python po_translator.py --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 100
+python python_gpt_po/po_translator.py --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 100
 ```
 
 This command will translate all `.po` files in the `./locales` folder to German and French using your provided OpenAI API key, processing 100 translations per batch in bulk mode.

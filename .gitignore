@@ -1,4 +1,4 @@
-python-gpt-po/.env
+.env
 locale/
 dist/
 *.egg-info/
