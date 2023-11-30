@@ -1,3 +1,8 @@
+"""
+Module docstring: This module provides functionality for translating .po files
+using OpenAI's GPT models. It supports bulk and individual translation modes.
+"""
+
 import argparse
 import logging
 import os
@@ -11,96 +16,127 @@ from openai import OpenAI
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-def translate_text_bulk(texts, target_language, po_file_path, current_batch, total_batches, is_bulk, model, client):
-    """Translates a list of texts in bulk and handles retries."""
-    translated_texts = []
-    batch_size = 50
+class TranslationService:
+    """ Class to encapsulate translation functionalities. """
 
-    for i, _ in enumerate(range(0, len(texts), batch_size), start=current_batch):
-        batch_texts = texts[i:i + batch_size]
-        batch_info = f"File: {po_file_path}, Batch {i}/{total_batches} (texts {i + 1}-{min(i + batch_size, len(texts))})"
-        translation_request = f"Translate the following texts into {target_language}:\n\n" + "\n\n".join(batch_texts)
-        retries = 3
+    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False):
+        self.client = client
+        self.model = model
+        self.batch_size = 50
+        self.bulk_mode = bulk_mode
+        self.fuzzy = fuzzy
+        self.total_batches = 0
+        self.folder_language = folder_language
 
-        while retries:
-            try:
-                if is_bulk:
-                    logging.info(f"Translating {batch_info}.")
-                perform_translation(batch_texts, translation_request, model, translated_texts, retries, batch_info, client)
-                break
-            except Exception as e:
-                handle_translation_error(e, retries, batch_info, translated_texts, batch_texts)
+    def translate_bulk(self, texts, target_language, po_file_path, current_batch):
+        """Translates a list of texts in bulk and handles retries."""
+        translated_texts = []
+        for i, _ in enumerate(range(0, len(texts), self.batch_size), start=current_batch):
+            batch_texts = texts[i:i + self.batch_size]
+            batch_info = f"File: {po_file_path}, Batch {i}/{self.total_batches}"
+            batch_info += f" (texts {i + 1}-{min(i + self.batch_size, len(texts))})"
+            translation_request = f"Translate the following texts into {target_language}:\n\n"
+            translation_request += "\n\n".join(batch_texts)
+            retries = 3
 
-    return translated_texts
+            while retries:
+                try:
+                    if self.bulk_mode:
+                        logging.info("Translating %s.", batch_info)
+                    self.perform_translation(translation_request, translated_texts)
+                    break
+                except Exception as e:
+                    error_message = f"Error in translating {batch_info}: {e}. Retrying... {retries - 1} attempts left."
+                    logging.error(error_message)
+                    if retries <= 1:
+                        logging.error("Maximum retries reached for %s. Skipping this batch.", batch_info)
+                        translated_texts.extend(['Error in translation'] * len(batch_texts))
+                    retries -= 1
+                    time.sleep(1)
 
-def perform_translation(batch_texts, translation_request, model, translated_texts, retries, batch_info, client):
-    """Performs the translation and updates the results."""
-    # For the cheapest models or more acurate models check https://openai.com/pricing
-    completion = client.chat.completions.create(model=model, messages=[{"role": "user", "content": translation_request}])
-    batch_translations = completion.choices[0].message.content.strip().split('\n\n')
-    translated_texts.extend(batch_translations)
+        return translated_texts
 
-def handle_translation_error(e, retries, batch_info, translated_texts, batch_texts):
-    """Handles errors during translation attempts."""
-    retries -= 1
-    logging.error(f"Error in translating {batch_info}: {e}. Retrying... {retries} attempts left.")
-    if not retries:
-        logging.error(f"Maximum retries reached for {batch_info}. Skipping this batch.")
-        translated_texts.extend(['Error in translation'] * len(batch_texts))
-    time.sleep(1)
+    def perform_translation(self, translation_request, translated_texts):
+        """Performs the translation and updates the results."""
+        message = {"role": "user", "content": translation_request}
+        completion = self.client.chat.completions.create(model=self.model, messages=[message])
+        batch_translations = completion.choices[0].message.content.strip().split('\n\n')
+        translated_texts.extend(batch_translations)
 
-def scan_and_process_po_files(input_folder, languages, fuzzy, bulk_mode, model, client):
-    """Scans and processes .po files in the given input folder."""
-    for root, dirs, files in os.walk(input_folder):
-        for file in filter(lambda f: f.endswith(".po"), files):
-            po_file_path = os.path.join(root, file)
-            process_po_file(po_file_path, languages, fuzzy, bulk_mode, model, client)
+    def scan_and_process_po_files(self, input_folder, languages):
+        """Scans and processes .po files in the given input folder."""
+        for root, _, files in os.walk(input_folder):
+            for file in filter(lambda f: f.endswith(".po"), files):
+                po_file_path = os.path.join(root, file)
+                logging.info("Discovered .po file: %s", po_file_path)  # Log each discovered file
+                self.process_po_file(po_file_path, languages)
 
-def process_po_file(po_file_path, languages, fuzzy, bulk_mode, model, client):
-    """Processes an individual .po file."""
-    try:
-        po_file = polib.pofile(po_file_path)
-        file_lang = po_file.metadata.get('Language', '')
-        if file_lang in languages:
-            texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr and entry.msgid and not (fuzzy and 'fuzzy' in entry.flags)]
-            process_translations(texts_to_translate, file_lang, po_file, po_file_path, bulk_mode, model, client)
+    def process_po_file(self, po_file_path, languages):
+        """Processes an individual .po file."""
+        try:
+            po_file = polib.pofile(po_file_path)
+            file_lang = po_file.metadata.get('Language', '')
 
-            po_file.save(po_file_path)
-            logging.info(f"Finished processing .po file: {po_file_path}")
-    except Exception as e:
-        logging.error(f"Error processing file {po_file_path}: {e}")
+            # If language is not in the list, try inferring from directory (if folder_language is enabled)
+            if not file_lang or file_lang not in languages:
+                if self.folder_language:
+                    inferred_lang = po_file_path.split(os.sep)[-3]  # Assumes language code is two directories up from the .po file
+                    logging.info("Attempting to infer language for .po file: %s", po_file_path)
+                    if inferred_lang in languages:
+                        file_lang = inferred_lang
+                        logging.info("Inferred language for .po file: %s as %s", po_file_path, file_lang)
+                    else:
+                        logging.warning("Skipping .po file due to inferred language mismatch: %s", po_file_path)
+                        return
+                else:
+                    logging.warning("Skipping .po file due to language mismatch: %s", po_file_path)
+                    return
 
-def process_translations(texts, target_language, po_file, po_file_path, bulk_mode, model, client):
-    """Processes translations either in bulk or one by one."""
-    if bulk_mode:
-        translate_in_bulk(texts, target_language, po_file, po_file_path, model, client)
-    else:
-        translate_one_by_one(texts, target_language, po_file, po_file_path, model, client)
+            # Process the file if language matches
+            if file_lang in languages:
+                texts_to_translate = [
+                    entry.msgid
+                    for entry in po_file
+                    if not entry.msgstr and entry.msgid and (self.fuzzy or 'fuzzy' not in entry.flags)
+                ]
+                self.process_translations(texts_to_translate, file_lang, po_file, po_file_path)
 
-def translate_in_bulk(texts, target_language, po_file, po_file_path, model, client):
-    """Translates texts in bulk and applies them to the .po file."""
-    total_batches = (len(texts) - 1) // 50 + 1
-    translated_texts = translate_text_bulk(texts, target_language, po_file_path, 0, total_batches, True, model, client)
-    apply_translations_to_po_file(translated_texts, texts, po_file)
+                po_file.save(po_file_path)
+                logging.info("Finished processing .po file: %s", po_file_path)
+        except Exception as e:
+            logging.error("Error processing file %s: %s", po_file_path, e)
 
-def translate_one_by_one(texts, target_language, po_file, po_file_path, model, client):
-    """Translates texts one by one and updates the .po file."""
-    for index, text in enumerate(texts):
-        logging.info(f"Translating text {index + 1}/{len(texts)} in file {po_file_path}")
-        translated_text = translate_text_bulk([text], target_language, po_file_path, index, len(texts), False, model, client)[0]
-        update_po_entry(po_file, text, translated_text)
+    def process_translations(self, texts, target_language, po_file, po_file_path):
+        """Processes translations either in bulk or one by one."""
+        if self.bulk_mode:
+            self.translate_in_bulk(texts, target_language, po_file, po_file_path)
+        else:
+            self.translate_one_by_one(texts, target_language, po_file, po_file_path)
 
-def update_po_entry(po_file, original_text, translated_text):
-    """Updates a .po file entry with the translated text."""
-    entry = po_file.find(original_text)
-    if entry:
-        entry.msgstr = translated_text
+    def translate_in_bulk(self, texts, target_language, po_file, po_file_path):
+        """Translates texts in bulk and applies them to the .po file."""
+        self.total_batches = (len(texts) - 1) // 50 + 1
+        translated_texts = self.translate_bulk(texts, target_language, po_file_path, 0)
+        self.apply_translations_to_po_file(translated_texts, texts, po_file)
 
-def apply_translations_to_po_file(translated_texts, original_texts, po_file):
-    """Applies the list of translations to the corresponding .po file entries."""
-    for original, translated in zip(original_texts, translated_texts):
-        if not translated.startswith("Error in translation"):
-            update_po_entry(po_file, original, translated)
+    def translate_one_by_one(self, texts, target_language, po_file, po_file_path):
+        """Translates texts one by one and updates the .po file."""
+        for index, text in enumerate(texts):
+            logging.info("Translating text %s/%s in file %s", (index + 1), len(texts), po_file_path)
+            translated_text = self.translate_bulk([text], target_language, po_file_path, index)[0]
+            self.apply_translations_to_po_file(translated_text, texts, po_file)
+
+    def update_po_entry(self, po_file, original_text, translated_text):
+        """Updates a .po file entry with the translated text."""
+        entry = po_file.find(original_text)
+        if entry:
+            entry.msgstr = translated_text
+
+    def apply_translations_to_po_file(self, translated_texts, original_texts, po_file):
+        """Applies the list of translations to the corresponding .po file entries."""
+        for original, translated in zip(original_texts, translated_texts):
+            if not translated.startswith("Error in translation"):
+                self.update_po_entry(po_file, original, translated)
 
 def main():
     """Main function to parse arguments and initiate processing."""
@@ -110,19 +146,22 @@ def main():
     parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")
     parser.add_argument("--bulk", action="store_true", help="Use bulk translation mode")
     parser.add_argument("--bulksize", type=int, default=50, help="Batch size for bulk translation")
-    # Default model is fast and cheap, but you can also use gpt-4 or others see https://openai.com/pricing
     parser.add_argument("--model", default="gpt-3.5-turbo-1106", help="OpenAI model to use for translations")
     parser.add_argument("--api_key", help="OpenAI API key")
+    parser.add_argument("--folder-language", action="store_true", help="Set language from directory structure")
 
     args = parser.parse_args()
 
-    # Initialize OpenAI client with either provided API key or from .env file
+    # Initialize OpenAI client
     api_key = args.api_key if args.api_key else os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
-    # Pass the client to the function that requires it
+    # Initialize the translation service with the client and model
+    translation_service = TranslationService(client, args.model, args.bulk, args.fuzzy, args.folder_language)
+
+    # Extract languages
     languages = [lang.strip() for lang in args.lang.split(',')]
-    scan_and_process_po_files(args.folder, languages, args.fuzzy, args.bulk, args.model, client)
+    translation_service.scan_and_process_po_files(args.folder, languages)
 
 if __name__ == "__main__":
     main()
