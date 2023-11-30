@@ -4,6 +4,7 @@ This script is used to install the package and its dependencies.
 """
 
 from setuptools import find_packages, setup
+from python_gpt_po.version import __version__
 
 # Read the contents of README file
 with open('README.md', encoding='utf-8') as f:
@@ -11,7 +12,7 @@ with open('README.md', encoding='utf-8') as f:
 
 setup(
     name='gpt-po-translator',
-    version='0.1.3',
+    version=__version__,
     author='Bram Mittendorff',
     author_email='bram@pescheck.io',
     description='A CLI tool for translating .po files using GPT models.',

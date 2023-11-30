@@ -11,6 +11,7 @@ import time
 import polib
 from dotenv import load_dotenv
 from openai import OpenAI
+from python_gpt_po.version import __version__
 
 # Initialize environment variables and logging
 load_dotenv()
@@ -150,6 +151,7 @@ class TranslationService:
 def main():
     """Main function to parse arguments and initiate processing."""
     parser = argparse.ArgumentParser(description="Scan and process .po files")
+    parser.add_argument("--version", action="version", version=f'%(prog)s {__version__}')
     parser.add_argument("--folder", required=True, help="Input folder containing .po files")
     parser.add_argument("--lang", required=True, help="Comma-separated language codes to filter .po files")
     parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")

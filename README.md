@@ -1,15 +1,15 @@
 # Python GPT-4 PO File Translator
 
-This script offers an efficient method for translating `.po` files using OpenAI's GPT-4 model. It is designed to support both bulk and individual translation modes, catering to different project sizes and `.po` file types.
+This Python script provides a convenient tool for translating `.po` files using OpenAI's GPT-4 model. It is designed to handle both bulk and individual translation modes, making it suitable for a wide range of project sizes and `.po` file structures.
 
 ## Features
 
-- **Bulk Translation**: Allows for translating multiple entries at once for increased efficiency.
-- **Individual Translation**: Option to translate each entry separately, providing more control.
-- **Adjustable Batch Size**: Customize the number of translations processed in each batch during bulk translation.
-- **Detailed Logging**: Provides comprehensive logging to monitor progress and troubleshoot.
-- **Fuzzy Entry Handling**: Includes an option to exclude 'fuzzy' entries in `.po` files.
-- **Flexible API Key Input**: Choose to input your OpenAI API key either via command line or through a `.env` file.
+- **Bulk Translation Mode**: Facilitates the translation of multiple text entries simultaneously, enhancing efficiency.
+- **Individual Translation Mode**: Offers the flexibility to translate entries one at a time for greater precision.
+- **Configurable Batch Size**: Users can set the number of entries to be translated in each batch during bulk translation.
+- **Comprehensive Logging**: The script logs detailed information for progress monitoring and debugging purposes.
+- **Fuzzy Entry Exclusion**: Provides the option to omit 'fuzzy' entries from translation in `.po` files.
+- **Flexible API Key Configuration**: Supports providing the OpenAI API key either through command-line arguments or a `.env` file.
 
 ## Requirements
 
@@ -19,54 +19,55 @@ This script offers an efficient method for translating `.po` files using OpenAI'
 
 ## Installation
 
+### Via PyPI
+
+You can install the `gpt-po-translator` package directly from PyPI:
+
+```bash
+pip install gpt-po-translator
+```
+
+This command will install the package along with its dependencies.
+
+### Manual Installation
+
+If you prefer to install manually or want to work with the latest code from the repository:
+
 1. Clone the repository:
-   ```
+   ```bash
    git clone [repository URL]
    ```
-2. Install the required Python packages:
+2. Navigate to the cloned directory and install the package:
+   ```bash
+   pip install .
    ```
-   pip install polib openai
-   ```
-
-## Configuration
-
-You can provide your OpenAI API key in one of two ways:
-
-1. **Via Command Line Argument**: Directly pass the API key when running the script.
-2. **Using a `.env` File**:
-   - Create a `.env` file in the root directory of the project.
-   - Add your OpenAI API key to this file:
-     ```
-     OPENAI_API_KEY='your_api_key_here'
-     ```
 
 ## Usage
 
-Run the script from the command line with the necessary arguments:
+After installation, you can use `gpt-po-translator` as a command-line tool:
 
 ```
-python python_gpt_po/po_translator.py --folder [path_to_po_files] --lang [language_codes] [--api_key [your_openai_api_key]] [--fuzzy] [--bulk] [--bulksize [batch_size]]
+gpt-po-translator --folder [path_to_po_files] --lang [language_codes] [--api_key [your_openai_api_key]] [--fuzzy] [--bulk] [--bulksize [batch_size]] [--folder-language]
 ```
 
 - `--folder`: Path to the folder containing `.po` files.
-- `--lang`: Comma-separated language codes for filtering `.po` files.
-- `--api_key`: (Optional) Your OpenAI API key. If not provided, the script will look for it in the `.env` file.
-- `--fuzzy`: (Optional) Flag to ignore entries marked as 'fuzzy'.
-- `--bulk`: (Optional) Flag to use bulk translation mode.
-- `--bulksize`: (Optional) Number of translations to process per batch (default is 50).
+- `--lang`: Comma-separated list of language codes for filtering `.po` files.
+- `--api_key`: (Optional) Your OpenAI API key. If omitted, the script will look for it in the `.env` file.
+- `--fuzzy`: (Optional) Flag to skip 'fuzzy' entries in translation.
+- `--bulk`: (Optional) Enable bulk translation mode.
+- `--bulksize`: (Optional) Set the batch size for translations in bulk mode (default is 50).
+- `--folder-language`: (Optional) Enable the script to infer the language from the directory structure of the `.po` files.
 
-Example:
+### Example
 
 ```
-python python_gpt_po/po_translator.py --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 100
+gpt-po-translator --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 100 --folder-language
 ```
 
-This command will translate all `.po` files in the `./locales` folder to German and French using your provided OpenAI API key, processing 100 translations per batch in bulk mode.
+This command translates `.po` files in the `./locales` folder to German and French, using the provided OpenAI API key, and processes 100 translations per batch in bulk mode. It also infers the language from the directory structure if necessary.
 
 ## Logging
 
-The script logs its progress and any errors encountered. The logs detail information about the files being processed, the number of translations, and the current batch in bulk mode.
+The script provides detailed logging that includes information about the files being processed, the number of translations, and batch details in bulk mode.
 
 ## License
-
-[MIT](LICENSE)
