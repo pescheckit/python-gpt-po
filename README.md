@@ -17,6 +17,28 @@ This Python script provides a convenient tool for translating `.po` files using 
 - `polib` library
 - `openai` Python package
 
+## API Key Configuration
+
+The `gpt-po-translator` supports two methods for providing OpenAI API credentials:
+
+1. **Environment Variable**: You can set your OpenAI API key as an environment variable. The script will automatically look for an environment variable named `OPENAI_API_KEY`. This method is recommended for maintaining security and ease of API key management, especially in shared or collaborative development environments.
+
+   To set the environment variable, you can add the following line to your `.env` file or your shell's configuration file (like `.bashrc` or `.bash_profile`):
+
+   ```bash
+   export OPENAI_API_KEY='your_api_key_here'
+   ```
+
+2. **Command-Line Argument**: Alternatively, you can directly pass the API key as a command-line argument using the `--api_key` option. This method is straightforward and can be suitable for quick tests or when the environment variable is not set.
+
+   Usage example with the `--api_key` argument:
+
+   ```bash
+   gpt-po-translator --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 100 --folder-language
+   ```
+
+Please ensure that your API key is kept secure and not exposed in shared or public spaces.
+
 ## Installation
 
 ### Via PyPI
@@ -71,3 +93,5 @@ This command translates `.po` files in the `./locales` folder to German and Fren
 The script provides detailed logging that includes information about the files being processed, the number of translations, and batch details in bulk mode.
 
 ## License
+
+[MIT](LICENSE)
