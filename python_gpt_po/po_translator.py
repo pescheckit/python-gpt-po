@@ -11,6 +11,7 @@ import time
 import polib
 from dotenv import load_dotenv
 from openai import OpenAI
+
 from python_gpt_po.version import __version__
 
 # Initialize environment variables and logging

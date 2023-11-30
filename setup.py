@@ -4,6 +4,7 @@ This script is used to install the package and its dependencies.
 """
 
 from setuptools import find_packages, setup
+
 from python_gpt_po.version import __version__
 
 # Read the contents of README file
