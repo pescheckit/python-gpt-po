@@ -77,12 +77,13 @@ class TranslationService:
             po_file = polib.pofile(po_file_path)
             file_lang = po_file.metadata.get('Language', '')
 
-            # If language is not in the list, try inferring from directory (if folder_language is enabled)
+            # If language is not in the list, try inferring from any part of the directory
             if not file_lang or file_lang not in languages:
                 if self.folder_language:
-                    inferred_lang = po_file_path.split(os.sep)[-3]  # Assumes language code is two directories up from the .po file
+                    folder_parts = po_file_path.split(os.sep)
+                    inferred_lang = next((part for part in folder_parts if part in languages), None)
                     logging.info("Attempting to infer language for .po file: %s", po_file_path)
-                    if inferred_lang in languages:
+                    if inferred_lang:
                         file_lang = inferred_lang
                         logging.info("Inferred language for .po file: %s as %s", po_file_path, file_lang)
                     else:
@@ -105,6 +106,7 @@ class TranslationService:
                 logging.info("Finished processing .po file: %s", po_file_path)
         except Exception as e:
             logging.error("Error processing file %s: %s", po_file_path, e)
+
 
     def process_translations(self, texts, target_language, po_file, po_file_path):
         """Processes translations either in bulk or one by one."""
