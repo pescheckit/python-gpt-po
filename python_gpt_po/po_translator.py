@@ -82,6 +82,8 @@ class TranslationService:
 
     def process_po_file(self, po_file_path, languages):
         """Processes an individual .po file by removing fuzzy entries if specified."""
+        if self.config.fuzzy:
+            self.remove_fuzzy_entries_with_polib(po_file_path)
         try:
             po_file = polib.pofile(po_file_path)
             file_lang = po_file.metadata.get('Language', '')
@@ -103,9 +105,6 @@ class TranslationService:
                     return
 
             if file_lang in languages:
-                if self.config.fuzzy:
-                    self.remove_fuzzy_entries_with_polib(po_file_path)
-
                 # Reload the po file after modifications
                 po_file = polib.pofile(po_file_path)
                 texts_to_translate = [
