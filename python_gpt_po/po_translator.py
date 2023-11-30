@@ -16,17 +16,22 @@ from openai import OpenAI
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
+class TranslationConfig:
+    """ Class to hold configuration parameters for the translation service. """
+    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False): # pylint: disable=R0913
+        self.client = client
+        self.model = model
+        self.bulk_mode = bulk_mode
+        self.fuzzy = fuzzy
+        self.folder_language = folder_language
+
 class TranslationService:
     """ Class to encapsulate translation functionalities. """
 
-    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False):
-        self.client = client
-        self.model = model
+    def __init__(self, config):
+        self.config = config
         self.batch_size = 50
-        self.bulk_mode = bulk_mode
-        self.fuzzy = fuzzy
         self.total_batches = 0
-        self.folder_language = folder_language
 
     def translate_bulk(self, texts, target_language, po_file_path, current_batch):
         """Translates a list of texts in bulk and handles retries."""
@@ -41,11 +46,11 @@ class TranslationService:
 
             while retries:
                 try:
-                    if self.bulk_mode:
+                    if self.config.bulk_mode:
                         logging.info("Translating %s.", batch_info)
                     self.perform_translation(translation_request, translated_texts)
                     break
-                except Exception as e:
+                except Exception as e: # pylint: disable=W0718
                     error_message = f"Error in translating {batch_info}: {e}. Retrying... {retries - 1} attempts left."
                     logging.error(error_message)
                     if retries <= 1:
@@ -59,7 +64,7 @@ class TranslationService:
     def perform_translation(self, translation_request, translated_texts):
         """Performs the translation and updates the results."""
         message = {"role": "user", "content": translation_request}
-        completion = self.client.chat.completions.create(model=self.model, messages=[message])
+        completion = self.config.client.chat.completions.create(model=self.config.model, messages=[message])
         batch_translations = completion.choices[0].message.content.strip().split('\n\n')
         translated_texts.extend(batch_translations)
 
@@ -79,7 +84,7 @@ class TranslationService:
 
             # If language is not in the list, try inferring from any part of the directory
             if not file_lang or file_lang not in languages:
-                if self.folder_language:
+                if self.config.folder_language:
                     folder_parts = po_file_path.split(os.sep)
                     inferred_lang = next((part for part in folder_parts if part in languages), None)
                     logging.info("Attempting to infer language for .po file: %s", po_file_path)
@@ -98,19 +103,19 @@ class TranslationService:
                 texts_to_translate = [
                     entry.msgid
                     for entry in po_file
-                    if not entry.msgstr and entry.msgid and (self.fuzzy or 'fuzzy' not in entry.flags)
+                    if not entry.msgstr and entry.msgid and (self.config.fuzzy or 'fuzzy' not in entry.flags)
                 ]
                 self.process_translations(texts_to_translate, file_lang, po_file, po_file_path)
 
                 po_file.save(po_file_path)
                 logging.info("Finished processing .po file: %s", po_file_path)
-        except Exception as e:
+        except Exception as e: # pylint: disable=W0718
             logging.error("Error processing file %s: %s", po_file_path, e)
 
 
     def process_translations(self, texts, target_language, po_file, po_file_path):
         """Processes translations either in bulk or one by one."""
-        if self.bulk_mode:
+        if self.config.bulk_mode:
             self.translate_in_bulk(texts, target_language, po_file, po_file_path)
         else:
             self.translate_one_by_one(texts, target_language, po_file, po_file_path)
@@ -158,8 +163,11 @@ def main():
     api_key = args.api_key if args.api_key else os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
-    # Initialize the translation service with the client and model
-    translation_service = TranslationService(client, args.model, args.bulk, args.fuzzy, args.folder_language)
+    # Create a configuration object
+    config = TranslationConfig(client, args.model, args.bulk, args.fuzzy, args.folder_language)
+
+    # Initialize the translation service with the configuration object
+    translation_service = TranslationService(config)
 
     # Extract languages
     languages = [lang.strip() for lang in args.lang.split(',')]
