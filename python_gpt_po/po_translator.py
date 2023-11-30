@@ -16,14 +16,16 @@ from openai import OpenAI
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
+
 class TranslationConfig:
     """ Class to hold configuration parameters for the translation service. """
-    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False): # pylint: disable=R0913
+    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False):  # pylint: disable=R0913
         self.client = client
         self.model = model
         self.bulk_mode = bulk_mode
         self.fuzzy = fuzzy
         self.folder_language = folder_language
+
 
 class TranslationService:
     """ Class to encapsulate translation functionalities. """
@@ -50,7 +52,7 @@ class TranslationService:
                         logging.info("Translating %s.", batch_info)
                     self.perform_translation(translation_request, translated_texts)
                     break
-                except Exception as e: # pylint: disable=W0718
+                except Exception as e:  # pylint: disable=W0718
                     error_message = f"Error in translating {batch_info}: {e}. Retrying... {retries - 1} attempts left."
                     logging.error(error_message)
                     if retries <= 1:
@@ -109,9 +111,8 @@ class TranslationService:
 
                 po_file.save(po_file_path)
                 logging.info("Finished processing .po file: %s", po_file_path)
-        except Exception as e: # pylint: disable=W0718
+        except Exception as e:  # pylint: disable=W0718
             logging.error("Error processing file %s: %s", po_file_path, e)
-
 
     def process_translations(self, texts, target_language, po_file, po_file_path):
         """Processes translations either in bulk or one by one."""
@@ -145,6 +146,7 @@ class TranslationService:
             if not translated.startswith("Error in translation"):
                 self.update_po_entry(po_file, original, translated)
 
+
 def main():
     """Main function to parse arguments and initiate processing."""
     parser = argparse.ArgumentParser(description="Scan and process .po files")
@@ -172,6 +174,7 @@ def main():
     # Extract languages
     languages = [lang.strip() for lang in args.lang.split(',')]
     translation_service.scan_and_process_po_files(args.folder, languages)
+
 
 if __name__ == "__main__":
     main()
