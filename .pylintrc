@@ -1,0 +1,8 @@
+[FORMAT]
+max-line-length = 120
+
+[MESSAGES CONTROL]
+disable=C0103,R0903,E1101
+
+[SIMILARITIES]
+ignore-paths=src/customersatisfactionmetrics/migrations

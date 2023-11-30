@@ -1,2 +1,5 @@
-.env
+python-gpt-po/.env
 locale/
+dist/
+*.egg-info/
+__pycache__
