@@ -17,6 +17,8 @@ This Python script provides a convenient tool for translating `.po` files using 
 - `polib` library
 - `openai` Python package
 
+![gpt-po](https://github.com/pescheckit/python-gpt-po/assets/78353155/d76ebc10-b24d-47b3-acef-7c02805faee3)
+
 ## API Key Configuration
 
 The `gpt-po-translator` supports two methods for providing OpenAI API credentials:
