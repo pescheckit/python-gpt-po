@@ -44,8 +44,10 @@ class TranslationService:
             batch_texts = texts[i:i + self.batch_size]
             batch_info = f"File: {po_file_path}, Batch {i}/{self.total_batches}"
             batch_info += f" (texts {i + 1}-{min(i + self.batch_size, len(texts))})"
-            translation_request = (f"Translate the following texts into {target_language} as a single, continuous text. "
-                                "Do not repeat the original texts, just provide the translations:\n\n")
+            translation_request = (f"Translate the following texts into {target_language} as a single, "
+                                   "continuous text. "
+                                   "Do not repeat the original texts, just provide the "
+                                   "translations:\n\n")
             translation_request += "\n\n".join(batch_texts)
             retries = 3
 
@@ -133,7 +135,7 @@ class TranslationService:
 
             po_file.save(po_file_path)
             logging.info("Fuzzy translations disabled in file: %s", po_file_path)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=W0718
             logging.error("Error while disabling fuzzy translations in file %s: %s", po_file_path, e)
 
     def process_translations(self, texts, target_language, po_file, po_file_path):
