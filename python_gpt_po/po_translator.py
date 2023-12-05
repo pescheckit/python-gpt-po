@@ -44,7 +44,8 @@ class TranslationService:
             batch_texts = texts[i:i + self.batch_size]
             batch_info = f"File: {po_file_path}, Batch {i}/{self.total_batches}"
             batch_info += f" (texts {i + 1}-{min(i + self.batch_size, len(texts))})"
-            translation_request = f"Translate the following texts into {target_language}:\n\n"
+            translation_request = (f"Translate the following texts into {target_language} as a single, continuous text. "
+                                "Do not repeat the original texts, just provide the translations:\n\n")
             translation_request += "\n\n".join(batch_texts)
             retries = 3
 
@@ -83,7 +84,7 @@ class TranslationService:
     def process_po_file(self, po_file_path, languages):
         """Processes an individual .po file by removing fuzzy entries if specified."""
         if self.config.fuzzy:
-            self.remove_fuzzy_entries_with_polib(po_file_path)
+            self.disable_fuzzy_translations(po_file_path)
         try:
             po_file = polib.pofile(po_file_path)
             file_lang = po_file.metadata.get('Language', '')
@@ -119,13 +120,21 @@ class TranslationService:
         except Exception as e:  # pylint: disable=W0718
             logging.error("Error processing file %s: %s", po_file_path, e)
 
-    def remove_fuzzy_entries_with_polib(self, po_file_path):
-        """Removes entries marked as 'fuzzy' from a .po file using the polib library."""
-        po_file = polib.pofile(po_file_path)
-        entries_to_remove = [entry for entry in po_file if 'fuzzy' in entry.flags]
-        for entry in entries_to_remove:
-            po_file.remove(entry)
-        po_file.save(po_file_path)
+    def disable_fuzzy_translations(self, po_file_path):
+        """
+        Disables fuzzy translations in a .po file by removing the 'fuzzy' flags from entries.
+        """
+        try:
+            po_file = polib.pofile(po_file_path)
+            fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
+
+            for entry in fuzzy_entries:
+                entry.flags.remove('fuzzy')
+
+            po_file.save(po_file_path)
+            logging.info("Fuzzy translations disabled in file: %s", po_file_path)
+        except Exception as e:
+            logging.error("Error while disabling fuzzy translations in file %s: %s", po_file_path, e)
 
     def process_translations(self, texts, target_language, po_file, po_file_path):
         """Processes translations either in bulk or one by one."""
