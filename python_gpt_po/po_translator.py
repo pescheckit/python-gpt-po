@@ -18,6 +18,8 @@ from python_gpt_po.version import __version__
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
+UNIQUE_DIVIDER = "\n\n--- Translation Divider ---\n\n"
+
 
 class TranslationConfig:
     """ Class to hold configuration parameters for the translation service. """
@@ -44,11 +46,10 @@ class TranslationService:
             batch_texts = texts[i:i + self.batch_size]
             batch_info = f"File: {po_file_path}, Batch {i}/{self.total_batches}"
             batch_info += f" (texts {i + 1}-{min(i + self.batch_size, len(texts))})"
-            translation_request = (f"Translate the following texts into {target_language} as a single, "
-                                   "continuous text. "
-                                   "Do not repeat the original texts, just provide the "
-                                   "translations:\n\n")
-            translation_request += "\n\n".join(batch_texts)
+            translation_request = (f"Translate the following texts into {target_language} as separate segments. "
+                                   f"Use the unique divider '{UNIQUE_DIVIDER.strip()}' between each translation. "
+                                   "Do not repeat the original texts, just provide the translations:\n\n")
+            translation_request += f"{UNIQUE_DIVIDER}".join(batch_texts)
             retries = 3
 
             while retries:
@@ -72,7 +73,7 @@ class TranslationService:
         """Performs the translation and updates the results."""
         message = {"role": "user", "content": translation_request}
         completion = self.config.client.chat.completions.create(model=self.config.model, messages=[message])
-        batch_translations = completion.choices[0].message.content.strip().split('\n\n')
+        batch_translations = completion.choices[0].message.content.strip().split(UNIQUE_DIVIDER)
         translated_texts.extend(batch_translations)
 
     def scan_and_process_po_files(self, input_folder, languages):
