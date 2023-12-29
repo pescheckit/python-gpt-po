@@ -1,3 +1,4 @@
+
 """
 Module docstring: This module provides functionality for translating .po files
 using OpenAI's GPT models. It supports bulk and individual translation modes.
@@ -57,7 +58,7 @@ class TranslationService:
             while retries:
                 try:
                     if self.config.bulk_mode:
-                        logging.info("Translating %s.", batch_info)
+                        logging.info("Translating %s", batch_info)
                     self.perform_translation(translation_request, translated_texts)
                     break
                 except Exception as e:  # pylint: disable=W0718
@@ -72,11 +73,12 @@ class TranslationService:
         return translated_texts
 
     def perform_translation(self, translation_request, translated_texts):
+        """Takes a translation request and appends the translated texts to the translated_texts list."""
         message = {"role": "user", "content": translation_request}
         completion = self.config.client.chat.completions.create(model=self.config.model, messages=[message])
 
         raw_response = completion.choices[0].message.content.strip()
-        logging.info(f"Raw API response: {raw_response}")
+        logging.info("Raw API response: %s", raw_response)
 
         # Processing each line in the response
         for line in raw_response.split("\n"):
@@ -88,9 +90,9 @@ class TranslationService:
                 if translation:
                     translated_texts.append((index, translation))
                 else:
-                    logging.error(f"No translation found for index {index}")
+                    logging.error("No translation found for index %s", index)
             except ValueError:
-                logging.error(f"Error parsing line: '{line}'")
+                logging.error("Error parsing line: '%s'", line)
 
     def scan_and_process_po_files(self, input_folder, languages):
         """Scans and processes .po files in the given input folder."""
@@ -182,7 +184,10 @@ class TranslationService:
             entry.msgstr = translated_text
 
     def apply_translations_to_po_file(self, translated_texts, original_texts, po_file):
-        text_index_map = {i: text for i, text in enumerate(original_texts)}
+        """
+        Applies the translated texts to the .po file.
+        """
+        text_index_map = dict(enumerate(original_texts))
         translation_map = {}
 
         for index, translation in translated_texts:
@@ -190,17 +195,18 @@ class TranslationService:
             if original_text and not translation.lower().startswith("error in translation"):
                 translation_map[original_text] = translation
             else:
-                logging.warning(f"Missing or invalid translation for '{original_text}'")
+                logging.warning("Missing or invalid translation for '%s'", original_text)
 
         for entry in po_file:
             if entry.msgid in translation_map:
                 entry.msgstr = translation_map[entry.msgid]
-                logging.info(f"Applied translation for '{entry.msgid}'")
+                logging.info("Applied translation for '%s'", entry.msgid)
             elif not entry.msgstr:
-                logging.warning(f"No translation applied for '{entry.msgid}'")
+                logging.warning("No translation applied for '%s'", entry.msgid)
 
         po_file.save()
         logging.info("Po file saved.")
+
 
 def main():
     """Main function to parse arguments and initiate processing."""
