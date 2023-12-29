@@ -46,10 +46,12 @@ class TranslationService:
             batch_texts = texts[i:i + self.batch_size]
             batch_info = f"File: {po_file_path}, Batch {i}/{self.total_batches}"
             batch_info += f" (texts {i + 1}-{min(i + self.batch_size, len(texts))})"
-            translation_request = (f"Translate the following texts into {target_language} as separate segments. "
-                                   f"Use the unique divider '{UNIQUE_DIVIDER.strip()}' between each translation. "
-                                   "Do not repeat the original texts, just provide the translations:\n\n")
-            translation_request += f"{UNIQUE_DIVIDER}".join(batch_texts)
+            translation_request = (f"Please translate the following texts from English into {target_language}. "
+                                   "Keep the translations concise and preserve the original meaning. "
+                                   "Use the format 'Index: Translation' for each segment:\n\n")
+            for index, text in enumerate(batch_texts):
+                translation_request += f"{i*self.batch_size + index}: {text}\n"
+
             retries = 3
 
             while retries:
@@ -70,11 +72,25 @@ class TranslationService:
         return translated_texts
 
     def perform_translation(self, translation_request, translated_texts):
-        """Performs the translation and updates the results."""
         message = {"role": "user", "content": translation_request}
         completion = self.config.client.chat.completions.create(model=self.config.model, messages=[message])
-        batch_translations = completion.choices[0].message.content.strip().split(UNIQUE_DIVIDER)
-        translated_texts.extend(batch_translations)
+
+        raw_response = completion.choices[0].message.content.strip()
+        logging.info(f"Raw API response: {raw_response}")
+
+        # Processing each line in the response
+        for line in raw_response.split("\n"):
+            try:
+                # Attempt to split the line into index and translation
+                index_str, translation = line.split(": ", 1)
+                index = int(index_str.strip())
+                translation = translation.strip()
+                if translation:
+                    translated_texts.append((index, translation))
+                else:
+                    logging.error(f"No translation found for index {index}")
+            except ValueError:
+                logging.error(f"Error parsing line: '{line}'")
 
     def scan_and_process_po_files(self, input_folder, languages):
         """Scans and processes .po files in the given input folder."""
@@ -166,11 +182,25 @@ class TranslationService:
             entry.msgstr = translated_text
 
     def apply_translations_to_po_file(self, translated_texts, original_texts, po_file):
-        """Applies the list of translations to the corresponding .po file entries."""
-        for original, translated in zip(original_texts, translated_texts):
-            if not translated.startswith("Error in translation"):
-                self.update_po_entry(po_file, original, translated)
+        text_index_map = {i: text for i, text in enumerate(original_texts)}
+        translation_map = {}
 
+        for index, translation in translated_texts:
+            original_text = text_index_map.get(index)
+            if original_text and not translation.lower().startswith("error in translation"):
+                translation_map[original_text] = translation
+            else:
+                logging.warning(f"Missing or invalid translation for '{original_text}'")
+
+        for entry in po_file:
+            if entry.msgid in translation_map:
+                entry.msgstr = translation_map[entry.msgid]
+                logging.info(f"Applied translation for '{entry.msgid}'")
+            elif not entry.msgstr:
+                logging.warning(f"No translation applied for '{entry.msgid}'")
+
+        po_file.save()
+        logging.info("Po file saved.")
 
 def main():
     """Main function to parse arguments and initiate processing."""
