@@ -51,7 +51,7 @@ class TranslationService:
                                    "Keep the translations concise and preserve the original meaning. "
                                    "Use the format 'Index: Translation' for each segment:\n\n")
             for index, text in enumerate(batch_texts):
-                translation_request += f"{i*self.batch_size + index}: {text}\n"
+                translation_request += f"{i * self.batch_size + index}: {text}\n"
 
             retries = 3
 
