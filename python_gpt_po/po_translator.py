@@ -19,8 +19,6 @@ from python_gpt_po.version import __version__
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-UNIQUE_DIVIDER = "\n\n--- Translation Divider ---\n\n"
-
 
 class TranslationConfig:
     """ Class to hold configuration parameters for the translation service. """
@@ -48,10 +46,9 @@ class TranslationService:
             batch_info = f"File: {po_file_path}, Batch {i}/{self.total_batches}"
             batch_info += f" (texts {i + 1}-{min(i + self.batch_size, len(texts))})"
             translation_request = (f"Please translate the following texts from English into {target_language}. "
-                                   "Keep the translations concise and preserve the original meaning. "
-                                   "Use the format 'Index: Translation' for each segment:\n\n")
-            for index, text in enumerate(batch_texts):
-                translation_request += f"{i * self.batch_size + index}: {text}\n"
+                                   "Use the format 'Index: Text' for each segment:\n\n")
+            for index, text in enumerate(batch_texts, start=i * self.batch_size):
+                translation_request += f"{index}: {text}\n"
 
             retries = 3
 
@@ -83,7 +80,6 @@ class TranslationService:
         # Processing each line in the response
         for line in raw_response.split("\n"):
             try:
-                # Attempt to split the line into index and translation
                 index_str, translation = line.split(": ", 1)
                 index = int(index_str.strip())
                 translation = translation.strip()
@@ -192,10 +188,10 @@ class TranslationService:
 
         for index, translation in translated_texts:
             original_text = text_index_map.get(index)
-            if original_text and not translation.lower().startswith("error in translation"):
-                translation_map[original_text] = translation
+            if original_text:
+                self.update_po_entry(po_file, original_text, translation)
             else:
-                logging.warning("Missing or invalid translation for '%s'", original_text)
+                logging.warning("No original text found for index %s", index)
 
         for entry in po_file:
             if entry.msgid in translation_map:
