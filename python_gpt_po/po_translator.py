@@ -1,8 +1,7 @@
+"""
+GPT Translator
+"""
 
-"""
-Module docstring: This module provides functionality for translating .po files
-using OpenAI's GPT models. It supports bulk and individual translation modes.
-"""
 
 import argparse
 import logging
@@ -38,6 +37,17 @@ class TranslationService:
         self.batch_size = 50
         self.total_batches = 0
 
+    def validate_openai_connection(self):
+        """Validates the OpenAI connection by making a test API call."""
+        try:
+            test_message = {"role": "system", "content": "Test message to validate connection."}
+            self.config.client.chat.completions.create(model=self.config.model, messages=[test_message])
+            logging.info("OpenAI connection validated successfully.")
+            return True
+        except Exception as e:  # pylint: disable=W0718
+            logging.error("Failed to validate OpenAI connection: %s", e)
+            return False
+
     def translate_bulk(self, texts, target_language, po_file_path, current_batch):
         """Translates a list of texts in bulk and handles retries."""
         translated_texts = []
@@ -56,20 +66,20 @@ class TranslationService:
                 try:
                     if self.config.bulk_mode:
                         logging.info("Translating %s", batch_info)
-                    self.perform_translation(translation_request, translated_texts)
+                    self.perform_translation(translation_request, translated_texts, batch=True)
                     break
                 except Exception as e:  # pylint: disable=W0718
                     error_message = f"Error in translating {batch_info}: {e}. Retrying... {retries - 1} attempts left."
                     logging.error(error_message)
                     if retries <= 1:
                         logging.error("Maximum retries reached for %s. Skipping this batch.", batch_info)
-                        translated_texts.extend(['Error in translation'] * len(batch_texts))
+                        translated_texts.extend([''] * len(batch_texts))
                     retries -= 1
                     time.sleep(1)
 
         return translated_texts
 
-    def perform_translation(self, translation_request, translated_texts):
+    def perform_translation(self, translation_request, translated_texts, batch=False):
         """Takes a translation request and appends the translated texts to the translated_texts list."""
         message = {"role": "user", "content": translation_request}
         completion = self.config.client.chat.completions.create(model=self.config.model, messages=[message])
@@ -78,17 +88,27 @@ class TranslationService:
         logging.info("Raw API response: %s", raw_response)
 
         # Processing each line in the response
-        for line in raw_response.split("\n"):
-            try:
-                index_str, translation = line.split(": ", 1)
-                index = int(index_str.strip())
-                translation = translation.strip()
-                if translation:
-                    translated_texts.append((index, translation))
-                else:
-                    logging.error("No translation found for index %s", index)
-            except ValueError:
-                logging.error("Error parsing line: '%s'", line)
+        if batch:
+            for line in raw_response.split("\n"):
+                try:
+                    index_str, translation = line.split(": ", 1)
+                    index = int(index_str.strip())
+                    translation = translation.strip()
+                    if translation and not translation.startswith("The provided text does not seem to be"):
+                        translated_texts.append((index, translation))
+                    else:
+                        logging.error("No valid translation found for index %s", index)
+                        translated_texts.append((index, ''))
+                except ValueError:  # pylint: disable=W0718
+                    logging.error("Error parsing line: '%s'", line)
+                    translated_texts.append((index, ''))
+        else:
+            # Single translation case
+            if not raw_response.startswith("The provided text does not seem to be"):
+                translated_texts.append((0, raw_response))
+            else:
+                logging.error("No valid translation found for text")
+                translated_texts.append((0, ''))
 
     def scan_and_process_po_files(self, input_folder, languages):
         """Scans and processes .po files in the given input folder."""
@@ -170,8 +190,14 @@ class TranslationService:
         """Translates texts one by one and updates the .po file."""
         for index, text in enumerate(texts):
             logging.info("Translating text %s/%s in file %s", (index + 1), len(texts), po_file_path)
-            translated_text = self.translate_bulk([text], target_language, po_file_path, index)[0]
-            self.apply_translations_to_po_file(translated_text, texts, po_file)
+            translation_request = f"Please translate the following text from English into {target_language}: {text}"
+            translated_texts = []
+            self.perform_translation(translation_request, translated_texts, batch=False)
+            if translated_texts:
+                translated_text = translated_texts[0][1]
+                self.update_po_entry(po_file, text, translated_text)
+            else:
+                logging.error("No translation returned for text: %s", text)
 
     def update_po_entry(self, po_file, original_text, translated_text):
         """Updates a .po file entry with the translated text."""
@@ -228,6 +254,11 @@ def main():
 
     # Initialize the translation service with the configuration object
     translation_service = TranslationService(config)
+
+    # Validate the OpenAI connection
+    if not translation_service.validate_openai_connection():
+        logging.error("OpenAI connection failed. Please check your API key and network connection.")
+        return
 
     # Extract languages
     languages = [lang.strip() for lang in args.lang.split(',')]
