@@ -1,13 +1,18 @@
-# python_gpt_po/tests/test_po_translator.py
+"""
+This module contains unit tests for the PO Translator.
+"""
 
-import os
-import polib
+from unittest.mock import MagicMock
 import pytest
-from unittest.mock import patch, MagicMock
+import polib
 from python_gpt_po.po_translator import TranslationConfig, TranslationService
 
-@pytest.fixture
-def mock_openai_client():
+
+@pytest.fixture(name='mock_openai_client')
+def fixture_mock_openai_client():
+    """
+    Fixture to mock the OpenAI client.
+    """
     client = MagicMock()
     client.chat.completions.create.return_value.choices[0].message.content = (
         "0: HR\n"
@@ -30,8 +35,12 @@ def mock_openai_client():
     )
     return client
 
-@pytest.fixture
-def translation_config(mock_openai_client):
+
+@pytest.fixture(name='translation_config')
+def fixture_translation_config(mock_openai_client):
+    """
+    Fixture to create a TranslationConfig instance.
+    """
     model = "gpt-3.5-turbo-1106"
     return TranslationConfig(
         client=mock_openai_client,
@@ -41,14 +50,26 @@ def translation_config(mock_openai_client):
         folder_language=False
     )
 
-@pytest.fixture
-def translation_service(translation_config):
+
+@pytest.fixture(name='translation_service')
+def fixture_translation_service(translation_config):
+    """
+    Fixture to create a TranslationService instance.
+    """
     return TranslationService(config=translation_config)
 
+
 def test_validate_openai_connection(translation_service):
-    assert translation_service.validate_openai_connection() == True
+    """
+    Test to validate the OpenAI connection.
+    """
+    assert translation_service.validate_openai_connection() is True
+
 
 def test_translate_bulk(translation_service, tmp_path):
+    """
+    Test the bulk translation functionality.
+    """
     # Create a temporary .po file
     po_file_path = tmp_path / "django.po"
     po_file_content = '''msgid ""
