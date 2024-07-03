@@ -3,8 +3,10 @@ This module contains unit tests for the PO Translator.
 """
 
 from unittest.mock import MagicMock
-import pytest
+
 import polib
+import pytest
+
 from python_gpt_po.po_translator import TranslationConfig, TranslationService
 
 
