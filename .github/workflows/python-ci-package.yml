@@ -40,8 +40,31 @@ jobs:
         run: |
           ruff $(git ls-files '*.py')
 
-  deploy:
+  test:
     needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install Pip
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          pytest python_gpt_po/tests/test_po_translator.py
+
+  deploy:
+    needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
     environment: release

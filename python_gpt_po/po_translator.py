@@ -77,17 +77,18 @@ class TranslationService:
                     retries -= 1
                     time.sleep(1)
 
+        logging.debug("Translated texts: %s", translated_texts)
         return translated_texts
 
     def perform_translation(self, translation_request, translated_texts, batch=False):
         """Takes a translation request and appends the translated texts to the translated_texts list."""
         message = {"role": "user", "content": translation_request}
+        logging.debug("Translation request: %s", translation_request)
         completion = self.config.client.chat.completions.create(model=self.config.model, messages=[message])
 
         raw_response = completion.choices[0].message.content.strip()
         logging.info("Raw API response: %s", raw_response)
 
-        # Processing each line in the response
         if batch:
             for line in raw_response.split("\n"):
                 try:
@@ -103,7 +104,6 @@ class TranslationService:
                     logging.error("Error parsing line: '%s'", line)
                     translated_texts.append((index, ''))
         else:
-            # Single translation case
             if not raw_response.startswith("The provided text does not seem to be"):
                 translated_texts.append((0, raw_response))
             else:
