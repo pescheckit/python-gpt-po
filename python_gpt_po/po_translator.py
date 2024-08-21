@@ -4,14 +4,14 @@ GPT Translator
 
 
 import argparse
+import json
 import logging
 import os
-import json
-from tenacity import retry, stop_after_attempt, wait_fixed
 
 import polib
 from dotenv import load_dotenv
 from openai import OpenAI
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 from python_gpt_po.version import __version__
 

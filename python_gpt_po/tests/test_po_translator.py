@@ -2,13 +2,12 @@
 This module contains unit tests for the PO Translator.
 """
 
+import logging
 from unittest.mock import MagicMock, patch
 
-import polib
 import pytest
-import logging
 
-from python_gpt_po.po_translator import TranslationConfig, TranslationService, POFileHandler
+from python_gpt_po.po_translator import POFileHandler, TranslationConfig, TranslationService
 
 logging.basicConfig(level=logging.INFO)
 
@@ -87,14 +86,14 @@ msgid "HEALTHCARE"
 msgstr ""
 '''
     po_file_path.write_text(po_file_content)
-    
+
     # Mock POFileHandler methods
     mock_po_file_handler = mock_po_file_handler_class.return_value
     mock_po_file_handler.get_file_language.return_value = 'es'
-    
+
     # Explicitly setting fuzzy=True to trigger the function
     translation_service.config.fuzzy = True
-    
+
     # Process the .po file
     translation_service.process_po_file(str(po_file_path), ['es'])
 
@@ -105,12 +104,12 @@ def test_translate_bulk(translation_service, tmp_path):
     """
     texts_to_translate = ["HR", "TENANT", "HEALTHCARE", "TRANSPORT", "SERVICES"]
     po_file_path = str(tmp_path / "django.po")
-    
+
     # Mock the response to return a list of translations, as expected by the translation function
     translation_service.config.client.chat.completions.create.return_value.choices[0].message.content = (
         '["HR", "Inquilino", "Salud", "Transporte", "Servicios"]'
     )
-    
+
     translated_texts = translation_service.translate_bulk(texts_to_translate, 'es', po_file_path)
 
     # Since the response is a list, you should assert against the list items
@@ -122,10 +121,10 @@ def test_translate_single(translation_service):
     Test the single translation functionality.
     """
     text_to_translate = "HEALTHCARE"
-    
+
     # Mock the response to return a single translation string
     translation_service.config.client.chat.completions.create.return_value.choices[0].message.content = 'Salud'
-    
+
     translated_text = translation_service.translate_single(text_to_translate, 'es')
 
     assert translated_text == "Salud"
