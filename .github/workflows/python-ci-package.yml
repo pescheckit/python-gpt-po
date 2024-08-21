@@ -2,6 +2,10 @@ name: Python Package CI
 
 on:
   push:
+    branches:
+      - main
+    tags:
+      - '*'
   release:
     types: [published]
 
@@ -62,7 +66,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
     environment: release
     steps:
       - uses: actions/checkout@v4

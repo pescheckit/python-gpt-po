@@ -3,3 +3,4 @@ openai==v1.42.0
 python-dotenv==1.0.0
 pytest==8.2.2
 tenacity==9.0.0
+setuptools-scm==8.1.0
