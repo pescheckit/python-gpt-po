@@ -30,28 +30,28 @@ class POFileHandler:
             # Read the file content
             with open(po_file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
-            
+
             # Remove fuzzy markers from the content
             content = content.replace('#, fuzzy\n', '')
-            
+
             # Write the updated content back to the file
             with open(po_file_path, 'w', encoding='utf-8') as file:
                 file.write(content)
-            
+
             # Load the .po file and remove fuzzy flags from entries
             po_file = polib.pofile(po_file_path)
             fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
             for entry in fuzzy_entries:
                 entry.flags.remove('fuzzy')
-            
+
             # Remove 'Fuzzy' from the metadata if present
             if po_file.metadata:
                 po_file.metadata.pop('Fuzzy', None)
-            
+
             # Save the updated .po file
             po_file.save(po_file_path)
             logging.info("Fuzzy translations disabled in file: %s", po_file_path)
-        
+
         except Exception as e:
             logging.error("Error while disabling fuzzy translations in file %s: %s", po_file_path, e)
 
@@ -76,7 +76,7 @@ class POFileHandler:
         """Logs the status of translations for a .po file."""
         total = len(original_texts)
         translated = sum(1 for t in translations if t)
-        
+
         # Log a warning if there are untranslated texts
         if translated < total:
             logging.warning(
@@ -233,7 +233,7 @@ class TranslationService:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def perform_translation(self, texts, target_language, is_bulk=False):
         """Performs the actual translation using the OpenAI API."""
-        logging.info(f"Performing translation to: {target_language}")  # Log the target language
+        logging.debug("Performing translation to: %s", target_language)  # Log the target language
         prompt = self.get_translation_prompt(target_language, is_bulk)
         message = {
             "role": "user",
