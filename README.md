@@ -69,7 +69,7 @@ gpt-po-translator --folder [path_to_po_files] --lang [language_codes] [--api_key
 ### Example
 
 ```
-gpt-po-translator --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 100 --folder-language
+gpt-po-translator --folder ./locales --lang de,fr --api_key 'your_api_key_here' --bulk --bulksize 40 --folder-language
 ```
 
 This command translates `.po` files in the `./locales` folder to German and French, using the provided OpenAI API key, and processes 100 translations per batch in bulk mode.

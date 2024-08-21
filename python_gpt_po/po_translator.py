@@ -27,29 +27,44 @@ class POFileHandler:
     def disable_fuzzy_translations(po_file_path):
         """Disables fuzzy translations in a .po file."""
         try:
+            # Read the file content
             with open(po_file_path, 'r', encoding='utf-8') as file:
                 content = file.read()
+            
+            # Remove fuzzy markers from the content
             content = content.replace('#, fuzzy\n', '')
+            
+            # Write the updated content back to the file
             with open(po_file_path, 'w', encoding='utf-8') as file:
                 file.write(content)
+            
+            # Load the .po file and remove fuzzy flags from entries
             po_file = polib.pofile(po_file_path)
             fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
             for entry in fuzzy_entries:
                 entry.flags.remove('fuzzy')
+            
+            # Remove 'Fuzzy' from the metadata if present
             if po_file.metadata:
                 po_file.metadata.pop('Fuzzy', None)
+            
+            # Save the updated .po file
             po_file.save(po_file_path)
             logging.info("Fuzzy translations disabled in file: %s", po_file_path)
+        
         except Exception as e:
             logging.error("Error while disabling fuzzy translations in file %s: %s", po_file_path, e)
 
     @staticmethod
     def get_file_language(po_file_path, po_file, languages, folder_language):
         """Determines the language for a .po file."""
+        # Attempt to get language from the file metadata first
         file_lang = po_file.metadata.get('Language', '')
+
+        # If the file's language is not valid, infer it from the folder structure
         if not file_lang or file_lang not in languages:
             if folder_language:
-                inferred_lang = next((part for part in po_file_path.split('/') if part in languages), None)
+                inferred_lang = next((part for part in po_file_path.split(os.sep) if part in languages), None)
                 if inferred_lang:
                     logging.info("Inferred language for .po file: %s as %s", po_file_path, inferred_lang)
                     return inferred_lang
@@ -61,6 +76,8 @@ class POFileHandler:
         """Logs the status of translations for a .po file."""
         total = len(original_texts)
         translated = sum(1 for t in translations if t)
+        
+        # Log a warning if there are untranslated texts
         if translated < total:
             logging.warning(
                 "File: %s - %s/%s texts translated. Some translations are missing.",
@@ -78,6 +95,9 @@ class POFileHandler:
         entry = po_file.find(original_text)
         if entry:
             entry.msgstr = translated_text
+            logging.debug("Updated translation for '%s' to '%s'", original_text, translated_text)
+        else:
+            logging.warning("Original text '%s' not found in the .po file.", original_text)
 
 
 class TranslationConfig:
@@ -213,6 +233,7 @@ class TranslationService:
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def perform_translation(self, texts, target_language, is_bulk=False):
         """Performs the actual translation using the OpenAI API."""
+        logging.info(f"Performing translation to: {target_language}")  # Log the target language
         prompt = self.get_translation_prompt(target_language, is_bulk)
         message = {
             "role": "user",
@@ -305,11 +326,19 @@ class TranslationService:
             if not po_file:
                 return
 
-            texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-            translations = self.get_translations(texts_to_translate, po_file.metadata['Language'], po_file_path)
+            # Use file_lang obtained from get_file_language method
+            file_lang = self.po_file_handler.get_file_language(
+                po_file_path,
+                po_file,
+                languages,
+                self.config.folder_language
+            )
 
-            self._update_po_entries(po_file, translations)
-            self._handle_untranslated_entries(po_file)
+            texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip() and entry.msgid]
+            translations = self.get_translations(texts_to_translate, file_lang, po_file_path)
+
+            self._update_po_entries(po_file, translations, file_lang)
+            self._handle_untranslated_entries(po_file, file_lang)
 
             po_file.save(po_file_path)
             self.po_file_handler.log_translation_status(
@@ -344,14 +373,14 @@ class TranslationService:
             return self.translate_bulk(texts, target_language, po_file_path)
         return [self.translate_single(text, target_language) for text in texts]
 
-    def _update_po_entries(self, po_file, translations):
+    def _update_po_entries(self, po_file, translations, target_language):
         """Updates the .po file entries with the provided translations."""
         for entry, translation in zip((e for e in po_file if not e.msgstr.strip()), translations):
             if translation.strip():
                 self.po_file_handler.update_po_entry(po_file, entry.msgid, translation)
                 logging.info("Translated '%s' to '%s'", entry.msgid, translation)
             else:
-                self._handle_empty_translation(entry, po_file.metadata['Language'])
+                self._handle_empty_translation(entry, target_language)
 
     def _handle_empty_translation(self, entry, target_language):
         """Handles cases where the initial translation is empty."""
@@ -367,12 +396,12 @@ class TranslationService:
         else:
             logging.error("Failed to translate '%s' after individual attempt.", entry.msgid)
 
-    def _handle_untranslated_entries(self, po_file):
+    def _handle_untranslated_entries(self, po_file, target_language):
         """Handles any remaining untranslated entries in the .po file."""
         for entry in po_file:
             if not entry.msgstr.strip() and entry.msgid:
                 logging.warning("Untranslated entry found: '%s'. Attempting final translation.", entry.msgid)
-                final_translation = self.translate_single(entry.msgid, po_file.metadata['Language'])
+                final_translation = self.translate_single(entry.msgid, target_language)
                 if final_translation.strip():
                     self.po_file_handler.update_po_entry(po_file, entry.msgid, final_translation)
                     logging.info(
@@ -452,7 +481,7 @@ def main():
     parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")
     parser.add_argument("--bulk", action="store_true", help="Use bulk translation mode")
     parser.add_argument("--bulksize", type=int, default=50, help="Batch size for bulk translation")
-    parser.add_argument("--model", default="gpt-3.5-turbo-1106", help="OpenAI model to use for translations")
+    parser.add_argument("--model", default="gpt-3.5-turbo-0125", help="OpenAI model to use for translations")
     parser.add_argument("--api_key", help="OpenAI API key")
     parser.add_argument("--folder-language", action="store_true", help="Set language from directory structure")
 
