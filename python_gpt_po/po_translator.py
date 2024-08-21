@@ -93,9 +93,9 @@ class TranslationConfig:
 class TranslationService:
     """ Class to encapsulate translation functionalities. """
 
-    def __init__(self, config):
+    def __init__(self, config, batch_size=40):
         self.config = config
-        self.batch_size = 40  # Adjust this value based on your needs and API limits
+        self.batch_size = batch_size  # Use the bulk size provided by the user
         self.total_batches = 0
         self.po_file_handler = POFileHandler()
 
@@ -466,7 +466,7 @@ def main():
     config = TranslationConfig(client, args.model, args.bulk, args.fuzzy, args.folder_language)
 
     # Initialize the translation service with the configuration object
-    translation_service = TranslationService(config)
+    translation_service = TranslationService(config, args.bulksize)
 
     # Validate the OpenAI connection
     if not translation_service.validate_openai_connection():
