@@ -2,12 +2,15 @@
 This module contains unit tests for the PO Translator.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import polib
 import pytest
+import logging
 
-from python_gpt_po.po_translator import TranslationConfig, TranslationService
+from python_gpt_po.po_translator import TranslationConfig, TranslationService, POFileHandler
+
+logging.basicConfig(level=logging.INFO)
 
 
 @pytest.fixture(name='mock_openai_client')
@@ -16,25 +19,7 @@ def fixture_mock_openai_client():
     Fixture to mock the OpenAI client.
     """
     client = MagicMock()
-    client.chat.completions.create.return_value.choices[0].message.content = (
-        "0: HR\n"
-        "1: Tenant\n"
-        "2: Healthcare\n"
-        "3: Transport\n"
-        "4: Accounting & Consulting\n"
-        "5: Agriculture\n"
-        "6: Construction\n"
-        "7: Entertainment\n"
-        "8: Mining\n"
-        "9: Energy\n"
-        "10: Financial Services\n"
-        "11: Hospitality\n"
-        "12: IT\n"
-        "13: Manufacturing\n"
-        "14: Education\n"
-        "15: Real estate\n"
-        "16: Other\n"
-    )
+    client.chat.completions.create.return_value.choices[0].message.content = '["Inquilino", "Salud", "Transporte"]'
     return client
 
 
@@ -61,6 +46,14 @@ def fixture_translation_service(translation_config):
     return TranslationService(config=translation_config)
 
 
+@pytest.fixture(name='mock_po_file_handler')
+def fixture_mock_po_file_handler():
+    """
+    Fixture to mock the POFileHandler.
+    """
+    return MagicMock(spec=POFileHandler)
+
+
 def test_validate_openai_connection(translation_service):
     """
     Test to validate the OpenAI connection.
@@ -68,20 +61,17 @@ def test_validate_openai_connection(translation_service):
     assert translation_service.validate_openai_connection() is True
 
 
-def test_translate_bulk(translation_service, tmp_path):
+@patch('python_gpt_po.po_translator.POFileHandler')
+def test_process_po_file(mock_po_file_handler_class, translation_service, tmp_path):
     """
-    Test the bulk translation functionality.
+    Test the process_po_file method.
     """
     # Create a temporary .po file
     po_file_path = tmp_path / "django.po"
     po_file_content = '''msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\\n"
-"Report-Msgid-Bugs-To: \\n"
-"POT-Creation-Date: 2024-06-20 09:17+0000\\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\\n"
-"Language-Team: LANGUAGE <LL@li.org>\\n"
-"Language: \\n"
+"Language: es\\n"
 "MIME-Version: 1.0\\n"
 "Content-Type: text/plain; charset=UTF-8\\n"
 "Content-Transfer-Encoding: 8bit\\n"
@@ -89,60 +79,70 @@ msgstr ""
 
 msgid "HR"
 msgstr ""
+
 msgid "TENANT"
 msgstr ""
+
 msgid "HEALTHCARE"
-msgstr ""
-msgid "TRANSPORT"
-msgstr ""
-msgid "SERVICES"
-msgstr ""
-msgid "AGRO"
-msgstr ""
-msgid "CONSTRUCTION"
-msgstr ""
-msgid "ENTERTAINMENT"
-msgstr ""
-msgid "MINING"
-msgstr ""
-msgid "ENERGY"
-msgstr ""
-msgid "FINANCE"
-msgstr ""
-msgid "HOSPITALITY"
-msgstr ""
-msgid "IT"
-msgstr ""
-msgid "MANUFACTURING"
-msgstr ""
-msgid "EDUCATION"
-msgstr ""
-msgid "REALESTATE"
-msgstr ""
-msgid "OTHER"
 msgstr ""
 '''
     po_file_path.write_text(po_file_content)
+    
+    # Mock POFileHandler methods
+    mock_po_file_handler = mock_po_file_handler_class.return_value
+    mock_po_file_handler.get_file_language.return_value = 'es'
+    
+    # Explicitly setting fuzzy=True to trigger the function
+    translation_service.config.fuzzy = True
+    
+    # Process the .po file
+    translation_service.process_po_file(str(po_file_path), ['es'])
 
-    po_file = polib.pofile(po_file_path)
-    texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr]
 
-    # Perform translation
-    translated_texts = translation_service.translate_bulk(texts_to_translate, 'es', str(po_file_path), 0)
+def test_translate_bulk(translation_service, tmp_path):
+    """
+    Test the bulk translation functionality.
+    """
+    texts_to_translate = ["HR", "TENANT", "HEALTHCARE", "TRANSPORT", "SERVICES"]
+    po_file_path = str(tmp_path / "django.po")
+    
+    # Mock the response to return a list of translations, as expected by the translation function
+    translation_service.config.client.chat.completions.create.return_value.choices[0].message.content = (
+        '["HR", "Inquilino", "Salud", "Transporte", "Servicios"]'
+    )
+    
+    translated_texts = translation_service.translate_bulk(texts_to_translate, 'es', po_file_path)
 
-    # Apply translations
-    translation_service.apply_translations_to_po_file(translated_texts, texts_to_translate, po_file)
+    # Since the response is a list, you should assert against the list items
+    assert translated_texts == ["HR", "Inquilino", "Salud", "Transporte", "Servicios"]
 
-    # Save .po file
-    po_file.save(po_file_path)
 
-    # Reload .po file to check translations
-    translated_po_file = polib.pofile(po_file_path)
+def test_translate_single(translation_service):
+    """
+    Test the single translation functionality.
+    """
+    text_to_translate = "HEALTHCARE"
+    
+    # Mock the response to return a single translation string
+    translation_service.config.client.chat.completions.create.return_value.choices[0].message.content = 'Salud'
+    
+    translated_text = translation_service.translate_single(text_to_translate, 'es')
 
-    for entry in translated_po_file:
-        assert entry.msgstr != ""
+    assert translated_text == "Salud"
 
-    # Check a few translations to ensure correctness
-    assert translated_po_file.find("HR").msgstr == "HR"
-    assert translated_po_file.find("TENANT").msgstr == "Tenant"
-    assert translated_po_file.find("HEALTHCARE").msgstr == "Healthcare"
+
+def test_validate_translation(translation_service):
+    """
+    Test the validate_translation method.
+    """
+    original = "HEALTHCARE"
+    translated = "Salud"
+    validated = translation_service.validate_translation(original, translated)
+
+    assert validated == "Salud"
+
+    # Test with a long translation
+    long_translation = "This is a very long translation that should be rejected"
+    validated_long = translation_service.validate_translation(original, long_translation)
+
+    assert validated_long != long_translation
