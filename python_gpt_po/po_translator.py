@@ -79,6 +79,7 @@ class POFileHandler:
         if entry:
             entry.msgstr = translated_text
 
+
 class TranslationConfig:
     """ Class to hold configuration parameters for the translation service. """
     def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False):  # pylint: disable=R0913
@@ -475,6 +476,7 @@ def main():
     # Extract languages
     languages = [lang.strip() for lang in args.lang.split(',')]
     translation_service.scan_and_process_po_files(args.folder, languages)
+
 
 if __name__ == "__main__":
     main()
