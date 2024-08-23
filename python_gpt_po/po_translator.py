@@ -11,9 +11,9 @@ import os
 import polib
 from dotenv import load_dotenv
 from openai import OpenAI
+from pkg_resources import DistributionNotFound, get_distribution
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-from python_gpt_po.version import __version__
 
 # Initialize environment variables and logging
 load_dotenv()
@@ -473,9 +473,14 @@ class TranslationService:
 
 
 def main():
+    try:
+        package_version = get_distribution("gpt-po-translator").version
+    except DistributionNotFound:
+        package_version = "0.0.0"  # Default version if the package is not found (e.g., during development)
+
     """Main function to parse arguments and initiate processing."""
     parser = argparse.ArgumentParser(description="Scan and process .po files")
-    parser.add_argument("--version", action="version", version=f'%(prog)s {__version__}')
+    parser.add_argument("--version", action="version", version=f'%(prog)s {package_version}')
     parser.add_argument("--folder", required=True, help="Input folder containing .po files")
     parser.add_argument("--lang", required=True, help="Comma-separated language codes to filter .po files")
     parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")
