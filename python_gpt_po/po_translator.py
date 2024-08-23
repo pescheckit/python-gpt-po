@@ -473,12 +473,13 @@ class TranslationService:
 
 
 def main():
+    """Main function to parse arguments and initiate processing."""
+    
     try:
         package_version = get_distribution("gpt-po-translator").version
     except DistributionNotFound:
         package_version = "0.0.0"  # Default version if the package is not found (e.g., during development)
 
-    """Main function to parse arguments and initiate processing."""
     parser = argparse.ArgumentParser(description="Scan and process .po files")
     parser.add_argument("--version", action="version", version=f'%(prog)s {package_version}')
     parser.add_argument("--folder", required=True, help="Input folder containing .po files")
