@@ -14,7 +14,6 @@ from openai import OpenAI
 from pkg_resources import DistributionNotFound, get_distribution
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-
 # Initialize environment variables and logging
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
