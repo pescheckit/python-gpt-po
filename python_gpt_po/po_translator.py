@@ -474,7 +474,7 @@ class TranslationService:
 
 def main():
     """Main function to parse arguments and initiate processing."""
-    
+
     try:
         package_version = get_distribution("gpt-po-translator").version
     except DistributionNotFound:
