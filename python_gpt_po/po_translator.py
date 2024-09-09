@@ -185,18 +185,18 @@ class TranslationService:
         """Performs translation without validation for single words or short phrases."""
         # Use the detailed language name if provided, otherwise use the short code
         target_lang_text = detail_language if detail_language else target_language
-        
+
         prompt = (
             f"Translate this single word or short phrase from English to {target_lang_text}. "
             "Return only the direct translation without any explanation, additional text, or repetition. "
             "If the word should not be translated (like technical terms or names), return it unchanged:\n"
         )
-        
+
         message = {
             "role": "user",
             "content": prompt + text
         }
-        
+
         try:
             completion = self.config.client.chat.completions.create(
                 model=self.config.model,
@@ -226,7 +226,7 @@ class TranslationService:
         """Returns the appropriate translation prompt based on the translation mode."""
         # Use detailed language if provided, otherwise use the short target language code
         target_lang_text = detail_language if detail_language else target_language
-        
+
         if is_bulk:
             return (
                 f"Translate the following list of texts from English to {target_lang_text}. "
@@ -467,7 +467,7 @@ def main():
     # Ensure if --detail-lang is provided, its length matches --lang
     if args.detail_lang:
         detail_langs = args.detail_lang.split(',')
-        
+
         if len(lang_codes) != len(detail_langs):
             raise ValueError("The number of languages in --lang and --detail-lang must match.")
     else:
