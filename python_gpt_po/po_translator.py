@@ -411,64 +411,12 @@ class TranslationService:
                 else:
                     logging.error("Failed to translate '%s' after final attempt.", entry.msgid)
 
-    def translate_in_bulk(self, texts, target_language, po_file, po_file_path):
-        """Translates texts in bulk and applies them to the .po file."""
-        self.total_batches = (len(texts) - 1) // 50 + 1
-        translated_texts = self.translate_bulk(texts, target_language, po_file_path)
-        self.apply_translations_to_po_file(translated_texts, texts, po_file)
-
-    def process_translations(self, texts, target_language, po_file, po_file_path):
-        """Processes translations either in bulk or one by one."""
-        if self.config.bulk_mode:
-            self.translate_in_bulk(texts, target_language, po_file, po_file_path)
-        else:
-            self.translate_one_by_one(texts, target_language, po_file, po_file_path)
-
-    def translate_one_by_one(self, texts, target_language, po_file, po_file_path):
-        """Translates texts one by one and updates the .po file."""
-        for index, text in enumerate(texts):
-            logging.info(
-                "Translating text %s/%s in file %s",
-                (index + 1),
-                len(texts),
-                po_file_path
-            )
-            translation_request = f"Please translate the following text from English into {target_language}: {text}"
-            translated_texts = []
-            self.perform_translation(translation_request, translated_texts, is_bulk=False)
-            if translated_texts:
-                translated_text = translated_texts[0]["translation"]
-                self.update_po_entry(po_file, text, translated_text)
-            else:
-                logging.error("No translation returned for text: %s", text)
-
     @staticmethod
     def update_po_entry(po_file, original_text, translated_text):
         """Updates a .po file entry with the translated text."""
         entry = po_file.find(original_text)
         if entry:
             entry.msgstr = translated_text
-
-    @staticmethod
-    def apply_translations_to_po_file(translated_texts, original_texts, po_file):
-        """
-        Applies the translated texts to the .po file.
-        """
-        # Create a mapping from original texts to translations
-        translation_map = {
-            original_text: translation["translation"]
-            for original_text, translation in zip(original_texts, translated_texts)
-        }
-
-        for entry in po_file:
-            if entry.msgid in translation_map:
-                entry.msgstr = translation_map[entry.msgid]
-                logging.info("Applied translation for '%s'", entry.msgid)
-            elif not entry.msgstr:
-                logging.warning("No translation applied for '%s'", entry.msgid)
-
-        po_file.save()
-        logging.info("Po file saved.")
 
 
 def main():
