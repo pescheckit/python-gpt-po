@@ -129,7 +129,7 @@ class TranslationService:
             logging.error("Failed to validate OpenAI connection: %s", str(e))
             return False
 
-    def translate_bulk(self, texts, target_language, po_file_path):
+    def translate_bulk(self, texts, target_language, po_file_path, detail_language=None):
         """Translates a list of texts in bulk, processing in smaller chunks."""
         translated_texts = []
         chunk_size = self.batch_size
@@ -139,13 +139,17 @@ class TranslationService:
             logging.info("Translating chunk %d of %d", i // chunk_size + 1, (len(texts) - 1) // chunk_size + 1)
 
             try:
-                translations = self.perform_translation(chunk, target_language, is_bulk=True)
+                translations = self.perform_translation(
+                    chunk, target_language, is_bulk=True, detail_language=detail_language
+                )
                 translated_texts.extend(translations)
             except Exception as e:
                 logging.error("Bulk translation failed for chunk %d: %s", i // chunk_size + 1, str(e))
                 for text in chunk:
                     try:
-                        translation = self.perform_translation(text, target_language, is_bulk=False)
+                        translation = self.perform_translation(
+                            text, target_language, is_bulk=False, detail_language=detail_language
+                        )
                         translated_texts.append(translation)
                     except Exception as inner_e:
                         logging.error("Individual translation failed for text '%s': %s", text, str(inner_e))
@@ -161,29 +165,38 @@ class TranslationService:
 
         return translated_texts
 
-    def translate_single(self, text, target_language):
+    def translate_single(self, text, target_language, detail_language=None):
         """Translates a single text."""
         try:
-            translation = self.perform_translation(text, target_language, is_bulk=False)
+            translation = self.perform_translation(
+                text, target_language, is_bulk=False, detail_language=detail_language
+            )
             if not translation.strip():
                 logging.warning("Empty translation returned for '%s'. Attempting without validation.", text)
-                translation = self.perform_translation_without_validation(text, target_language)
+                translation = self.perform_translation_without_validation(
+                    text, target_language, detail_language=detail_language
+                )
             return translation
         except Exception as e:
             logging.error("Error translating '%s': %s", text, str(e))
             return ""
 
-    def perform_translation_without_validation(self, text, target_language):
+    def perform_translation_without_validation(self, text, target_language, detail_language=None):
         """Performs translation without validation for single words or short phrases."""
+        # Use the detailed language name if provided, otherwise use the short code
+        target_lang_text = detail_language if detail_language else target_language
+        
         prompt = (
-            f"Translate this single word or short phrase from English to {target_language}. "
+            f"Translate this single word or short phrase from English to {target_lang_text}. "
             "Return only the direct translation without any explanation, additional text, or repetition. "
             "If the word should not be translated (like technical terms or names), return it unchanged:\n"
         )
+        
         message = {
             "role": "user",
             "content": prompt + text
         }
+        
         try:
             completion = self.config.client.chat.completions.create(
                 model=self.config.model,
@@ -209,11 +222,14 @@ class TranslationService:
         return translated
 
     @staticmethod
-    def get_translation_prompt(target_language, is_bulk):
+    def get_translation_prompt(target_language, is_bulk, detail_language=None):
         """Returns the appropriate translation prompt based on the translation mode."""
+        # Use detailed language if provided, otherwise use the short target language code
+        target_lang_text = detail_language if detail_language else target_language
+        
         if is_bulk:
             return (
-                f"Translate the following list of texts from English to {target_language}. "
+                f"Translate the following list of texts from English to {target_lang_text}. "
                 "Provide only the translations in a JSON array format, maintaining the original order. "
                 "Each translation should be concise and direct, without explanations or additional context. "
                 "Keep special characters, placeholders, and formatting intact. "
@@ -222,7 +238,7 @@ class TranslationService:
                 "Texts to translate:\n"
             )
         return (
-            f"Translate the following text from English to {target_language}. "
+            f"Translate the following text from English to {target_lang_text}. "
             "Return only the direct, word-for-word translation without any explanation or additional context. "
             "Keep special characters, placeholders, and formatting intact. "
             "If a term should not be translated (like 'URL' or technical terms), keep it as is. "
@@ -230,10 +246,10 @@ class TranslationService:
         )
 
     @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def perform_translation(self, texts, target_language, is_bulk=False):
+    def perform_translation(self, texts, target_language, is_bulk=False, detail_language=None):
         """Performs the actual translation using the OpenAI API."""
         logging.debug("Performing translation to: %s", target_language)  # Log the target language
-        prompt = self.get_translation_prompt(target_language, is_bulk)
+        prompt = self.get_translation_prompt(target_language, is_bulk, detail_language)
         message = {
             "role": "user",
             "content": prompt + (json.dumps(texts) if is_bulk else texts)
@@ -431,6 +447,7 @@ def main():
     parser.add_argument("--version", action="version", version=f'%(prog)s {package_version}')
     parser.add_argument("--folder", required=True, help="Input folder containing .po files")
     parser.add_argument("--lang", required=True, help="Comma-separated language codes to filter .po files")
+    parser.add_argument('--detail-lang', type=str, help="Detailed language names, e.g. 'Netherlands,German'")
     parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")
     parser.add_argument("--bulk", action="store_true", help="Use bulk translation mode")
     parser.add_argument("--bulksize", type=int, default=50, help="Batch size for bulk translation")
@@ -444,6 +461,18 @@ def main():
     api_key = args.api_key if args.api_key else os.getenv("OPENAI_API_KEY")
     client = OpenAI(api_key=api_key)
 
+    # Extract languages from --lang
+    lang_codes = [lang.strip() for lang in args.lang.split(',')]
+
+    # Ensure if --detail-lang is provided, its length matches --lang
+    if args.detail_lang:
+        detail_langs = args.detail_lang.split(',')
+        
+        if len(lang_codes) != len(detail_langs):
+            raise ValueError("The number of languages in --lang and --detail-lang must match.")
+    else:
+        detail_langs = [None] * len(lang_codes)  # If no detailed language is provided, default to None
+
     # Create a configuration object
     config = TranslationConfig(client, args.model, args.bulk, args.fuzzy, args.folder_language)
 
@@ -455,9 +484,8 @@ def main():
         logging.error("OpenAI connection failed. Please check your API key and network connection.")
         return
 
-    # Extract languages
-    languages = [lang.strip() for lang in args.lang.split(',')]
-    translation_service.scan_and_process_po_files(args.folder, languages)
+    # Pass both languages and detailed languages to the translation service
+    translation_service.scan_and_process_po_files(args.folder, lang_codes)
 
 
 if __name__ == "__main__":
