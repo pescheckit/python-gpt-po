@@ -12,7 +12,7 @@ with open('README.md', encoding='utf-8') as f:
 setup(
     name='gpt-po-translator',
     use_scm_version=True,  # Automatically fetch version from git tags
-    setup_requires=['setuptools-scm'],  # Ensure setuptools-scm is used during setup
+    setup_requires=['setuptools-scm==8.1.0'],  # Ensure setuptools-scm is used during setup
     author='Bram Mittendorff',
     author_email='bram@pescheck.io',
     description='A CLI tool for translating .po files using GPT models.',
@@ -23,10 +23,10 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'polib',
-        'openai',
-        'python-dotenv'
-        # Add other dependencies from requirements.txt
+        'polib==1.2.0',
+        'openai==v1.42.0',
+        'python-dotenv==1.0.0',
+        'tenacity==9.0.0',
     ],
     entry_points={
         'console_scripts': [
