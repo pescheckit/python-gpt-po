@@ -7,6 +7,7 @@ import argparse
 import json
 import logging
 import os
+from dataclasses import dataclass
 
 import polib
 from dotenv import load_dotenv
@@ -99,14 +100,14 @@ class POFileHandler:
             logging.warning("Original text '%s' not found in the .po file.", original_text)
 
 
+@dataclass
 class TranslationConfig:
     """ Class to hold configuration parameters for the translation service. """
-    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False):  # pylint: disable=R0913
-        self.client = client
-        self.model = model
-        self.bulk_mode = bulk_mode
-        self.fuzzy = fuzzy
-        self.folder_language = folder_language
+    client: object
+    model: str
+    bulk_mode: bool = False
+    fuzzy: bool = False
+    folder_language: bool = False
 
 
 class TranslationService:
@@ -473,8 +474,14 @@ def main():
     else:
         detail_langs = [None] * len(lang_codes)  # If no detailed language is provided, default to None
 
-    # Create a configuration object
-    config = TranslationConfig(client, args.model, args.bulk, args.fuzzy, args.folder_language)
+    # And in main():
+    config = TranslationConfig(
+        client=client,
+        model=args.model,
+        bulk_mode=args.bulk,  # Changed bulk to bulk_mode
+        fuzzy=args.fuzzy,
+        folder_language=args.folder_language
+    )
 
     # Initialize the translation service with the configuration object
     translation_service = TranslationService(config, args.bulksize)
