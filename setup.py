@@ -27,6 +27,7 @@ setup(
         'openai==1.58.1',
         'python-dotenv==1.0.0',
         'tenacity==9.0.0',
+        'pycountry==24.6.1'
     ],
     entry_points={
         'console_scripts': [
