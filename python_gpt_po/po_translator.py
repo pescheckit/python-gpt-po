@@ -7,8 +7,10 @@ import argparse
 import json
 import logging
 import os
+from dataclasses import dataclass
 
 import polib
+import pycountry
 from dotenv import load_dotenv
 from openai import OpenAI
 from pkg_resources import DistributionNotFound, get_distribution
@@ -57,18 +59,43 @@ class POFileHandler:
     @staticmethod
     def get_file_language(po_file_path, po_file, languages, folder_language):
         """Determines the language for a .po file."""
-        # Attempt to get language from the file metadata first
         file_lang = po_file.metadata.get('Language', '')
+        normalized_lang = POFileHandler.normalize_language_code(file_lang)
 
-        # If the file's language is not valid, infer it from the folder structure
-        if not file_lang or file_lang not in languages:
-            if folder_language:
-                inferred_lang = next((part for part in po_file_path.split(os.sep) if part in languages), None)
-                if inferred_lang:
-                    logging.info("Inferred language for .po file: %s as %s", po_file_path, inferred_lang)
-                    return inferred_lang
-            return None
-        return file_lang
+        if normalized_lang in languages:
+            return normalized_lang
+
+        if folder_language:
+            for part in po_file_path.split(os.sep):
+                norm_part = POFileHandler.normalize_language_code(part)
+                if norm_part in languages:
+                    logging.info("Inferred language for .po file: %s as %s", po_file_path, norm_part)
+                    return norm_part
+
+        return None
+
+    @staticmethod
+    def normalize_language_code(lang):
+        """Convert language name or code to ISO 639-1 code."""
+        # Try direct lookup
+        if len(lang) == 2:
+            try:
+                return pycountry.languages.get(alpha_2=lang.lower()).alpha_2
+            except AttributeError:
+                pass
+
+        # Try by name
+        try:
+            return pycountry.languages.get(name=lang.title()).alpha_2
+        except AttributeError:
+            pass
+
+        # Try by native name
+        for language in pycountry.languages:
+            if hasattr(language, 'inverted_name') and language.inverted_name.lower() == lang.lower():
+                return language.alpha_2
+
+        return None
 
     @staticmethod
     def log_translation_status(po_file_path, original_texts, translations):
@@ -99,14 +126,14 @@ class POFileHandler:
             logging.warning("Original text '%s' not found in the .po file.", original_text)
 
 
+@dataclass
 class TranslationConfig:
     """ Class to hold configuration parameters for the translation service. """
-    def __init__(self, client, model, bulk_mode=False, fuzzy=False, folder_language=False):  # pylint: disable=R0913
-        self.client = client
-        self.model = model
-        self.bulk_mode = bulk_mode
-        self.fuzzy = fuzzy
-        self.folder_language = folder_language
+    client: object
+    model: str
+    bulk_mode: bool = False
+    fuzzy: bool = False
+    folder_language: bool = False
 
 
 class TranslationService:
@@ -473,8 +500,14 @@ def main():
     else:
         detail_langs = [None] * len(lang_codes)  # If no detailed language is provided, default to None
 
-    # Create a configuration object
-    config = TranslationConfig(client, args.model, args.bulk, args.fuzzy, args.folder_language)
+    # And in main():
+    config = TranslationConfig(
+        client=client,
+        model=args.model,
+        bulk_mode=args.bulk,  # Changed bulk to bulk_mode
+        fuzzy=args.fuzzy,
+        folder_language=args.folder_language
+    )
 
     # Initialize the translation service with the configuration object
     translation_service = TranslationService(config, args.bulksize)

@@ -1,6 +1,7 @@
 polib==1.2.0
-openai==v1.42.0
+openai==1.58.1
 python-dotenv==1.0.0
 pytest==8.2.2
 tenacity==9.0.0
 setuptools-scm==8.1.0
+pycountry==24.6.1

@@ -24,7 +24,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'polib==1.2.0',
-        'openai==v1.42.0',
+        'openai==1.58.1',
         'python-dotenv==1.0.0',
         'tenacity==9.0.0',
     ],
