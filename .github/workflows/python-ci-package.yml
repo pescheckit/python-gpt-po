@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - '*'
+  pull_request:
+    branches:
+      - main
   release:
     types: [published]
 
@@ -61,7 +64,7 @@ jobs:
           pip install -r requirements.txt
       - name: Run tests
         run: |
-          pytest python_gpt_po/tests/test_po_translator.py
+          pytest
 
   deploy:
     needs: test
