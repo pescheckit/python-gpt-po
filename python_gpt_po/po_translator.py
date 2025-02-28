@@ -832,6 +832,7 @@ def parse_args():
     return parser.parse_args()
 
 
+# pylint: disable=too-many-branches
 def main():
     """Main function to parse arguments and initiate processing."""
     args = parse_args()
