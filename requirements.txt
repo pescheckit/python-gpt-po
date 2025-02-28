@@ -7,3 +7,4 @@ setuptools-scm==8.1.0
 pycountry==24.6.1
 anthropic==0.48.0
 requests==2.32.3
+responses==0.25.6
