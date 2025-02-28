@@ -238,6 +238,17 @@ class ModelManager:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
             return []
 
+    @staticmethod
+    def validate_model(provider_clients: ProviderClients, provider: ModelProvider, model: str) -> bool:
+        """
+        Validates whether the specified model is available for the given provider.
+        Uses prefix matching so that a shorthand (e.g. "claude") will match a full model name.
+        """
+        available_models = ModelManager.get_available_models(provider_clients, provider)
+        if not available_models:
+            return False
+        return any(avail.lower().startswith(model.lower()) for avail in available_models)
+
 
 class TranslationService:
     """Class to encapsulate translation functionalities."""
@@ -821,6 +832,7 @@ def parse_args():
     return parser.parse_args()
 
 
+# pylint: disable=too-many-branches
 def main():
     """Main function to parse arguments and initiate processing."""
     args = parse_args()
@@ -871,17 +883,22 @@ def main():
         ModelProvider.DEEPSEEK: "deepseek-chat"
     }
 
-    # Use specified model or default for the provider
-    model = args.model or default_models.get(provider)
-
-    # Validate the selected model is available
-    if not model_manager.validate_model(provider_clients, provider, model):
-        logging.warning(
-            "Model '%s' not found for provider %s. "
-            "Using default model %s.",
-            model, provider.value, default_models.get(provider)
-        )
-        model = default_models.get(provider)
+    if args.model:
+        model = args.model
+        if not model_manager.validate_model(provider_clients, provider, model):
+            logging.warning(
+                "Model '%s' not found for provider %s. Using default model %s.",
+                model, provider.value, default_models.get(provider)
+            )
+            model = default_models.get(provider)
+    else:
+        available_models = model_manager.get_available_models(provider_clients, provider)
+        if available_models:
+            model = available_models[0]
+            logging.info("No model specified; using available model: %s", model)
+        else:
+            model = default_models.get(provider)
+            logging.warning("No available models found from API; defaulting to %s", model)
 
     # Parse language codes and detailed language names
     lang_codes = [lang.strip() for lang in args.lang.split(',')]

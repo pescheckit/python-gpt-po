@@ -1,5 +1,7 @@
 # Python GPT-4 PO File Translator
 
+[![Python Package CI](https://github.com/pescheckit/python-gpt-po/actions/workflows/ci.yml/badge.svg)](https://github.com/pescheckit/python-gpt-po/actions/workflows/ci.yml)
+
 A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures.
 
 ## Features
