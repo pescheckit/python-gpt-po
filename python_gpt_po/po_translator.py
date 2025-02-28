@@ -200,7 +200,8 @@ class ModelManager:
                 try:
                     response = requests.get(
                         "https://api.anthropic.com/v1/models",
-                        headers=headers
+                        headers=headers,
+                        timeout=15
                     )
                     response.raise_for_status()
                     model_data = response.json().get("data", [])
@@ -226,7 +227,8 @@ class ModelManager:
                 }
                 response = requests.get(
                     f"{provider_clients.deepseek_base_url}/models",
-                    headers=headers
+                    headers=headers,
+                    timeout=15
                 )
                 response.raise_for_status()
                 return [model["id"] for model in response.json().get("data", [])]
@@ -292,7 +294,8 @@ class TranslationService:
                 response = requests.post(
                     f"{self.config.provider_clients.deepseek_base_url}/chat/completions",
                     headers=headers,
-                    json=payload
+                    json=payload,
+                    timeout=30
                 )
                 response.raise_for_status()
                 logging.info("DeepSeek connection validated successfully.")
@@ -408,7 +411,8 @@ class TranslationService:
                 response = requests.post(
                     f"{self.config.provider_clients.deepseek_base_url}/chat/completions",
                     headers=headers,
-                    json=payload
+                    json=payload,
+                    timeout=30
                 )
                 response.raise_for_status()
                 return self.post_process_translation(text, response.json()["choices"][0]["message"]["content"].strip())
@@ -507,7 +511,8 @@ class TranslationService:
                 response = requests.post(
                     f"{self.config.provider_clients.deepseek_base_url}/chat/completions",
                     headers=headers,
-                    json=payload
+                    json=payload,
+                    timeout=30
                 )
                 response.raise_for_status()
                 response_text = response.json()["choices"][0]["message"]["content"].strip()
@@ -622,7 +627,8 @@ class TranslationService:
                 response = requests.post(
                     f"{self.config.provider_clients.deepseek_base_url}/chat/completions",
                     headers=headers,
-                    json=payload
+                    json=payload,
+                    timeout=30
                 )
                 response.raise_for_status()
                 retried_translation = response.json()["choices"][0]["message"]["content"].strip()
