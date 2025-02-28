@@ -648,8 +648,7 @@ class TranslationService:
             self,
             input_folder: str,
             languages: List[str],
-            detail_languages: Optional[Dict[str, str]] = None
-        ):
+            detail_languages: Optional[Dict[str, str]] = None):
         """Scans and processes .po files in the given input folder."""
         for root, _, files in os.walk(input_folder):
             for file in filter(lambda f: f.endswith(".po"), files):
