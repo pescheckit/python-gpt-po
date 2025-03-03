@@ -180,4 +180,4 @@ Below is a detailed explanation of all command-line arguments:
 
 This document has provided an in-depth explanation of the internal workflow of `gpt-po-translator` and detailed every command-line argument along with its behind-the-scenes effect. By understanding these mechanics, you can better configure and extend the tool to fit your localization needs.
 
-For a quick start, please refer to the [Usage Guide](./Usage.md). For any questions or further contributions, visit our [GitHub repository](https://github.com/yourusername/python-gpt-po).
+For a quick start, please refer to the [Usage Guide](./usage.md). For any questions or further contributions, visit our [GitHub repository](https://github.com/pescheckit/python-gpt-po).
