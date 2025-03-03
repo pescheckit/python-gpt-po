@@ -37,7 +37,7 @@ pip install gpt-po-translator
 Clone the repository and install the package:
 
 ```bash
-git clone https://github.com/yourusername/python-gpt-po.git
+git clone https://github.com/pescheckit/python-gpt-po.git
 cd python-gpt-po
 pip install .
 ```
@@ -115,4 +115,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 Powered by state-of-the-art AI models (including OpenAI’s GPT-4 and GPT-3.5), this tool is designed to streamline the localization process for .po files. Whether you need to process large batches or handle specific entries, the Python GPT-4 PO File Translator adapts to your translation needs.
 
-For more details, contributions, or bug reports, please visit our [GitHub repository](https://github.com/yourusername/python-gpt-po).
+For more details, contributions, or bug reports, please visit our [GitHub repository](https://github.com/pescheckit/python-gpt-po).
