@@ -7,16 +7,19 @@ import os
 
 from setuptools import find_packages, setup
 
-# Read README.md for long description
 with open('README.md', encoding='utf-8') as f:
     long_description = f.read()
 
-# Read requirements.txt for dependencies
 with open('requirements.txt', encoding='utf-8') as f:
     install_requires = [line.strip() for line in f if line.strip() and not line.startswith('#')]
 
-# Define the man page installation function
 def install_man_pages():
+    """
+    Locate the man page and include it in the installation if it exists.
+
+    Returns:
+        list: A list containing the path to the man page for installation.
+    """
     man_page = "man/gpt-po-translator.1"
     if os.path.exists(man_page):
         return [("share/man/man1", [man_page])]
