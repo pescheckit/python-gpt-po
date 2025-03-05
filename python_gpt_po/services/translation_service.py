@@ -345,9 +345,11 @@ class TranslationService:
                 self.process_po_file(po_file_path, languages, detail_languages)
 
     def process_po_file(
-                self, po_file_path: str, languages: List[str],
-                detail_languages: Optional[Dict[str, str]] = None
-        ):
+        self,
+        po_file_path: str,
+        languages: List[str],
+        detail_languages: Optional[Dict[str, str]] = None
+    ):
         """Processes a single .po file with translations."""
         try:
             po_file = self._prepare_po_file(po_file_path, languages)
