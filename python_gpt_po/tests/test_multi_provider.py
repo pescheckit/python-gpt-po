@@ -8,9 +8,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses
 
-# Import the necessary classes - adjust imports based on your actual module structure
-from python_gpt_po.po_translator import (ModelManager, ModelProvider, POFileHandler, ProviderClients, TranslationConfig,
-                                         TranslationService)
+from python_gpt_po.models.config import TranslationConfig
+# Import the necessary classes from the new modular structure
+from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.models.provider_clients import ProviderClients
+from python_gpt_po.services.model_manager import ModelManager
+from python_gpt_po.services.po_file_handler import POFileHandler
+from python_gpt_po.services.translation_service import TranslationService
 
 logging.basicConfig(level=logging.INFO)
 
@@ -242,7 +246,7 @@ def test_get_deepseek_models(mock_provider_clients):
     assert "deepseek-coder" in models
 
 
-@patch('python_gpt_po.po_translator.requests.post')
+@patch('python_gpt_po.services.translation_service.requests.post')
 def test_translate_bulk_openai(mock_post, translation_service_openai):
     """Test bulk translation with OpenAI."""
     # Setup mock response
@@ -262,7 +266,7 @@ def test_translate_bulk_openai(mock_post, translation_service_openai):
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
 
-@patch('python_gpt_po.po_translator.requests.post')
+@patch('python_gpt_po.services.translation_service.requests.post')
 def test_translate_bulk_anthropic(mock_post, translation_service_anthropic):
     """Test bulk translation with Anthropic."""
     # Setup mock client response
@@ -361,7 +365,7 @@ def test_process_po_file_all_providers(mock_pofile, translation_service_openai,
         service.get_translations.assert_called_once()
         mock_po_new.save.assert_called_once()
 
-@patch('python_gpt_po.po_translator.POFileHandler.disable_fuzzy_translations')
+@patch('python_gpt_po.services.po_file_handler.POFileHandler.disable_fuzzy_translations')
 def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai, temp_po_file):
     """Test handling of fuzzy translations."""
     # Enable fuzzy flag

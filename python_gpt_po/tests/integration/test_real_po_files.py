@@ -12,8 +12,12 @@ from unittest.mock import MagicMock, patch
 import polib
 import pytest
 
-from python_gpt_po.po_translator import (ModelProvider, POFileHandler, ProviderClients, TranslationConfig,
-                                         TranslationService)
+from python_gpt_po.models.config import TranslationConfig
+# Import from the new modular structure
+from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.models.provider_clients import ProviderClients
+from python_gpt_po.services.po_file_handler import POFileHandler
+from python_gpt_po.services.translation_service import TranslationService
 
 logging.basicConfig(level=logging.INFO)
 

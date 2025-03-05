@@ -38,7 +38,7 @@ setup(
     install_requires=install_requires,
     entry_points={
         'console_scripts': [
-            'gpt-po-translator=python_gpt_po.po_translator:main',
+            'gpt-po-translator=python_gpt_po.main:main',
         ],
     },
     classifiers=[
