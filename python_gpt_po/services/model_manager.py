@@ -18,7 +18,7 @@ class ModelManager:
     def get_available_models(provider_clients: ProviderClients, provider: ModelProvider) -> List[str]:
         """Retrieve available models from a specific provider."""
         models = []
-        
+
         try:
             if provider == ModelProvider.OPENAI:
                 if provider_clients.openai_client:
@@ -26,7 +26,7 @@ class ModelManager:
                     models = [model.id for model in response.data]
                 else:
                     logging.error("OpenAI client not initialized")
-                    
+
             elif provider == ModelProvider.ANTHROPIC:
                 if provider_clients.anthropic_client:
                     # Use Anthropic's models endpoint
@@ -54,7 +54,7 @@ class ModelManager:
                         ]
                 else:
                     logging.error("Anthropic client not initialized")
-                    
+
             elif provider == ModelProvider.DEEPSEEK:
                 if provider_clients.deepseek_api_key:
                     headers = {
@@ -70,10 +70,10 @@ class ModelManager:
                     models = [model["id"] for model in response.json().get("data", [])]
                 else:
                     logging.error("DeepSeek API key not set")
-            
+
         except Exception as e:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
-            
+
         return models
 
     @staticmethod

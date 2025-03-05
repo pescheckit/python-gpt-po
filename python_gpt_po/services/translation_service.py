@@ -39,7 +39,7 @@ class TranslationService:
         """Get response from OpenAI API."""
         if not self.config.provider_clients.openai_client:
             raise ValueError("OpenAI client not initialized")
-        
+
         message = {"role": "user", "content": content}
         completion = self.config.provider_clients.openai_client.chat.completions.create(
             model=self.config.model,
@@ -51,7 +51,7 @@ class TranslationService:
         """Get response from Anthropic API."""
         if not self.config.provider_clients.anthropic_client:
             raise ValueError("Anthropic client not initialized")
-        
+
         message = {"role": "user", "content": content}
         completion = self.config.provider_clients.anthropic_client.messages.create(
             model=self.config.model,
@@ -215,8 +215,7 @@ class TranslationService:
             # Process the response according to bulk mode
             if is_bulk:
                 return self._process_bulk_response(response_text, texts)
-            else:
-                return self.validate_translation(texts, response_text)
+            return self.validate_translation(texts, response_text)
 
         except Exception as e:
             logging.error("Translation error: %s", str(e))
@@ -225,12 +224,12 @@ class TranslationService:
     def _get_provider_response(self, content: str) -> str:
         """Get translation response from the selected provider."""
         provider = self.config.provider
-        
+
         if provider == ModelProvider.OPENAI:
             return self._get_openai_response(content)
-        elif provider == ModelProvider.ANTHROPIC:
+        if provider == ModelProvider.ANTHROPIC:
             return self._get_anthropic_response(content)
-        elif provider == ModelProvider.DEEPSEEK:
+        if provider == ModelProvider.DEEPSEEK:
             return self._get_deepseek_response(content)
         return ""
 
@@ -243,11 +242,11 @@ class TranslationService:
 
             # Parse the JSON response
             translated_texts = json.loads(clean_response)
-            
+
             # Validate the format
             if not isinstance(translated_texts, list) or len(translated_texts) != len(original_texts):
                 raise ValueError("Invalid response format")
-                
+
             # Validate each translation
             return [
                 self.validate_translation(original, translated)
@@ -347,37 +346,38 @@ class TranslationService:
 
     def process_po_file(
                 self, po_file_path: str, languages: List[str],
-                detail_languages: Optional[Dict[str, str]] = None):
-            """Processes a single .po file with translations."""
-            try:
-                po_file = self._prepare_po_file(po_file_path, languages)
-                if not po_file:
-                    return
+                detail_languages: Optional[Dict[str, str]] = None
+        ):
+        """Processes a single .po file with translations."""
+        try:
+            po_file = self._prepare_po_file(po_file_path, languages)
+            if not po_file:
+                return
 
-                file_lang = self.po_file_handler.get_file_language(
-                    po_file_path,
-                    po_file,
-                    languages,
-                    self.config.folder_language
-                )
+            file_lang = self.po_file_handler.get_file_language(
+                po_file_path,
+                po_file,
+                languages,
+                self.config.folder_language
+            )
 
-                # Get the detailed language name if available
-                detail_lang = detail_languages.get(file_lang) if detail_languages else None
+            # Get the detailed language name if available
+            detail_lang = detail_languages.get(file_lang) if detail_languages else None
 
-                texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-                translations = self.get_translations(texts_to_translate, file_lang, po_file_path, detail_lang)
+            texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip() and entry.msgid]
+            translations = self.get_translations(texts_to_translate, file_lang, po_file_path, detail_lang)
 
-                self._update_po_entries(po_file, translations, file_lang, detail_lang)
-                self._handle_untranslated_entries(po_file, file_lang, detail_lang)
+            self._update_po_entries(po_file, translations, file_lang, detail_lang)
+            self._handle_untranslated_entries(po_file, file_lang, detail_lang)
 
-                po_file.save(po_file_path)
-                self.po_file_handler.log_translation_status(
-                    po_file_path,
-                    texts_to_translate,
-                    [entry.msgstr for entry in po_file if entry.msgid in texts_to_translate]
-                )
-            except Exception as e:
-                logging.error("Error processing file %s: %s", po_file_path, e)
+            po_file.save(po_file_path)
+            self.po_file_handler.log_translation_status(
+                po_file_path,
+                texts_to_translate,
+                [entry.msgstr for entry in po_file if entry.msgid in texts_to_translate]
+            )
+        except Exception as e:
+            logging.error("Error processing file %s: %s", po_file_path, e)
 
     def _prepare_po_file(self, po_file_path: str, languages: List[str]):
         """Prepares the .po file for translation."""
