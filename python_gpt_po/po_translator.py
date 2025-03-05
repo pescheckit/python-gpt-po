@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -791,50 +792,161 @@ def get_version():
         return "0.0.0"  # Default version if the package is not found (e.g., during development)
 
 
+class CustomArgumentParser(argparse.ArgumentParser):
+    """
+    Custom ArgumentParser that handles errors in a more user-friendly way.
+    """
+    def error(self, message):
+        """
+        Display a cleaner error message with usage information.
+        """
+        self.print_help()
+        sys.stderr.write(f'\nError: {message}\n')
+        sys.exit(2)
+
+
 def parse_args():
-    """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Scan and process .po files with multiple AI providers")
-    parser.add_argument("--version", action="version", version=f'%(prog)s {get_version()}')
-    parser.add_argument("--folder", required=True, help="Input folder containing .po files")
-    parser.add_argument("--lang", required=True, help="Comma-separated language codes to filter .po files")
-    parser.add_argument('--detail-lang', type=str, help="Comma-separated detailed language names, e.g. 'Dutch,German'")
-    parser.add_argument("--fuzzy", action="store_true", help="Remove fuzzy entries")
-    parser.add_argument("--bulk", action="store_true", help="Use bulk translation mode")
-    parser.add_argument("--bulksize", type=int, default=50, help="Batch size for bulk translation")
-    parser.add_argument("--api_key", help="Fallback API key for ChatGPT (OpenAI) if --openai-key is not provided")
-
-    # Provider selection
+    """Parse command-line arguments with a more user-friendly interface."""
+    parser = CustomArgumentParser(
+        description="Translate .po files using AI language models",
+        epilog="""
+Examples:
+  # Basic usage with OpenAI
+  python po_translator.py --folder ./locales --lang fr,es,de
+  
+  # Use Anthropic with detailed language names
+  python po_translator.py --folder ./i18n --lang nl,de --detail-lang "Dutch,German" --provider anthropic
+  
+  # List available models for a provider
+  python po_translator.py --provider deepseek --list-models
+  
+  # Process multiple translations in bulk with a specific model
+  python po_translator.py --folder ./locales --lang ja,ko --bulk --model gpt-4
+""",
+        formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=35, width=100)
+    )
+    
+    # Create argument groups for better organization
+    required_group = parser.add_argument_group('Required Arguments')
+    language_group = parser.add_argument_group('Language Options')
+    provider_group = parser.add_argument_group('Provider Settings')
+    api_group = parser.add_argument_group('API Keys')
+    advanced_group = parser.add_argument_group('Advanced Options')
+    
+    # Required arguments
+    required_group.add_argument(
+        "-f", "--folder", 
+        required=True, 
+        metavar="FOLDER",
+        help="Input folder containing .po files"
+    )
+    required_group.add_argument(
+        "-l", "--lang", 
+        required=True, 
+        metavar="LANG",
+        help="Comma-separated language codes to translate (e.g., fr,es,de)"
+    )
+    
+    # Language options
+    language_group.add_argument(
+        "--detail-lang", 
+        metavar="NAMES",
+        help="Comma-separated detailed language names (e.g., 'French,Spanish,German')"
+    )
+    language_group.add_argument(
+        "--folder-language", 
+        action="store_true", 
+        help="Detect language from directory structure"
+    )
+    
+    # Provider settings
+    provider_group.add_argument(
+        "--provider", 
+        choices=["openai", "anthropic", "deepseek"],
+        help="AI provider to use (default: first provider with available API key)"
+    )
+    provider_group.add_argument(
+        "--model", 
+        metavar="MODEL",
+        help="Specific model to use (default: provider's recommended model)"
+    )
+    provider_group.add_argument(
+        "--list-models", 
+        action="store_true", 
+        help="List available models for the selected provider and exit"
+    )
+    
+    # API Keys
+    api_group.add_argument(
+        "--openai-key", 
+        metavar="KEY",
+        help="OpenAI API key (can also use OPENAI_API_KEY env var)"
+    )
+    api_group.add_argument(
+        "--anthropic-key", 
+        metavar="KEY",
+        help="Anthropic API key (can also use ANTHROPIC_API_KEY env var)"
+    )
+    api_group.add_argument(
+        "--deepseek-key", 
+        metavar="KEY",
+        help="DeepSeek API key (can also use DEEPSEEK_API_KEY env var)"
+    )
+    api_group.add_argument(
+        "--api_key", 
+        metavar="KEY",
+        help="Fallback API key for OpenAI (deprecated, use --openai-key instead)"
+    )
+    
+    # Advanced options
+    advanced_group.add_argument(
+        "--fuzzy", 
+        action="store_true", 
+        help="Process fuzzy translations (remove fuzzy markers)"
+    )
+    advanced_group.add_argument(
+        "--bulk", 
+        action="store_true", 
+        help="Use bulk translation mode (faster, but may be less accurate)"
+    )
+    advanced_group.add_argument(
+        "--bulksize", 
+        type=int, 
+        default=50, 
+        metavar="SIZE",
+        help="Number of strings to translate in each batch (default: 50)"
+    )
+    
+    # Version information
     parser.add_argument(
-        "--provider",
-        choices=[
-            "openai",
-            "anthropic",
-            "deepseek"],
-        help="AI provider to use for translations (default: will use first provider with an available API key)")
-
-    # Model selection
-    parser.add_argument(
-        "--model",
-        help="Model name to use for translations. If not specified, will use default for the provider")
-    parser.add_argument(
-        "--list-models",
-        action="store_true",
-        help="List available models for the selected provider and exit")
-
-    # API keys
-    parser.add_argument("--openai-key", help="OpenAI API key (can also use OPENAI_API_KEY env var)")
-    parser.add_argument("--anthropic-key", help="Anthropic API key (can also use ANTHROPIC_API_KEY env var)")
-    parser.add_argument("--deepseek-key", help="DeepSeek API key (can also use DEEPSEEK_API_KEY env var)")
-
-    # Folder language options
-    parser.add_argument("--folder-language", action="store_true", help="Set language from directory structure")
-
+        "--version", 
+        action="version", 
+        version=f'%(prog)s {get_version()}'
+    )
+    
+    # Display help if no arguments provided
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+    
     return parser.parse_args()
+
+
+def show_help_and_exit():
+    """Display help and exit."""
+    args = [sys.argv[0], "--help"]
+    sys.argv = args
+    parse_args()
+    sys.exit(0)
 
 
 # pylint: disable=too-many-branches
 def main():
     """Main function to parse arguments and initiate processing."""
+    # Show help if no arguments
+    if len(sys.argv) == 1:
+        show_help_and_exit()
+        
     args = parse_args()
 
     # Setup API keys (prioritize command line arguments over environment variables)

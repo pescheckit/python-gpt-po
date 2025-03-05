@@ -1,0 +1,71 @@
+.TH GPT-PO-TRANSLATOR 1 "March 2025" "Version 1.0" "User Commands"
+
+.SH NAME
+gpt-po-translator \- CLI tool for translating .po files using AI models
+
+.SH SYNOPSIS
+.B gpt-po-translator
+[\fB--folder\fR \fIpath\fR] [\fB--lang\fR \fIcodes\fR] [\fIoptions\fR]
+
+.SH DESCRIPTION
+gpt-po-translator is a command-line tool designed to translate gettext (.po) files 
+using AI-powered translation models from OpenAI, Anthropic, and DeepSeek.
+
+.SH OPTIONS
+.TP
+\fB--folder\fR \fIpath\fR
+Path to the directory containing .po files (required).
+.TP
+\fB--lang\fR \fIcodes\fR
+Comma-separated target language codes (e.g., de, fr) (required).
+.TP
+\fB--detail-lang\fR \fInames\fR
+Full language names corresponding to language codes (e.g., "German,French").
+.TP
+\fB--fuzzy\fR
+Remove fuzzy entries before processing.
+.TP
+\fB--bulk\fR
+Enable bulk translation mode.
+.TP
+\fB--bulksize\fR \fIsize\fR
+Specify the number of entries per batch in bulk mode (default: 50).
+.TP
+\fB--api_key\fR \fIkey\fR
+API key for translation (can also be provided via an environment variable).
+.TP
+\fB--provider\fR \fIname\fR
+Choose an AI provider: openai, anthropic, deepseek.
+.TP
+\fB--model\fR \fIname\fR
+Specify the translation model (default varies by provider).
+.TP
+\fB--list-models\fR
+List available models for the selected provider and exit.
+.TP
+\fB--folder-language\fR
+Infer the language from the folder structure.
+.TP
+\fB--version\fR
+Show program version and exit.
+.TP
+\fB-h, --help\fR
+Show this help message and exit.
+
+.SH EXAMPLES
+Translate .po files from the "locales" directory into German and French using bulk mode:
+
+.B gpt-po-translator --folder ./locales --lang de,fr --bulk --bulksize 40 --folder-language
+
+List available models for OpenAI:
+
+.B gpt-po-translator --provider openai --list-models
+
+.SH AUTHOR
+Bram Mittendorff <bram@pescheck.io>
+
+.SH LICENSE
+MIT License
+
+.SH SEE ALSO
+gettext(1)
