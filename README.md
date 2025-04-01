@@ -41,7 +41,10 @@ Clone the repository and install the package:
 ```bash
 git clone https://github.com/pescheckit/python-gpt-po.git
 cd python-gpt-po
-pip install .
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements
+python -m python_gpt_po.main --folder test --lang nl --bulk --provider="deepseek" --list-models
 ```
 
 ## API Key Configuration
