@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures.
+A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.9-3.12.
 
 ## Features
 
@@ -20,7 +20,7 @@ A robust tool for translating gettext (.po) files using AI models from multiple 
 
 ## Requirements
 
-- Python 3.x
+- Python 3.9+ (Python 3.9, 3.10, 3.11, and 3.12 are officially supported)
 - [polib](https://pypi.org/project/polib/)
 - [openai](https://pypi.org/project/openai/)
 - [tenacity](https://pypi.org/project/tenacity/)
@@ -111,6 +111,94 @@ To run all tests:
 ```bash
 python -m pytest
 ```
+
+## Using Docker
+
+You can use this tool without installing Python on your local machine by running it in a Docker container.
+
+### Using Pre-built Container
+
+Pull the latest container from GitHub Container Registry (defaults to Python 3.11):
+
+```bash
+docker pull ghcr.io/pescheckit/python-gpt-po:latest  # Uses Python 3.11 by default
+```
+
+You can also use a specific version tag for consistency, or specify a Python version:
+
+```bash 
+docker pull ghcr.io/pescheckit/python-gpt-po:0.3.0  # Latest version
+docker pull ghcr.io/pescheckit/python-gpt-po:0.3.0-py3.11  # Python 3.11 specific
+docker pull ghcr.io/pescheckit/python-gpt-po:latest-py3.12  # Latest with Python 3.12
+```
+
+Run the container with any local directory mounted to any path inside the container:
+
+```bash
+# Mount current directory to /data in container
+docker run -v $(pwd):/data \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /data --lang fr,de --bulk
+
+# Mount a specific absolute path to /translations in container
+docker run -v /home/user/my-translations:/translations \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /translations --lang fr,de --bulk
+  
+# Mount from a different drive or location on Windows
+docker run -v D:/projects/website/locales:/locales \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /locales --lang fr,de --bulk
+  
+# On Mac/Linux, mount from any location
+docker run -v /Users/username/Documents/translations:/input \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /input --lang fr,de --bulk
+  
+# Multiple volumes can be mounted if needed
+docker run \
+  -v /path/to/source:/input \
+  -v /path/to/output:/output \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /input --lang fr,de --bulk
+```
+
+Running without arguments will display usage help:
+
+```bash
+docker run ghcr.io/pescheckit/python-gpt-po:latest
+```
+
+Quick reference - copy & paste commands:
+
+```bash
+# Help text
+docker run ghcr.io/pescheckit/python-gpt-po:latest
+
+# Translate current directory files to French
+docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --folder /data --lang fr
+
+# Use a specific Python version (3.12)
+docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest-py3.12 --folder /data --lang fr
+
+# List available models
+docker run -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --provider openai --list-models
+```
+
+### Volume Mount Explanation
+
+The `-v` flag uses the format: `-v /host/path:/container/path`
+
+- `/host/path` can be any directory on your system
+- `/container/path` is where the directory appears inside the container
+- Use the `/container/path` with the `--folder` parameter
+
+For example, if you mount with `-v ~/translations:/data`, then use `--folder /data` in your command.
 
 ## License
 

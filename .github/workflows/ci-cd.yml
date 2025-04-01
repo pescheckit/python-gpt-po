@@ -1,0 +1,221 @@
+name: Python Package CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff flake8 pylint isort setuptools
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Analysing the code with pylint
+        run: |
+          pylint python_gpt_po/
+      - name: Check code style with flake8
+        run: |
+          flake8 python_gpt_po/
+      - name: Check import order with isort
+        run: |
+          isort --check-only --diff .
+      - name: Linting with Ruff
+        run: |
+          ruff check $(git ls-files '*.py')
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest
+          pip install -e .
+      - name: Run tests
+        run: |
+          python -m pytest
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build Docker Image - Python ${{ matrix.python-version }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: gpt-po-translator:py${{ matrix.python-version }}
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker Image - Help Text
+        run: |
+          # Run Docker image to verify it works
+          docker run gpt-po-translator:py${{ matrix.python-version }} --version
+          
+          # Check help output (should exit with 0)
+          docker run gpt-po-translator:py${{ matrix.python-version }} --help
+          
+          echo "✅ Basic Docker image tests passed for Python ${{ matrix.python-version }}"
+
+      - name: Test Docker Image - CLI Options
+        run: |
+          # Test with --help flag for different providers (doesn't require API key)
+          docker run gpt-po-translator:py${{ matrix.python-version }} --provider openai --help
+          docker run gpt-po-translator:py${{ matrix.python-version }} --provider anthropic --help
+          
+          echo "✅ CLI option test passed for Python ${{ matrix.python-version }}"
+      
+      - name: Test Docker Image with Sample PO file
+        run: |
+          # Create test directory with sample PO file
+          mkdir -p test-po-files
+          cp .github/workflows/test-sample.po test-po-files/
+          
+          # Check if the tool can access the mounted files (without API operations)
+          # Just verify help works with the folder mounted
+          docker run \
+            -v $(pwd)/test-po-files:/test \
+            gpt-po-translator:py${{ matrix.python-version }} \
+            --folder /test --help
+          
+          echo "✅ Docker volume mount test passed for Python ${{ matrix.python-version }}"
+
+  deploy:
+    needs: [test, docker]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    environment: release
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+          
+      # PyPI deployment (only for Python 3.x representative)
+      - name: Set up Python
+        if: matrix.python-version == '3.11'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          
+      - name: Install dependencies
+        if: matrix.python-version == '3.11'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install build
+          
+      - name: Build package
+        if: matrix.python-version == '3.11'
+        run: python -m build
+        
+      - name: Publish package
+        if: matrix.python-version == '3.11'
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+      
+      # Docker deployment for all Python versions
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+            
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch,suffix=-py${{ matrix.python-version }}
+            type=semver,pattern={{version}}-py${{ matrix.python-version }}
+            type=semver,pattern={{major}}.{{minor}}-py${{ matrix.python-version }}
+            type=semver,pattern={{major}}-py${{ matrix.python-version }}
+            type=sha,format=short,suffix=-py${{ matrix.python-version }}
+          flavor: |
+            latest=${{ matrix.python-version == '3.11' }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
