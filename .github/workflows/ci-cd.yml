@@ -174,7 +174,8 @@ jobs:
           
       - name: Build package
         if: matrix.python-version == '3.11'
-        run: python -m build
+        run: |
+          python -m build
         
       - name: Publish package
         if: matrix.python-version == '3.11'

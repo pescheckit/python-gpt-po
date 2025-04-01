@@ -16,9 +16,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code for installation
 COPY . .
 
-# Use setuptools_scm with the version passed from the build
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=$VERSION
-
 # Install the package
 RUN pip install --no-cache-dir .
 
