@@ -3,6 +3,8 @@ GPT Translator - Enhanced Multi-Provider Version
 Main entry point for the translator application.
 """
 
+from __future__ import annotations
+
 import logging
 import sys
 import traceback
