@@ -220,10 +220,23 @@ jobs:
       - name: Get Version for Docker Build
         id: get_version
         run: |
-          VERSION=$(git describe --tags --always 2>/dev/null || echo "0.1.0")
+          # Fetch all tags to ensure we have the complete history
+          git fetch --tags --force
+          
+          # Get the latest tag, remove 'v' prefix, use default if no tags
+          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
           VERSION="${VERSION#v}"
+          
+          # For tagged builds, use the exact tag
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            VERSION="${TAG#v}"
+            echo "Using tag version: $VERSION (from $TAG)"
+          else
+            echo "Using git version: $VERSION"
+          fi
+          
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Using version: $VERSION for Docker build"
           
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5

@@ -16,9 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy everything needed for versioning and installation
 COPY . .
 
-# Create version.json with the version passed as build arg
-RUN echo "{\"version\": \"$VERSION\"}" > version.json && \
-    cat version.json
+# Disable setuptools_scm and use the provided version
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=$VERSION
 
 # Install the package with proper versioning support
 RUN pip install --no-cache-dir .
