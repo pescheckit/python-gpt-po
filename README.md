@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures.
+A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.9-3.12.
 
 ## Features
 
@@ -20,7 +20,7 @@ A robust tool for translating gettext (.po) files using AI models from multiple 
 
 ## Requirements
 
-- Python 3.x
+- Python 3.9+ (Python 3.9, 3.10, 3.11, and 3.12 are officially supported)
 - [polib](https://pypi.org/project/polib/)
 - [openai](https://pypi.org/project/openai/)
 - [tenacity](https://pypi.org/project/tenacity/)
@@ -118,16 +118,18 @@ You can use this tool without installing Python on your local machine by running
 
 ### Using Pre-built Container
 
-Pull the latest container from GitHub Container Registry:
+Pull the latest container from GitHub Container Registry (defaults to Python 3.11):
 
 ```bash
-docker pull ghcr.io/pescheckit/python-gpt-po:latest
+docker pull ghcr.io/pescheckit/python-gpt-po:latest  # Uses Python 3.11 by default
 ```
 
-You can also use a specific version tag for consistency:
+You can also use a specific version tag for consistency, or specify a Python version:
 
 ```bash 
-docker pull ghcr.io/pescheckit/python-gpt-po:v1.2.3  # Replace with latest version
+docker pull ghcr.io/pescheckit/python-gpt-po:0.3.0  # Latest version
+docker pull ghcr.io/pescheckit/python-gpt-po:0.3.0-py3.11  # Python 3.11 specific
+docker pull ghcr.io/pescheckit/python-gpt-po:latest-py3.12  # Latest with Python 3.12
 ```
 
 Run the container with any local directory mounted to any path inside the container:
@@ -180,6 +182,9 @@ docker run ghcr.io/pescheckit/python-gpt-po:latest
 
 # Translate current directory files to French
 docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --folder /data --lang fr
+
+# Use a specific Python version (3.12)
+docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest-py3.12 --folder /data --lang fr
 
 # List available models
 docker run -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --provider openai --list-models
