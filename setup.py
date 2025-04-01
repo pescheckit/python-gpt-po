@@ -24,8 +24,8 @@ def get_version():
     """
     if os.path.exists('version.json'):
         # In Docker build environment, use the version file
-        with open('version.json') as f:
-            return json.load(f)['version']
+        with open('version.json', encoding='utf-8') as version_file:
+            return json.load(version_file)['version']
     return True  # Use SCM version
 
 
