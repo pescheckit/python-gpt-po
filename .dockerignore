@@ -43,7 +43,9 @@ pytest.ini
 
 # Documentation
 docs/
+# Exclude all markdown files except README.md
 *.md
+!README.md
 
 # Local development
 po-files/
