@@ -220,22 +220,22 @@ jobs:
       - name: Get Version for Docker Build
         id: get_version
         run: |
-          # Fetch all tags to ensure we have the complete history
+          # Ensure we have tags
           git fetch --tags --force
-          
-          # Get the latest tag, remove 'v' prefix, use default if no tags
-          VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
-          VERSION="${VERSION#v}"
           
           # For tagged builds, use the exact tag
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG=${GITHUB_REF#refs/tags/}
-            VERSION="${TAG#v}"
-            echo "Using tag version: $VERSION (from $TAG)"
+            # Keep the v prefix for git tags
+            VERSION="$TAG"
+            echo "Using tag version: $VERSION"
           else
+            # Use git version with v prefix
+            VERSION=$(git describe --tags --always 2>/dev/null || echo "v0.1.0")
             echo "Using git version: $VERSION"
           fi
           
+          # Output for GitHub Actions
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           
       - name: Build and Push Docker Image
