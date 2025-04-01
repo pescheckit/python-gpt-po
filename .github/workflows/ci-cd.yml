@@ -174,13 +174,7 @@ jobs:
           
       - name: Build package
         if: matrix.python-version == '3.11'
-        run: |
-          # Verify git tags are available
-          git tag -l
-          # Check what version setuptools_scm will use
-          python -c "from setuptools_scm import get_version; print(f'SCM Version: {get_version()}')"
-          # Build the package
-          python -m build
+        run: python -m build
         
       - name: Publish package
         if: matrix.python-version == '3.11'
