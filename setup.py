@@ -16,17 +16,22 @@ with open('requirements.txt', encoding='utf-8') as f:
 
 
 def get_version():
-    """
-    Get version from git or version.json (for Docker builds).
-    
-    Returns:
-        dict or bool: Version configuration
-    """
-    if os.path.exists('version.json'):
-        # In Docker build environment, use the version file
-        with open('version.json', encoding='utf-8') as version_file:
-            return json.load(version_file)['version']
-    return True  # Use SCM version
+    """Get version from git or environment variable."""
+    # Check for CI/CD environment variable
+    if 'GITHUB_REF' in os.environ and os.environ['GITHUB_REF'].startswith('refs/tags/'):
+        # Extract version from tag (strip 'v' prefix if present)
+        return os.environ['GITHUB_REF'].split('/')[-1].lstrip('v')
+
+    # Try getting from git
+    try:
+        import subprocess
+        version = subprocess.check_output(['git', 'describe', '--tags', '--always']).decode('utf-8').strip()
+        if version.startswith('v'):
+            version = version[1:]
+        return version
+    except:
+        # Fallback version
+        return "0.1.0"
 
 
 def install_man_pages():
