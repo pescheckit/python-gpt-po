@@ -1,6 +1,9 @@
 ARG PYTHON_VERSION=3.11
 FROM python:${PYTHON_VERSION}-slim
 
+# Accept version as build arg
+ARG VERSION="0.1.0"
+
 WORKDIR /app
 
 # Install git to properly detect version during build
@@ -12,6 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy everything needed for versioning and installation
 COPY . .
+
+# Create version.json with the version passed as build arg
+RUN echo "{\"version\": \"$VERSION\"}" > version.json && \
+    cat version.json
 
 # Install the package with proper versioning support
 RUN pip install --no-cache-dir .

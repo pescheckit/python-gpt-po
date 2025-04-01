@@ -223,6 +223,14 @@ jobs:
           flavor: |
             latest=${{ matrix.python-version == '3.11' }}
 
+      - name: Get Version for Docker Build
+        id: get_version
+        run: |
+          VERSION=$(git describe --tags --always 2>/dev/null || echo "0.1.0")
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Using version: $VERSION for Docker build"
+          
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
@@ -232,5 +240,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
+            VERSION=${{ steps.get_version.outputs.VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
