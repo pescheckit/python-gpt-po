@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Install the package
-RUN pip install -e .
+RUN pip install .
 
 # Create a wrapper script to allow more flexibility
 COPY docker-entrypoint.sh /usr/local/bin/

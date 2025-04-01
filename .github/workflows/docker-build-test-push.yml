@@ -1,17 +1,18 @@
 name: Docker Build and Test
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Python Package CI"]
+    types:
+      - completed
     branches:
       - main
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
 
 jobs:
   build-test-push:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
