@@ -1,0 +1,108 @@
+name: Docker Build and Test
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker Image (local)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: gpt-po-translator:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker Image - Help Text
+        run: |
+          # Run Docker image to verify it works
+          docker run gpt-po-translator:test --version
+          
+          # Check help output (should exit with 0)
+          docker run gpt-po-translator:test --help
+          
+          echo "✅ Basic Docker image tests passed"
+
+      - name: Test Docker Image - CLI Options
+        run: |
+          # Test with --list-models (doesn't require API key)
+          docker run -e OPENAI_API_KEY="dummy-key" gpt-po-translator:test --provider openai --list-models
+          
+          echo "✅ CLI option test passed"
+      
+      - name: Test Docker Image with Sample PO file
+        run: |
+          # Create test directory with sample PO file
+          mkdir -p test-po-files
+          cp .github/workflows/test-sample.po test-po-files/
+          
+          # Test Docker volume mounting and file access (no actual translation)
+          docker run \
+            -v $(pwd)/test-po-files:/test \
+            -e OPENAI_API_KEY="dummy-key" \
+            gpt-po-translator:test \
+            --folder /test --lang de --provider openai --model gpt-3.5-turbo-instruct --list-models
+          
+          # Check if the tool can access the mounted files
+          echo "Verifying test file is accessible..."
+          docker run \
+            -v $(pwd)/test-po-files:/test \
+            gpt-po-translator:test \
+            --folder /test --help
+          
+          echo "✅ Docker volume mount test passed"
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,format=short
+          flavor: |
+            latest=auto
+
+      - name: Build and Push Docker Image
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

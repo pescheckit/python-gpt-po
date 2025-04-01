@@ -112,6 +112,89 @@ To run all tests:
 python -m pytest
 ```
 
+## Using Docker
+
+You can use this tool without installing Python on your local machine by running it in a Docker container.
+
+### Using Pre-built Container
+
+Pull the latest container from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/pescheckit/python-gpt-po:latest
+```
+
+You can also use a specific version tag for consistency:
+
+```bash 
+docker pull ghcr.io/pescheckit/python-gpt-po:v1.2.3  # Replace with latest version
+```
+
+Run the container with any local directory mounted to any path inside the container:
+
+```bash
+# Mount current directory to /data in container
+docker run -v $(pwd):/data \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /data --lang fr,de --bulk
+
+# Mount a specific absolute path to /translations in container
+docker run -v /home/user/my-translations:/translations \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /translations --lang fr,de --bulk
+  
+# Mount from a different drive or location on Windows
+docker run -v D:/projects/website/locales:/locales \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /locales --lang fr,de --bulk
+  
+# On Mac/Linux, mount from any location
+docker run -v /Users/username/Documents/translations:/input \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /input --lang fr,de --bulk
+  
+# Multiple volumes can be mounted if needed
+docker run \
+  -v /path/to/source:/input \
+  -v /path/to/output:/output \
+  -e OPENAI_API_KEY="your_openai_key" \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --folder /input --lang fr,de --bulk
+```
+
+Running without arguments will display usage help:
+
+```bash
+docker run ghcr.io/pescheckit/python-gpt-po:latest
+```
+
+Quick reference - copy & paste commands:
+
+```bash
+# Help text
+docker run ghcr.io/pescheckit/python-gpt-po:latest
+
+# Translate current directory files to French
+docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --folder /data --lang fr
+
+# List available models
+docker run -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --provider openai --list-models
+```
+
+### Volume Mount Explanation
+
+The `-v` flag uses the format: `-v /host/path:/container/path`
+
+- `/host/path` can be any directory on your system
+- `/container/path` is where the directory appears inside the container
+- Use the `/container/path` with the `--folder` parameter
+
+For example, if you mount with `-v ~/translations:/data`, then use `--folder /data` in your command.
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
