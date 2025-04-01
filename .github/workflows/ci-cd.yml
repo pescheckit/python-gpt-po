@@ -1,23 +1,73 @@
-name: Docker Build and Test
+name: Python and Docker CI/CD
 
 on:
-  workflow_run:
-    workflows: ["Python Package CI"]
-    types:
-      - completed
+  push:
     branches:
       - main
     tags:
-      - 'v*'
+      - '*'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build-test-push:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  lint:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff flake8 pylint isort setuptools
+          pip install -r requirements.txt
+      - name: Analysing the code with pylint
+        run: |
+          pylint $(git ls-files '*.py')
+      - name: Check code style with flake8
+        run: |
+          flake8 .
+      - name: Check import order with isort
+        run: |
+          isort --check-only --diff .
+      - name: Linting with Ruff
+        run: |
+          ruff check $(git ls-files '*.py')
 
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install -r requirements.txt
+      - name: Run tests
+        run: |
+          python -m pytest
+
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,7 +75,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker Image (local)
+      - name: Build Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -44,12 +94,15 @@ jobs:
           
           echo "✅ Basic Docker image tests passed"
 
-      - name: Test Docker Image - CLI Options
+      - name: Test Docker Image - CLI Options and Tests
         run: |
           # Test with --list-models (doesn't require API key)
           docker run -e OPENAI_API_KEY="dummy-key" gpt-po-translator:test --provider openai --list-models
           
-          echo "✅ CLI option test passed"
+          # Run the Python tests inside the container
+          docker run gpt-po-translator:test python -m pytest
+          
+          echo "✅ CLI option test and pytest passed"
       
       - name: Test Docker Image with Sample PO file
         run: |
@@ -74,7 +127,7 @@ jobs:
           echo "✅ Docker volume mount test passed"
 
       - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -89,16 +142,15 @@ jobs:
             ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
             type=sha,format=short
           flavor: |
-            latest=auto
+            latest=true
 
       - name: Build and Push Docker Image
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
         uses: docker/build-push-action@v5
         with:
           context: .
