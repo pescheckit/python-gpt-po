@@ -1,4 +1,4 @@
-name: Python and Docker CI/CD
+name: Python Package CI
 
 on:
   push:
@@ -9,10 +9,11 @@ on:
   pull_request:
     branches:
       - main
+  release:
+    types: [published]
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   lint:
@@ -22,6 +23,8 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -52,6 +55,8 @@ jobs:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -63,17 +68,48 @@ jobs:
           pip install -r requirements.txt
       - name: Run tests
         run: |
-          python -m pytest
+          pytest
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install build
+      - name: Build package
+        run: python -m build
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@v1.8.10
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
   docker:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -99,15 +135,13 @@ jobs:
           
           echo "✅ Basic Docker image tests passed for Python ${{ matrix.python-version }}"
 
-      - name: Test Docker Image - CLI Options and Tests
+      - name: Test Docker Image - CLI Options
         run: |
-          # Test with --list-models (doesn't require API key)
-          docker run -e OPENAI_API_KEY="dummy-key" gpt-po-translator:py${{ matrix.python-version }} --provider openai --list-models
+          # Test with --help flag for different providers (doesn't require API key)
+          docker run gpt-po-translator:py${{ matrix.python-version }} --provider openai --help
+          docker run gpt-po-translator:py${{ matrix.python-version }} --provider anthropic --help
           
-          # Run the Python tests inside the container
-          docker run gpt-po-translator:py${{ matrix.python-version }} python -m pytest
-          
-          echo "✅ CLI option test and pytest passed for Python ${{ matrix.python-version }}"
+          echo "✅ CLI option test passed for Python ${{ matrix.python-version }}"
       
       - name: Test Docker Image with Sample PO file
         run: |
@@ -115,15 +149,8 @@ jobs:
           mkdir -p test-po-files
           cp .github/workflows/test-sample.po test-po-files/
           
-          # Test Docker volume mounting and file access (no actual translation)
-          docker run \
-            -v $(pwd)/test-po-files:/test \
-            -e OPENAI_API_KEY="dummy-key" \
-            gpt-po-translator:py${{ matrix.python-version }} \
-            --folder /test --lang de --provider openai --model gpt-3.5-turbo-instruct --list-models
-          
-          # Check if the tool can access the mounted files
-          echo "Verifying test file is accessible..."
+          # Check if the tool can access the mounted files (without API operations)
+          # Just verify help works with the folder mounted
           docker run \
             -v $(pwd)/test-po-files:/test \
             gpt-po-translator:py${{ matrix.python-version }} \

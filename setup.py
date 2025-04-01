@@ -3,6 +3,7 @@ Setup script for the gpt-po-translator package.
 This script is used to install the package, dependencies, and the man page.
 """
 
+import json
 import os
 
 from setuptools import find_packages, setup
@@ -12,6 +13,20 @@ with open('README.md', encoding='utf-8') as f:
 
 with open('requirements.txt', encoding='utf-8') as f:
     install_requires = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+
+
+def get_version():
+    """
+    Get version from git or version.json (for Docker builds).
+    
+    Returns:
+        dict or bool: Version configuration
+    """
+    if os.path.exists('version.json'):
+        # In Docker build environment, use the version file
+        with open('version.json') as f:
+            return json.load(f)['version']
+    return True  # Use SCM version
 
 
 def install_man_pages():
@@ -29,7 +44,7 @@ def install_man_pages():
 
 setup(
     name='gpt-po-translator',
-    use_scm_version=True,
+    use_scm_version=get_version(),
     setup_requires=['setuptools-scm==8.1.0'],
     author='Bram Mittendorff',
     author_email='bram@pescheck.io',
