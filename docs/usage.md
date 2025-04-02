@@ -139,8 +139,8 @@ Below is a detailed explanation of all command-line arguments:
   *Behind the scenes:* The chosen model is passed along to the provider’s API calls. If the model is not available, a warning is logged and the default is used.
 
 - **`--list-models`**  
-  *Description:* Lists all available models for the selected provider and exits without processing any files.  
-  *Behind the scenes:* Makes a test API call to retrieve a list of models and prints them to the console.
+  *Description:* Lists all available models for the selected provider and exits without processing any files. This is the only command that doesn't require `--folder` and `--lang` parameters.  
+  *Behind the scenes:* Makes a test API call to retrieve a list of models and prints them to the console. When this flag is provided, the CLI parser automatically makes the usually required parameters optional.
 
 - **`--openai-key`**  
   *Description:* Provides the OpenAI API key directly as a command-line argument (alternative to using `--api_key` or the environment variable).  

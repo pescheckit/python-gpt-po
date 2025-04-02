@@ -27,6 +27,9 @@ if [ $# -eq 0 ]; then
   echo "  # MacOS example"
   echo "  docker run -v /Users/username/Documents/translations:/input -e OPENAI_API_KEY=<your_key> ghcr.io/pescheckit/python-gpt-po --folder /input --lang fr,es"
   echo
+  echo "  # List available models (no need for --folder or --lang)"
+  echo "  docker run -e OPENAI_API_KEY=<your_key> ghcr.io/pescheckit/python-gpt-po --provider openai --list-models"
+  echo
   echo "For full documentation, visit: https://github.com/pescheckit/python-gpt-po"
   exit 0
 fi
