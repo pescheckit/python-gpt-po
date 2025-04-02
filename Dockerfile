@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create a simple wrapper script
-RUN echo '#!/bin/bash\npython /app/python_gpt_po/main.py "$@"' > /usr/local/bin/gpt-po-translator && \
+RUN echo '#!/bin/bash\npython -m python_gpt_po.main "$@"' > /usr/local/bin/gpt-po-translator && \
     chmod +x /usr/local/bin/gpt-po-translator
 
 # Create a wrapper script to allow more flexibility
