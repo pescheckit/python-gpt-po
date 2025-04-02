@@ -43,7 +43,7 @@ git clone https://github.com/pescheckit/python-gpt-po.git
 cd python-gpt-po
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements
+pip install -r requirements.txt
 python -m python_gpt_po.main --folder test --lang nl --bulk --provider="deepseek" --list-models
 ```
 

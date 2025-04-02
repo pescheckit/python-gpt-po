@@ -3,6 +3,8 @@ FROM python:${PYTHON_VERSION}-slim
 
 # Accept version as build arg
 ARG VERSION="0.1.0"
+# Add this line to convert the ARG to an ENV
+ENV PACKAGE_VERSION=${VERSION}
 
 WORKDIR /app
 

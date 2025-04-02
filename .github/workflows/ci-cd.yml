@@ -100,6 +100,26 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
+      - name: Get Version for Docker Build
+        id: get_version
+        run: |
+          # Ensure we have tags
+          git fetch --tags --force
+          
+          # For tagged builds, use the exact tag without v prefix for PACKAGE_VERSION
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            VERSION="${TAG#v}"
+            echo "Using tag version: $VERSION"
+          else
+            # Use git version without v prefix
+            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "0.1.0")
+            echo "Using git version: $VERSION"
+          fi
+          
+          # Output for GitHub Actions
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build Docker Image - Python ${{ matrix.python-version }}
         uses: docker/build-push-action@v5
         with:
@@ -108,6 +128,7 @@ jobs:
           tags: gpt-po-translator:py${{ matrix.python-version }}
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
+            VERSION=${{ steps.get_version.outputs.VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -164,6 +185,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
+      
+      - name: Set Package Version for PyPI
+        if: matrix.python-version == '3.11'
+        run: |
+          # Get tag name without 'refs/tags/' prefix
+          TAG=${GITHUB_REF#refs/tags/}
+          # Remove 'v' prefix if present
+          VERSION="${TAG#v}"
+          # Set as environment variable
+          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Using version $VERSION for PyPI package"
           
       - name: Install dependencies
         if: matrix.python-version == '3.11'
@@ -227,12 +259,12 @@ jobs:
           # For tagged builds, use the exact tag
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then
             TAG=${GITHUB_REF#refs/tags/}
-            # Keep the v prefix for git tags
-            VERSION="$TAG"
+            # Remove v prefix if present for Docker build arg
+            VERSION="${TAG#v}"
             echo "Using tag version: $VERSION"
           else
-            # Use git version with v prefix
-            VERSION=$(git describe --tags --always 2>/dev/null || echo "v0.1.0")
+            # Use git version without v prefix
+            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "0.1.0")
             echo "Using git version: $VERSION"
           fi
           
