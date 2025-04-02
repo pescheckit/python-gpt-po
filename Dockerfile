@@ -5,6 +5,7 @@ FROM python:${PYTHON_VERSION}-slim
 ARG VERSION="0.1.0"
 # Set as environment variable for setup.py to use
 ENV PACKAGE_VERSION=${VERSION}
+ENV PYTHONPATH=/app
 
 WORKDIR /app
 
@@ -18,8 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY . .
 
-# Instead of pip install which is failing, just create the entry point
-RUN ln -s /app/python_gpt_po/main.py /usr/local/bin/gpt-po-translator && \
+# Create a simple wrapper script
+RUN echo '#!/bin/bash\npython /app/python_gpt_po/main.py "$@"' > /usr/local/bin/gpt-po-translator && \
     chmod +x /usr/local/bin/gpt-po-translator
 
 # Create a wrapper script to allow more flexibility
