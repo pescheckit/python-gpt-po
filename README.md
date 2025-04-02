@@ -44,7 +44,7 @@ cd python-gpt-po
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python -m python_gpt_po.main --folder test --lang nl --bulk --provider="deepseek" --list-models
+python -m python_gpt_po.main --provider="deepseek" --list-models
 ```
 
 ## API Key Configuration
@@ -96,6 +96,8 @@ For a detailed explanation of all available parameters and a deep dive into the 
 - `--bulk`: Enable bulk translation mode.
 - `--bulksize`: Set the number of entries per bulk translation (default is 50).
 - `--model`: Specify the translation model (defaults are provider-specific).
+- `--provider`: Specify the AI provider (openai, anthropic, or deepseek).
+- `--list-models`: List available models for the selected provider. This is the only command that can be used without `--folder` and `--lang`.
 - `--api_key`: API key for translation; can also be provided via environment variable.
 - `--folder-language`: Infer the target language from the folder structure.
 
@@ -186,7 +188,7 @@ docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/pytho
 # Use a specific Python version (3.12)
 docker run -v $(pwd):/data -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest-py3.12 --folder /data --lang fr
 
-# List available models
+# List available models (no need for --folder or --lang)
 docker run -e OPENAI_API_KEY="your_key" ghcr.io/pescheckit/python-gpt-po:latest --provider openai --list-models
 ```
 

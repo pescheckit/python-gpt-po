@@ -36,21 +36,28 @@ def parse_args():
     Returns:
         argparse.Namespace: Parsed arguments
     """
+    # First pass - check if list-models is in args
+    # This allows us to make folder and lang not required when listing models
+    list_models_present = False
+    for arg in sys.argv:
+        if arg in ("--list-models", "--version"):
+            list_models_present = True
+            break
     parser = CustomArgumentParser(
         description="Translate .po files using AI language models",
         epilog="""
 Examples:
   # Basic usage with OpenAI
-  python po_translator.py --folder ./locales --lang fr,es,de
+  gpt-po-translator --folder ./locales --lang fr,es,de
 
   # Use Anthropic with detailed language names
-  python po_translator.py --folder ./i18n --lang nl,de --detail-lang "Dutch,German" --provider anthropic
+  gpt-po-translator --folder ./i18n --lang nl,de --detail-lang "Dutch,German" --provider anthropic
 
-  # List available models for a provider
-  python po_translator.py --provider deepseek --list-models
+  # List available models for a provider (no need for --folder or --lang)
+  gpt-po-translator --provider deepseek --list-models
 
   # Process multiple translations in bulk with a specific model
-  python po_translator.py --folder ./locales --lang ja,ko --bulk --model gpt-4
+  gpt-po-translator --folder ./locales --lang ja,ko --bulk --model gpt-4
 """,
         formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=35, width=100)
     )
@@ -62,16 +69,16 @@ Examples:
     api_group = parser.add_argument_group('API Keys')
     advanced_group = parser.add_argument_group('Advanced Options')
 
-    # Required arguments
+    # Required arguments (not required if listing models)
     required_group.add_argument(
         "-f", "--folder",
-        required=True,
+        required=(not list_models_present),
         metavar="FOLDER",
         help="Input folder containing .po files"
     )
     required_group.add_argument(
         "-l", "--lang",
-        required=True,
+        required=(not list_models_present),
         metavar="LANG",
         help="Comma-separated language codes to translate (e.g., fr,es,de)"
     )
