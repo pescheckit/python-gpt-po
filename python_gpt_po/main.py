@@ -197,10 +197,4 @@ def main():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--version":
-        # Simply use the version from __init__.py
-        from . import __version__
-        print(__version__)
-        sys.exit(0)
-
     main()
