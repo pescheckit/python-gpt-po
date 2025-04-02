@@ -1,6 +1,6 @@
 # Python GPT-4 PO File Translator
 
-[![Python Package CI](https://github.com/pescheckit/python-gpt-po/actions/workflows/python-ci-package.yml/badge.svg)](https://github.com/pescheckit/python-gpt-po/actions/workflows/python-ci-package.yml)
+[![Python Package CI](https://github.com/pescheckit/python-gpt-po/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/pescheckit/python-gpt-po/actions/workflows/ci-cd.yml)
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
