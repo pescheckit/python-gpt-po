@@ -48,13 +48,13 @@ class POFileHandler:
     @staticmethod
     def get_file_language(po_file_path, po_file, languages, folder_language):
         """Determines the language for a .po file.
-        
+
         Args:
             po_file_path (str): Path to the .po file
             po_file (polib.POFile): Loaded PO file object
             languages (List[str]): List of valid language codes
             folder_language (bool): Whether to infer language from folder structure
-            
+
         Returns:
             str or None: The normalized language code or None if not found
         """
@@ -76,10 +76,10 @@ class POFileHandler:
     @staticmethod
     def normalize_language_code(lang):
         """Convert language name or code to ISO 639-1 code.
-        
+
         Args:
             lang (str): Language name or code to normalize
-            
+
         Returns:
             str or None: The normalized ISO 639-1 language code or None if not found
         """
@@ -109,7 +109,7 @@ class POFileHandler:
     @staticmethod
     def log_translation_status(po_file_path, original_texts, translations):
         """Logs the status of translations for a .po file.
-        
+
         Args:
             po_file_path (str): Path to the .po file
             original_texts (List[str]): List of original texts to translate
@@ -133,7 +133,7 @@ class POFileHandler:
     @staticmethod
     def update_po_entry(po_file, original_text, translated_text):
         """Updates a .po file entry with the translated text.
-        
+
         Args:
             po_file (polib.POFile): The PO file object
             original_text (str): The original text to find
@@ -149,10 +149,10 @@ class POFileHandler:
     @staticmethod
     def read_po_file(po_file_path):
         """Reads a .po file and returns the PO file object.
-        
+
         Args:
             po_file_path (str): Path to the .po file
-            
+
         Returns:
             polib.POFile: The loaded PO file object
         """
@@ -165,11 +165,11 @@ class POFileHandler:
     @staticmethod
     def save_po_file(po_file, po_file_path):
         """Saves changes to a .po file.
-        
+
         Args:
             po_file (polib.POFile): The PO file object to save
             po_file_path (str): Path where the file should be saved
-            
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -184,10 +184,10 @@ class POFileHandler:
     @staticmethod
     def get_untranslated_entries(po_file):
         """Gets all untranslated entries from a PO file.
-        
+
         Args:
             po_file (polib.POFile): The PO file object
-            
+
         Returns:
             List[polib.POEntry]: List of untranslated entries
         """
@@ -196,10 +196,10 @@ class POFileHandler:
     @staticmethod
     def extract_metadata(po_file):
         """Extracts and returns metadata from a PO file.
-        
+
         Args:
             po_file (polib.POFile): The PO file object
-            
+
         Returns:
             dict: Dictionary containing metadata
         """

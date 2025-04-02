@@ -6,4 +6,5 @@ __pycache__
 build/
 db.sqlite3
 .venv
-python_gpt_po/version.py
+python_gpt_po/_version.py
+CLAUDE.md

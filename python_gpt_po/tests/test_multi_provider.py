@@ -192,16 +192,16 @@ def test_get_openai_models(mock_get, mock_provider_clients):
     mock_response.json.return_value = OPENAI_MODELS_RESPONSE
     mock_response.raise_for_status = MagicMock()
     mock_get.return_value = mock_response
-    
+
     # Mock the OpenAI client's models.list method
     models_list_mock = MagicMock()
     models_list_mock.data = [MagicMock(id="gpt-4"), MagicMock(id="gpt-3.5-turbo")]
     mock_provider_clients.openai_client.models.list.return_value = models_list_mock
-    
+
     # Call the function
     model_manager = ModelManager()
     models = model_manager.get_available_models(mock_provider_clients, ModelProvider.OPENAI)
-    
+
     # Assert models are returned correctly
     assert "gpt-4" in models
 
@@ -216,11 +216,11 @@ def test_get_anthropic_models(mock_provider_clients):
         json=ANTHROPIC_MODELS_RESPONSE,
         status=200
     )
-    
+
     # Call the function
     model_manager = ModelManager()
     models = model_manager.get_available_models(mock_provider_clients, ModelProvider.ANTHROPIC)
-    
+
     # Assert models are returned correctly
     assert "claude-3-7-sonnet-20250219" in models
     assert "claude-3-5-sonnet-20241022" in models
@@ -236,11 +236,11 @@ def test_get_deepseek_models(mock_provider_clients):
         json=DEEPSEEK_MODELS_RESPONSE,
         status=200
     )
-    
+
     # Call the function
     model_manager = ModelManager()
     models = model_manager.get_available_models(mock_provider_clients, ModelProvider.DEEPSEEK)
-    
+
     # Assert models are returned correctly
     assert "deepseek-chat" in models
     assert "deepseek-coder" in models
@@ -253,15 +253,15 @@ def test_translate_bulk_openai(mock_post, translation_service_openai):
     mock_response = MagicMock()
     mock_response.json.return_value = OPENAI_TRANSLATION_RESPONSE
     mock_post.return_value = mock_response
-    
+
     # Call function
     translation_service_openai.config.provider_clients.openai_client.chat.completions.create.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'))]
     )
-    
+
     texts = ["Hello", "World", "Welcome to our application", "Goodbye"]
     translations = translation_service_openai.translate_bulk(texts, "fr", "test.po")
-    
+
     # Assert translations are correct
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
@@ -273,10 +273,10 @@ def test_translate_bulk_anthropic(mock_post, translation_service_anthropic):
     translation_service_anthropic.config.provider_clients.anthropic_client.messages.create.return_value = MagicMock(
         content=[MagicMock(text='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]')]
     )
-    
+
     texts = ["Hello", "World", "Welcome to our application", "Goodbye"]
     translations = translation_service_anthropic.translate_bulk(texts, "fr", "test.po")
-    
+
     # Assert translations are correct
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
@@ -291,18 +291,18 @@ def test_translate_bulk_deepseek(translation_service_deepseek):
         json=DEEPSEEK_TRANSLATION_RESPONSE,
         status=200
     )
-    
+
     texts = ["Hello", "World", "Welcome to our application", "Goodbye"]
-    
+
     # Test with the markdown-wrapped response
     with patch('requests.post') as mock_post:
         mock_response = MagicMock()
         mock_response.json.return_value = DEEPSEEK_TRANSLATION_RESPONSE
         mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
-        
+
         translations = translation_service_deepseek.translate_bulk(texts, "fr", "test.po")
-    
+
     # Assert translations are correct after markdown cleaning
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
@@ -313,12 +313,12 @@ def test_clean_json_response(translation_service_deepseek):
     markdown_json = "```json\n[\"Bonjour\", \"Monde\"]\n```"
     cleaned = translation_service_deepseek._clean_json_response(markdown_json)
     assert cleaned == "[\"Bonjour\", \"Monde\"]"
-    
+
     # Test with extra text before and after
     messy_json = "Here's the translation: [\"Bonjour\", \"Monde\"] Hope that helps!"
     cleaned = translation_service_deepseek._clean_json_response(messy_json)
     assert cleaned == "[\"Bonjour\", \"Monde\"]"
-    
+
     # Test with clean JSON
     clean_json = "[\"Bonjour\", \"Monde\"]"
     cleaned = translation_service_deepseek._clean_json_response(clean_json)
@@ -326,25 +326,25 @@ def test_clean_json_response(translation_service_deepseek):
 
 
 @patch('polib.pofile')
-def test_process_po_file_all_providers(mock_pofile, translation_service_openai, 
-                                       translation_service_anthropic, 
+def test_process_po_file_all_providers(mock_pofile, translation_service_openai,
+                                       translation_service_anthropic,
                                        translation_service_deepseek, temp_po_file):
     """Test processing a PO file with all providers."""
     # Create a mock PO file
     mock_po = MagicMock()
     mock_entries = []
-    
+
     # Create entries for the mock PO file
     for text in ["Hello", "World", "Welcome to our application", "Goodbye"]:
         entry = MagicMock()
         entry.msgid = text
         entry.msgstr = ""
         mock_entries.append(entry)
-    
+
     mock_po.__iter__.return_value = mock_entries
     mock_po.metadata = {"Language": "fr"}
     mock_pofile.return_value = mock_po
-    
+
     # Setup translation method mocks for each service
     for i, service in enumerate([translation_service_openai, translation_service_anthropic, translation_service_deepseek]):
         # Create a fresh mock for each service
@@ -352,15 +352,15 @@ def test_process_po_file_all_providers(mock_pofile, translation_service_openai,
         mock_po_new.__iter__.return_value = mock_entries
         mock_po_new.metadata = {"Language": "fr"}
         mock_pofile.return_value = mock_po_new
-        
+
         service.get_translations = MagicMock(return_value=[
             "Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"
         ])
         service.po_file_handler.get_file_language = MagicMock(return_value="fr")
-        
+
         # Process the PO file
         service.process_po_file(temp_po_file, ["fr"])
-        
+
         # Assert translations were applied
         service.get_translations.assert_called_once()
         mock_po_new.save.assert_called_once()
@@ -370,19 +370,19 @@ def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai, tem
     """Test handling of fuzzy translations."""
     # Enable fuzzy flag
     translation_service_openai.config.fuzzy = True
-    
+
     # Mock the PO file handling
     with patch('polib.pofile') as mock_pofile:
         mock_po = MagicMock()
         mock_po.metadata = {"Language": "fr"}
         mock_pofile.return_value = mock_po
-        
+
         # Mock get_file_language to return a valid language
         translation_service_openai.po_file_handler.get_file_language = MagicMock(return_value="fr")
-        
+
         # Process the PO file
         translation_service_openai.process_po_file(temp_po_file, ["fr"])
-        
+
         # Assert the fuzzy translations were disabled
         mock_disable_fuzzy.assert_called_once_with(temp_po_file)
 
@@ -393,16 +393,16 @@ def test_validation_model_connection_all_providers(
     """Test validating connection to all providers."""
     # Configure OpenAI mock
     translation_service_openai.config.provider_clients.openai_client.chat.completions.create.return_value = MagicMock()
-    
+
     # Configure Anthropic mock
     translation_service_anthropic.config.provider_clients.anthropic_client.messages.create.return_value = MagicMock()
-    
+
     # Configure DeepSeek mock
     with patch('requests.post') as mock_post:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
         mock_post.return_value = mock_response
-        
+
         # Test all providers
         assert translation_service_openai.validate_provider_connection() is True
         assert translation_service_anthropic.validate_provider_connection() is True
@@ -417,35 +417,35 @@ def test_scan_and_process_po_files(mock_pofile, mock_walk, translation_service_o
     mock_walk.return_value = [
         ("/test/folder", [], ["en.po", "fr.po", "es.po", "not_a_po_file.txt"])
     ]
-    
+
     # Create a completely mock implementation of process_po_file to avoid any real processing
     translation_service_openai.process_po_file = MagicMock()
-    
+
     # Create a custom implementation of scan_and_process_po_files that only processes fr.po and es.po
     original_scan = translation_service_openai.scan_and_process_po_files
-    
+
     def mock_scan(input_folder, languages, detail_languages=None):
         # Only process fr.po and es.po
         for file_name in ["fr.po", "es.po"]:
             file_path = f"/test/folder/{file_name}"
             translation_service_openai.process_po_file(file_path, languages, detail_languages)
-    
+
     # Replace the original method with our mock
     translation_service_openai.scan_and_process_po_files = mock_scan
-    
+
     try:
         # Call the function
         translation_service_openai.scan_and_process_po_files("/test/folder", ["fr", "es"])
-        
+
         # Check that process_po_file was called exactly twice
         assert translation_service_openai.process_po_file.call_count == 2
-        
+
         # Check that it was called with the correct file paths
         calls = [args[0][0] for args in translation_service_openai.process_po_file.call_args_list]
         assert "/test/folder/fr.po" in calls
         assert "/test/folder/es.po" in calls
         assert "/test/folder/en.po" not in calls
-        
+
     finally:
         # Restore original method
         translation_service_openai.scan_and_process_po_files = original_scan
@@ -454,17 +454,17 @@ def test_scan_and_process_po_files(mock_pofile, mock_walk, translation_service_o
 def test_normalize_language_code():
     """Test language code normalization."""
     handler = POFileHandler()
-    
+
     # Test normalizing two-letter codes
     assert handler.normalize_language_code("fr") == "fr"
     assert handler.normalize_language_code("es") == "es"
-    
+
     # Test normalizing language names
     assert handler.normalize_language_code("French") == "fr"
     assert handler.normalize_language_code("Spanish") == "es"
-    
+
     # Test with invalid language
     assert handler.normalize_language_code("InvalidLanguage") is None
-    
+
     # Test with empty input
     assert handler.normalize_language_code("") is None

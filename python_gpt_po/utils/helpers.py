@@ -8,7 +8,7 @@ from pkg_resources import DistributionNotFound, get_distribution
 def get_version():
     """
     Get package version.
-    
+
     Returns:
         str: The package version or a default if not found
     """

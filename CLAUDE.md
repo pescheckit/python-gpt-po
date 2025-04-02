@@ -7,29 +7,28 @@
 - Test: `python -m pytest`
 - Test Single: `python -m pytest python_gpt_po/tests/path/to/test.py::test_function_name -v`
 - Test Integration: `python -m pytest -m integration`
-- Lint: `flake8`
-- Type Check: `pylint python_gpt_po/`
-
-## Docker Commands
-
-- Build Image: `docker build -t gpt-po-translator .`
-- Pull Image: `docker pull ghcr.io/pescheckit/python-gpt-po:latest`
-- Run with Tag: `docker run -v $(pwd):/data ghcr.io/pescheckit/python-gpt-po:latest --folder /data --lang fr`
-- Run Container: 
-  - Current Dir: `docker run -v $(pwd):/data -e OPENAI_API_KEY=<key> gpt-po-translator --folder /data --lang <lang-codes>`
-  - Absolute Path: `docker run -v /absolute/path/to/files:/custom/path -e OPENAI_API_KEY=<key> gpt-po-translator --folder /custom/path --lang <lang-codes>`
-  - Windows Path: `docker run -v D:/projects/locales:/locales -e OPENAI_API_KEY=<key> gpt-po-translator --folder /locales --lang <lang-codes>`
-  - Multiple Volumes: `docker run -v /source:/input -v /output:/output -e OPENAI_API_KEY=<key> gpt-po-translator --folder /input --lang <lang-codes>`
+- Lint: `flake8 python_gpt_po`
+- Type Check: `pylint python_gpt_po`
+- Build Package: `python -m build --wheel`
+- Version Info: `python -m python_gpt_po.main --version`
 
 ## Code Style
 
-- Line Length: 120 characters max
-- Docstrings: Required for all modules, classes, and functions (Google style)
+- Line Length: 120 characters max (configured in both .flake8 and .pylintrc)
+- Docstrings: Required for all modules, classes, and functions (Google style with return type docs)
 - Imports: Group standard lib, third-party, and local imports (sorted alphabetically)
-- Typing: Use type hints for all function parameters and return values
+- Typing: Use type hints for all parameters, return values; use Optional[T] for nullable types
+- Versioning: Environment variable > _version.py > Git tags > fallback=0.1.0
 - Naming: snake_case for variables/functions, PascalCase for classes, UPPER_CASE for constants
-- Error Handling: Specific exceptions with descriptive messages
-- Logging: Use the logging module, not print statements
-- Tests: Unit tests required with descriptive names, mocks for external services
-- Use dataclasses for configuration objects
-- Follow PEP 8 with the exceptions noted in .flake8 and .pylintrc
+- Error Handling: Use specific exceptions with descriptive messages, proper logging
+- Logging: Use the logging module instead of print statements for all output
+- Tests: Unit tests with descriptive names, integration tests marked with @pytest.mark.integration
+- Architecture: Use dataclasses for configuration, follow service/model separation
+- PEP 8: Follow with exceptions (W293 for trailing whitespace, see .flake8 and .pylintrc)
+
+## Docker Commands
+
+- Build: `docker build -t gpt-po-translator .`
+- Pull: `docker pull ghcr.io/pescheckit/python-gpt-po:latest`
+- Run Example: `docker run -v $(pwd):/data -e OPENAI_API_KEY=<key> gpt-po-translator --folder /data --lang fr,es,de`
+- Custom Version: `docker build -t gpt-po-translator --build-arg VERSION=1.0.0 .`

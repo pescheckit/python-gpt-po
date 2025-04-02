@@ -81,12 +81,12 @@ class ModelManager:
         """
         Validates whether the specified model is available for the given provider.
         Uses prefix matching so that a shorthand (e.g. "claude") will match a full model name.
-        
+
         Args:
             provider_clients (ProviderClients): The initialized provider clients
             provider (ModelProvider): The provider to check against
             model (str): The model name/ID to validate
-            
+
         Returns:
             bool: True if the model is valid, False otherwise
         """
@@ -99,10 +99,10 @@ class ModelManager:
     def get_default_model(provider: ModelProvider) -> str:
         """
         Returns the default model for a given provider.
-        
+
         Args:
             provider (ModelProvider): The provider to get the default model for
-            
+
         Returns:
             str: The default model ID
         """
@@ -128,7 +128,7 @@ class ModelManager:
             provider (ModelProvider): The provider to check against
             model (str): The model to verify
             required_capability (str): The capability to check for
-            
+
         Returns:
             bool: True if the model has the required capability, False otherwise
         """
@@ -147,12 +147,12 @@ class ModelManager:
                       task: str = "translation") -> str:
         """
         Suggests the best model for a given task and provider.
-        
+
         Args:
             provider_clients (ProviderClients): The initialized provider clients
             provider (ModelProvider): The provider to use
             task (str): The task the model will be used for
-            
+
         Returns:
             str: The suggested model ID
         """
