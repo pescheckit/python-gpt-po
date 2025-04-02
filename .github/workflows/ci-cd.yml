@@ -149,12 +149,10 @@ jobs:
           context: .
           # Load image into Docker daemon for local testing, don't push
           load: true
-          # Use a distinct tag for the test build image
           tags: local/gpt-po-translator:py${{ matrix.python-version }}-test
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             VERSION=${{ steps.get_version.outputs.VERSION }}
-          # Use distinct cache scope for test build
           cache-from: type=gha,scope=test-${{ matrix.python-version }}
           cache-to: type=gha,mode=max,scope=test-${{ matrix.python-version }}
 
@@ -195,7 +193,7 @@ jobs:
     permissions:
       contents: read    # For checkout
       packages: write   # For GHCR push
-      id-token: write # Uncomment if using PyPI Trusted Publishing`
+      # id-token: write # Uncomment if using PyPI Trusted Publishing`
 
     strategy:
       fail-fast: true # If one deployment fails, stop others
@@ -309,8 +307,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            PYTHON_VERSION=${{ matrix.python-version }} # From the matrix
-            VERSION=${{ steps.get_version_tag.outputs.VERSION }} # From the Git tag
-          # Use cache specific to deployment and python version
+            PYTHON_VERSION=${{ matrix.python-version }}
+            VERSION=${{ steps.get_version_tag.outputs.VERSION }}
           cache-from: type=gha,scope=deploy-${{ matrix.python-version }}
           cache-to: type=gha,mode=max,scope=deploy-${{ matrix.python-version }}
