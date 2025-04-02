@@ -5,7 +5,6 @@ This script is used to install the package, dependencies, and the man page.
 
 import os
 import subprocess
-
 from setuptools import find_packages, setup
 
 with open('README.md', encoding='utf-8') as f:
@@ -28,10 +27,18 @@ def get_version():
 
     # Try getting from git
     try:
-        # Get only the latest tag without additional commit info
-        version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode('utf-8').strip()
-        if version.startswith('v'):
+        # Get version from git describe, but normalize it to be PEP 440 compliant
+        version = subprocess.check_output(['git', 'describe', '--tags', '--always']).decode('utf-8').strip()
+        
+        # Handle version format from git describe
+        if '-' in version:
+            # Format like v0.3.5-5-gd9775d7, convert to 0.3.5.dev5+gd9775d7
+            tag, commits, commit_hash = version.lstrip('v').split('-')
+            version = f"{tag}.dev{commits}+{commit_hash}"
+        elif version.startswith('v'):
+            # Just a tagged version like v0.3.5
             version = version[1:]
+            
         return version
     except (subprocess.SubprocessError, FileNotFoundError):
         # Fallback version

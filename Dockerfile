@@ -3,7 +3,7 @@ FROM python:${PYTHON_VERSION}-slim
 
 # Accept version as build arg
 ARG VERSION="0.1.0"
-# Add this line to convert the ARG to an ENV
+# Set as environment variable for setup.py to use
 ENV PACKAGE_VERSION=${VERSION}
 
 WORKDIR /app
@@ -15,11 +15,12 @@ RUN apt-get update && apt-get install -y git && apt-get clean && rm -rf /var/lib
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code for installation
+# Copy source code
 COPY . .
 
-# Install the package
-RUN pip install --no-cache-dir .
+# Instead of pip install which is failing, just create the entry point
+RUN ln -s /app/python_gpt_po/main.py /usr/local/bin/gpt-po-translator && \
+    chmod +x /usr/local/bin/gpt-po-translator
 
 # Create a wrapper script to allow more flexibility
 COPY docker-entrypoint.sh /usr/local/bin/
