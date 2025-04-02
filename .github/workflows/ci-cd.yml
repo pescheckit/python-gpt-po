@@ -266,6 +266,6 @@ jobs:
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             VERSION=${{ steps.get_version_docker.outputs.VERSION }} # Use correct step id
-          # Reference deploy cache with distinct scope
+          # The comment that likely caused the error was here - now removed
           cache-from: type=gha,scope=deploy-${{ matrix.python-version }}
           cache-to: type=gha,mode=max,scope=deploy-${{ matrix.python-version }}
