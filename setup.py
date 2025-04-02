@@ -80,7 +80,7 @@ def install_man_pages():
 
 
 setup(
-    name='gpt_po_translator',
+    name='gpt-po-translator',
     version=package_version,  # Will be None if PACKAGE_VERSION is not set, triggering setuptools_scm
     author='Bram Mittendorff',
     author_email='bram@pescheck.io',
