@@ -19,7 +19,7 @@ authors = [
 description = "A CLI tool for translating .po files using GPT models."
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
+license = {text = "MIT"}
 dependencies = [
     "polib==1.2.0",
     "openai==1.58.1",
