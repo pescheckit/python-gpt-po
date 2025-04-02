@@ -4,6 +4,7 @@ This script is used to install the package, dependencies, and the man page.
 """
 
 import os
+import subprocess
 
 from setuptools import find_packages, setup
 
@@ -27,7 +28,6 @@ def get_version():
 
     # Try getting from git
     try:
-        import subprocess
         # Get only the latest tag without additional commit info
         version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode('utf-8').strip()
         if version.startswith('v'):
