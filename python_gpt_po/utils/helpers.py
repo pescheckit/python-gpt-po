@@ -12,7 +12,13 @@ def get_version():
     Returns:
         str: The package version or a default if not found
     """
+    # First try to get version from __init__.py
     try:
-        return get_distribution("gpt-po-translator").version
-    except DistributionNotFound:
-        return "0.0.0"
+        from .. import __version__
+        return __version__
+    except (ImportError, AttributeError):
+        # Fall back to package metadata
+        try:
+            return get_distribution("gpt-po-translator").version
+        except DistributionNotFound:
+            return "0.0.0"
