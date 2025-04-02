@@ -1,3 +1,5 @@
+# .github/workflows/ci-cd.yml
+
 name: Python Package CI
 
 on:
@@ -5,16 +7,17 @@ on:
     branches:
       - main
     tags:
+      # Trigger on any tag (matches 0.0.1 style)
       - '*'
   pull_request:
     branches:
       - main
   release:
-    types: [published]
+    types: [published] # If you create releases via GitHub UI based on tags
 
 permissions:
-  contents: read
-  packages: write
+  contents: read    # Needed for checkout
+  packages: write   # Needed for GitHub Packages (Docker registry)
 
 jobs:
   lint:
@@ -23,7 +26,8 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for proper versioning
           fetch-tags: true  # Explicitly fetch all tags
@@ -32,10 +36,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install dependencies
+      - name: Install lint dependencies
         run: |
           python -m pip install --upgrade pip
           pip install ruff flake8 pylint isort setuptools
+          # Install runtime deps if linters need them (e.g., pylint requires imports)
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Analysing the code with pylint
         run: |
@@ -57,7 +62,8 @@ jobs:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Fetch all history for proper versioning
           fetch-tags: true  # Explicitly fetch all tags
@@ -66,17 +72,20 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
-      - name: Install dependencies
+      - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
+          # Install runtime dependencies AND test dependencies (like pytest)
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest
+          # Install the package itself in editable mode for testing
           pip install -e .
       - name: Run tests
         run: |
           python -m pytest
 
   docker:
+    # Builds Docker images for testing, does not push
     needs: test
     runs-on: ubuntu-latest
     strategy:
@@ -86,200 +95,177 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for proper versioning
-          fetch-tags: true  # Explicitly fetch all tags
+          fetch-depth: 0 # Needed for git describe
+          fetch-tags: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
-      - name: Cache Docker layers
+
+      - name: Cache Docker layers for Test Build
         uses: actions/cache@v4
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          path: /tmp/.buildx-cache-test # Separate cache path
+          key: ${{ runner.os }}-buildx-test-${{ matrix.python-version }}-${{ github.sha }}
           restore-keys: |
-            ${{ runner.os }}-buildx-
+            ${{ runner.os }}-buildx-test-${{ matrix.python-version }}-
 
-      - name: Get Version for Docker Build
+      - name: Get Version for Docker Build Args (Handles 0.0.1 style tags)
         id: get_version
         run: |
-          # Ensure we have tags
-          git fetch --tags --force
-          
-          # For tagged builds, use the exact tag without v prefix for PACKAGE_VERSION
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG=${GITHUB_REF#refs/tags/}
-            VERSION="${TAG#v}"
-            echo "Using tag version: $VERSION"
-          else
-            # Use git version without v prefix
-            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "0.1.0")
-            echo "Using git version: $VERSION"
-          fi
-          
-          # Output for GitHub Actions
+          # Ensure we have tags fetched completely
+          git fetch --tags --force --prune --unshallow || echo "Fetching tags failed, proceeding..."
+          # Use git describe. Outputs exact tag (0.0.1) or dev version (0.0.1-3-gddfce44)
+          GIT_DESCRIBE=$(git describe --tags --always --dirty 2>/dev/null || echo "0.0.0")
+          # No 'v' prefix removal needed if tags are like '0.0.1'
+          VERSION=$GIT_DESCRIBE
+          echo "Using version for Docker build arg: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image - Python ${{ matrix.python-version }}
         uses: docker/build-push-action@v5
         with:
           context: .
-          load: true
-          tags: gpt-po-translator:py${{ matrix.python-version }}
+          load: true # Load image for local testing steps below
+          # Use a distinct tag for the test build image
+          tags: gpt-po-translator:py${{ matrix.python-version }}-test
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
             VERSION=${{ steps.get_version.outputs.VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Use distinct cache scope for test build
+          cache-from: type=gha,scope=test-${{ matrix.python-version }}
+          cache-to: type=gha,mode=max,scope=test-${{ matrix.python-version }}
 
       - name: Test Docker Image - Help Text
         run: |
-          # Run Docker image to verify it works
-          docker run gpt-po-translator:py${{ matrix.python-version }} --version
-          
-          # Check help output (should exit with 0)
-          docker run gpt-po-translator:py${{ matrix.python-version }} --help
-          
+          # Use the -test tag for running tests
+          docker run gpt-po-translator:py${{ matrix.python-version }}-test --version
+          docker run gpt-po-translator:py${{ matrix.python-version }}-test --help
           echo "✅ Basic Docker image tests passed for Python ${{ matrix.python-version }}"
 
       - name: Test Docker Image - CLI Options
         run: |
-          # Test with --help flag for different providers (doesn't require API key)
-          docker run gpt-po-translator:py${{ matrix.python-version }} --provider openai --help
-          docker run gpt-po-translator:py${{ matrix.python-version }} --provider anthropic --help
-          
+          # Use the -test tag
+          docker run gpt-po-translator:py${{ matrix.python-version }}-test --provider openai --help
+          docker run gpt-po-translator:py${{ matrix.python-version }}-test --provider anthropic --help
           echo "✅ CLI option test passed for Python ${{ matrix.python-version }}"
-      
+
       - name: Test Docker Image with Sample PO file
         run: |
-          # Create test directory with sample PO file
+          # Create test directory and dummy PO file
           mkdir -p test-po-files
-          cp .github/workflows/test-sample.po test-po-files/
-          
-          # Check if the tool can access the mounted files (without API operations)
-          # Just verify help works with the folder mounted
+          echo 'msgid "Hello"\nmsgstr ""' > test-po-files/test-sample.po
+          # cp .github/workflows/test-sample.po test-po-files/ # Or use your existing file
+
+          # Use the -test tag
           docker run \
             -v $(pwd)/test-po-files:/test \
-            gpt-po-translator:py${{ matrix.python-version }} \
+            gpt-po-translator:py${{ matrix.python-version }}-test \
             --folder /test --help
-          
           echo "✅ Docker volume mount test passed for Python ${{ matrix.python-version }}"
 
+
   deploy:
-    needs: [test, docker]
+    needs: [test, docker] # Depends on successful tests and docker test-builds
     runs-on: ubuntu-latest
+    # Trigger deployment only on tag pushes (any tag format)
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    environment: release
+    # environment: release # Uncomment if using GitHub environments for secrets/protection
+
+    permissions:
+      contents: read    # Needed for checkout
+      packages: write   # Needed for GitHub Packages (Docker registry)
+
     strategy:
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        # Flag to indicate the primary version for single-run steps like PyPI deploy
+        is_primary_py: [ ${{ matrix.python-version == '3.11' }} ] # Choose your primary Python version
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for proper versioning
-          fetch-tags: true  # Explicitly fetch all tags
-          
-      # PyPI deployment (only for Python 3.x representative)
-      - name: Set up Python
-        if: matrix.python-version == '3.11'
+          fetch-depth: 0  # Crucial for setuptools_scm
+          fetch-tags: true
+
+      # === PyPI Deployment (runs only once for the primary Python version) ===
+      - name: Set up Python for PyPI deploy
+        if: matrix.is_primary_py
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
-      
-      - name: Set Package Version for PyPI
-        if: matrix.python-version == '3.11'
-        run: |
-          # Get tag name without 'refs/tags/' prefix
-          TAG=${GITHUB_REF#refs/tags/}
-          # Remove 'v' prefix if present
-          VERSION="${TAG#v}"
-          # Set as environment variable
-          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Using version $VERSION for PyPI package"
-          
-      - name: Install dependencies
-        if: matrix.python-version == '3.11'
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install build
-          
-      - name: Build package
-        if: matrix.python-version == '3.11'
-        run: |
-          python -m build
-        
-      - name: Publish package
-        if: matrix.python-version == '3.11'
-        uses: pypa/gh-action-pypi-publish@v1.8.10
+          python-version: ${{ matrix.python-version }} # Use the designated primary version
+
+      - name: Install build tool for PyPI
+        if: matrix.is_primary_py
+        run: python -m pip install --upgrade pip build
+
+      - name: Build PyPI package
+        if: matrix.is_primary_py
+        run: python -m build
+        # setuptools_scm automatically determines version from git tag
+
+      - name: Publish package to PyPI
+        if: matrix.is_primary_py
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-      
-      # Docker deployment for all Python versions
+          password: ${{ secrets.PYPI_API_TOKEN }} # Ensure this secret is set in repo settings
+
+      # === Docker Deployment (runs for each Python version in the matrix) ===
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
-      - name: Cache Docker layers
+
+      - name: Cache Docker layers for Deploy
         uses: actions/cache@v4
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          path: /tmp/.buildx-cache-deploy # Use separate cache path for deploy
+          key: ${{ runner.os }}-deploy-buildx-${{ matrix.python-version }}-${{ github.ref }} # Use git ref for tag builds
           restore-keys: |
-            ${{ runner.os }}-buildx-
-            
+            ${{ runner.os }}-deploy-buildx-${{ matrix.python-version }}-
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }} # Built-in token
 
-      - name: Extract metadata for Docker
+      - name: Extract metadata (tags, labels) for Docker (Handles 0.0.1 style tags)
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository }} # Correct variable for owner/repo
+          # Generate tags based on the Git tag (e.g., 0.0.1 from refs/tags/0.0.1)
           tags: |
-            type=ref,event=branch,suffix=-py${{ matrix.python-version }}
             type=semver,pattern={{version}}-py${{ matrix.python-version }}
             type=semver,pattern={{major}}.{{minor}}-py${{ matrix.python-version }}
             type=semver,pattern={{major}}-py${{ matrix.python-version }}
-            type=sha,format=short,suffix=-py${{ matrix.python-version }}
-          flavor: |
-            latest=${{ matrix.python-version == '3.11' }}
+            type=raw,value=latest-py${{ matrix.python-version }}
+            type=raw,value=latest,enable=${{ matrix.is_primary_py }}
+            # Also tag with the exact version number (e.g., 0.0.1-py3.11)
+            type=match,pattern=(\d+\.\d+\.\d+.*),group=1,suffix=-py${{ matrix.python-version }}
 
-      - name: Get Version for Docker Build
-        id: get_version
+      - name: Get Version for Docker Build Args (Handles 0.0.1 style tags)
+        id: get_version_docker # Use different id from test job step
         run: |
-          # Ensure we have tags
-          git fetch --tags --force
-          
-          # For tagged builds, use the exact tag
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG=${GITHUB_REF#refs/tags/}
-            # Remove v prefix if present for Docker build arg
-            VERSION="${TAG#v}"
-            echo "Using tag version: $VERSION"
-          else
-            # Use git version without v prefix
-            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "0.1.0")
-            echo "Using git version: $VERSION"
-          fi
-          
-          # Output for GitHub Actions
+          git fetch --tags --force --prune --unshallow || echo "Fetching tags failed, proceeding..."
+          # Use git describe. Outputs exact tag (0.0.1) or dev version (0.0.1-3-gddfce44)
+          GIT_DESCRIBE=$(git describe --tags --always --dirty 2>/dev/null || echo "0.0.0")
+          # No 'v' prefix removal needed if tags are like '0.0.1'
+          VERSION=$GIT_DESCRIBE
+          echo "Using version for Docker build arg: $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: true # Push the image to GHCR
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             PYTHON_VERSION=${{ matrix.python-version }}
-            VERSION=${{ steps.get_version.outputs.VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            VERSION=${{ steps.get_version_docker.outputs.VERSION }} # Use correct step id
+          # Reference deploy cache with distinct scope
+          cache-from: type=gha,scope=deploy-${{ matrix.python-version }}
+          cache-to: type=gha,mode=max,scope=deploy-${{ matrix.python-version }}

@@ -4,7 +4,6 @@ Metadata is defined in pyproject.toml.
 This script enables setuptools_scm and handles custom data_files installation.
 """
 
-import os
 from setuptools import setup
 
 # Most metadata is defined in pyproject.toml.
