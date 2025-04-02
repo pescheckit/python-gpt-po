@@ -207,7 +207,22 @@ jobs:
       - name: Build package
         if: matrix.python-version == '3.11'
         run: |
+          # Remove old build artifacts if any exist
+          rm -rf dist build *.egg-info
+          
+          # Explicitly set the version for the build tool
+          if [ -n "$PACKAGE_VERSION" ]; then
+            echo "Building package with version: $PACKAGE_VERSION"
+          else
+            echo "WARNING: PACKAGE_VERSION not set! Using git-based version."
+          fi
+          
+          # Build wheel and sdist with isolated environment
           python -m build
+          
+          # Verify the wheel metadata
+          pip install twine
+          twine check dist/*
         
       - name: Publish package
         if: matrix.python-version == '3.11'
