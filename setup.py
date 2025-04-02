@@ -28,7 +28,8 @@ def get_version():
     # Try getting from git
     try:
         import subprocess
-        version = subprocess.check_output(['git', 'describe', '--tags', '--always']).decode('utf-8').strip()
+        # Get only the latest tag without additional commit info
+        version = subprocess.check_output(['git', 'describe', '--tags', '--abbrev=0']).decode('utf-8').strip()
         if version.startswith('v'):
             version = version[1:]
         return version
