@@ -165,112 +165,118 @@ jobs:
           
           echo "✅ Docker volume mount test passed for Python ${{ matrix.python-version }}"
 
-  deploy:
-    needs: [test, docker]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    environment: release
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all history for proper versioning
-          fetch-tags: true  # Explicitly fetch all tags
-          
-      # PyPI deployment (only for Python 3.x representative)
-      - name: Set up Python
-        if: matrix.python-version == '3.11'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-      
-      - name: Set Package Version for PyPI
-        if: matrix.python-version == '3.11'
-        run: |
-          # Get tag name without 'refs/tags/' prefix
-          TAG=${GITHUB_REF#refs/tags/}
-          # Remove 'v' prefix if present
-          VERSION="${TAG#v}"
-          # Set as environment variable
-          echo "PACKAGE_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Using version $VERSION for PyPI package"
-          
-      - name: Install dependencies
-        if: matrix.python-version == '3.11'
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install build
-          
-      - name: Build package
-        if: matrix.python-version == '3.11'
-        run: |
-          python -m build
+          deploy:
+            needs: [test, docker]
+            runs-on: ubuntu-latest
+            if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+            # environment: release # Keep if you use environments
+            strategy:
+              matrix:
+                # Run PyPI deploy only once, Docker deploy for all
+                python-version: ["3.11"] # Or your primary python version for PyPI
+                # If you need Docker deploy for other versions, add them back and use matrix flags
+                # python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+                # is_primary_py: [ ${{ matrix.python-version == '3.11' }} ] # Flag needed if matrix has multiple versions
+            steps:
+              - name: Checkout
+                uses: actions/checkout@v4
+                with:
+                  fetch-depth: 0  # Crucial for setuptools_scm
+                  fetch-tags: true
         
-      - name: Publish package
-        if: matrix.python-version == '3.11'
-        uses: pypa/gh-action-pypi-publish@v1.8.10
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
-      
-      # Docker deployment for all Python versions
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-            
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+              # === PyPI Deployment ===
+              # No longer need 'if: matrix.python-version == '3.11'' if matrix only has one version
+              - name: Set up Python for PyPI deploy
+                uses: actions/setup-python@v5
+                with:
+                  python-version: ${{ matrix.python-version }} # Use the matrix version directly
+        
+              - name: Install build dependencies
+                run: python -m pip install --upgrade pip build twine
+        
+              - name: Verify Git state before build
+                run: |
+                  git status
+                  git describe --tags --always # Verify tag is detected
+        
+              - name: Build package using setuptools_scm
+                run: python -m build # setuptools_scm automatically reads git tag
+        
+              - name: Verify built package metadata
+                run: twine check dist/* # Check the package *before* trying to publish
+        
+              - name: Publish package to PyPI
+                uses: pypa/gh-action-pypi-publish@v1.8.10 # Or use @release/v1
+                with:
+                  user: __token__
+                  password: ${{ secrets.PYPI_API_TOKEN }} # Ensure this secret is set
+                  # packages_dir: dist/ # Default is dist/, usually not needed explicitly
+        
+              # === Docker Deployment (adjust matrix/flags if needed) ===
+              # ... (Docker steps remain largely the same, ensure VERSION uses the correct step id)
+              - name: Set up Docker Buildx
+                # if: matrix.python-version == '3.11' # Or always run if needed for all py versions
+                uses: docker/setup-buildx-action@v3
+        
+              - name: Cache Docker layers
+                # if: matrix.python-version == '3.11'
+                uses: actions/cache@v4
+                with:
+                  path: /tmp/.buildx-cache-deploy # Use separate cache path for deploy
+                  key: ${{ runner.os }}-deploy-buildx-${{ matrix.python-version }}-${{ github.ref }} # Use git ref for tag builds
+                  restore-keys: |
+                    ${{ runner.os }}-deploy-buildx-${{ matrix.python-version }}-
+        
+              - name: Login to GitHub Container Registry
+                # if: matrix.python-version == '3.11'
+                uses: docker/login-action@v3
+                with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }} # Built-in token
+        
+              - name: Extract metadata (tags, labels) for Docker
+                id: meta
+                # if: matrix.python-version == '3.11'
+                uses: docker/metadata-action@v5
+                with:
+                  images: ghcr.io/${{ github.repository }}
+                  tags: |
+                    type=semver,pattern={{version}}-py${{ matrix.python-version }}
+                    type=semver,pattern={{major}}.{{minor}}-py${{ matrix.python-version }}
+                    type=semver,pattern={{major}}-py${{ matrix.python-version }}
+                    # Add latest only for the primary python version if matrix has multiple
+                    # type=raw,value=latest,enable=${{ matrix.is_primary_py }}
+                    type=raw,value=latest # Add if matrix only has one version
+        
+              - name: Get Version for Docker Build Arg (from Git tag)
+                id: get_version # Renaming for clarity, ensure consistency below
+                # if: matrix.python-version == '3.11'
+                run: |
+                  # Ensure tags are fetched
+                  git fetch --tags --force --prune --unshallow || echo "Fetching tags failed, proceeding..."
+                  # Get the version from the tag (e.g., 0.3.11 from refs/tags/0.3.11)
+                  GIT_TAG=${GITHUB_REF#refs/tags/}
+                  # Remove 'v' prefix if present (optional, depends on your tagging)
+                  # VERSION="${GIT_TAG#v}"
+                  VERSION=$GIT_TAG # Assuming tags are like 0.3.11
+                  echo "Using version for Docker build arg: $VERSION"
+                  echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        
+              - name: Build and Push Docker Image
+                # if: matrix.python-version == '3.11'
+                uses: docker/build-push-action@v5
+                with:
+                  context: .
+                  push: true
+                  tags: ${{ steps.meta.outputs.tags }}
+                  labels: ${{ steps.meta.outputs.labels }}
+                  build-args: |
+                    PYTHON_VERSION=${{ matrix.python-version }}
+                    VERSION=${{ steps.get_version.outputs.VERSION }} # Use the correct step ID 'get_version'
+                  cache-from: type=gha,scope=deploy-${{ matrix.python-version }}
+                  cache-to: type=gha,mode=max,scope=deploy-${{ matrix.python-version }}
 
-      - name: Extract metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch,suffix=-py${{ matrix.python-version }}
-            type=semver,pattern={{version}}-py${{ matrix.python-version }}
-            type=semver,pattern={{major}}.{{minor}}-py${{ matrix.python-version }}
-            type=semver,pattern={{major}}-py${{ matrix.python-version }}
-            type=sha,format=short,suffix=-py${{ matrix.python-version }}
-          flavor: |
-            latest=${{ matrix.python-version == '3.11' }}
-
-      - name: Get Version for Docker Build
-        id: get_version
-        run: |
-          # Ensure we have tags
-          git fetch --tags --force
-          
-          # For tagged builds, use the exact tag
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            TAG=${GITHUB_REF#refs/tags/}
-            # Remove v prefix if present for Docker build arg
-            VERSION="${TAG#v}"
-            echo "Using tag version: $VERSION"
-          else
-            # Use git version without v prefix
-            VERSION=$(git describe --tags --always 2>/dev/null | sed 's/^v//' || echo "0.1.0")
-            echo "Using git version: $VERSION"
-          fi
-          
-          # Output for GitHub Actions
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
