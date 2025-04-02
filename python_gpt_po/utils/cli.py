@@ -20,7 +20,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
     def error(self, message):
         """
         Display a cleaner error message with usage information.
-        
+
         Args:
             message (str): Error message
         """
@@ -32,7 +32,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
 def parse_args():
     """
     Parse command-line arguments with a more user-friendly interface.
-    
+
     Returns:
         argparse.Namespace: Parsed arguments
     """
@@ -42,13 +42,13 @@ def parse_args():
 Examples:
   # Basic usage with OpenAI
   python po_translator.py --folder ./locales --lang fr,es,de
-  
+
   # Use Anthropic with detailed language names
   python po_translator.py --folder ./i18n --lang nl,de --detail-lang "Dutch,German" --provider anthropic
-  
+
   # List available models for a provider
   python po_translator.py --provider deepseek --list-models
-  
+
   # Process multiple translations in bulk with a specific model
   python po_translator.py --folder ./locales --lang ja,ko --bulk --model gpt-4
 """,
@@ -174,10 +174,10 @@ def show_help_and_exit():
 def parse_languages(lang_arg: str) -> List[str]:
     """
     Parse comma-separated language string into a list of language codes.
-    
+
     Args:
         lang_arg (str): Comma-separated language codes
-        
+
     Returns:
         List[str]: List of language codes
     """
@@ -187,14 +187,14 @@ def parse_languages(lang_arg: str) -> List[str]:
 def create_language_mapping(lang_codes: List[str], detail_langs_arg: Optional[str]) -> Dict[str, str]:
     """
     Create a mapping between language codes and their detailed names.
-    
+
     Args:
         lang_codes (List[str]): List of language codes
         detail_langs_arg (Optional[str]): Comma-separated detailed language names
-        
+
     Returns:
         Dict[str, str]: Mapping of language codes to detailed names
-        
+
     Raises:
         ValueError: If the number of language codes doesn't match the number of detailed names
     """
@@ -212,10 +212,10 @@ def create_language_mapping(lang_codes: List[str], detail_langs_arg: Optional[st
 def get_provider_from_args(args) -> Optional[ModelProvider]:
     """
     Get the provider from command line arguments.
-    
+
     Args:
         args (argparse.Namespace): Parsed command line arguments
-        
+
     Returns:
         Optional[ModelProvider]: The selected provider or None if not specified
     """
@@ -227,10 +227,10 @@ def get_provider_from_args(args) -> Optional[ModelProvider]:
 def get_api_keys_from_args(args) -> Dict[str, str]:
     """
     Extract API keys from command line arguments and environment variables.
-    
+
     Args:
         args (argparse.Namespace): Parsed command line arguments
-        
+
     Returns:
         Dict[str, str]: Dictionary of provider names to API keys
     """
@@ -244,10 +244,10 @@ def get_api_keys_from_args(args) -> Dict[str, str]:
 def auto_select_provider(api_keys: Dict[str, str]) -> Optional[ModelProvider]:
     """
     Auto-select a provider based on available API keys.
-    
+
     Args:
         api_keys (Dict[str, str]): Dictionary of provider names to API keys
-        
+
     Returns:
         Optional[ModelProvider]: The auto-selected provider or None if no keys available
     """
@@ -262,11 +262,11 @@ def auto_select_provider(api_keys: Dict[str, str]) -> Optional[ModelProvider]:
 def validate_provider_key(provider: ModelProvider, api_keys: Dict[str, str]) -> bool:
     """
     Validate that the selected provider has an API key.
-    
+
     Args:
         provider (ModelProvider): The selected provider
         api_keys (Dict[str, str]): Dictionary of provider names to API keys
-        
+
     Returns:
         bool: True if provider has a key, False otherwise
     """

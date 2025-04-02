@@ -1,13 +1,17 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]==8.1.0"]
+requires = ["setuptools>=61.0", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# Use find with namespaces=True to handle nested packages 
+packages = { find = { exclude = ["*.__pycache__", "*.__pycache__.*"], namespaces = true } }
 
 [tool.setuptools_scm]
 fallback_version = "0.1.0"
 write_to = "python_gpt_po/_version.py"
 
 [project]
-name = "gpt_po_translator"
+name = "gpt-po-translator"
 dynamic = ["version"]
 authors = [
     {name = "Bram Mittendorff", email = "bram@pescheck.io"},
@@ -36,7 +40,6 @@ classifiers = [
     "Topic :: Software Development :: Localization",
     "Topic :: Text Processing :: Linguistic",
     "Operating System :: OS Independent",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",

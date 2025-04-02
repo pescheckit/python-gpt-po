@@ -33,13 +33,13 @@ def setup_logging():
 def initialize_provider(args) -> tuple[ProviderClients, ModelProvider, str]:
     """
     Initialize the provider client and determine the appropriate model.
-    
+
     Args:
         args: Command line arguments from argparse
-        
+
     Returns:
         tuple: (provider_clients, provider, model)
-        
+
     Raises:
         SystemExit: If no valid provider can be found or initialized
     """
@@ -87,13 +87,13 @@ def get_appropriate_model(
 ) -> str:
     """
     Get the appropriate model for the provider.
-    
+
     Args:
         provider (ModelProvider): The selected provider
         provider_clients (ProviderClients): The initialized provider clients
         model_manager (ModelManager): The model manager instance
         requested_model (Optional[str]): Model requested by the user
-        
+
     Returns:
         str: The appropriate model ID
     """
@@ -125,7 +125,7 @@ def process_translations(config: TranslationConfig, folder: str,
                          batch_size: int):
     """
     Process translations for the given languages and directory.
-    
+
     Args:
         config (TranslationConfig): The translation configuration
         folder (str): Directory containing .po files

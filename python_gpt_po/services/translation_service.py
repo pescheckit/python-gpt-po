@@ -24,7 +24,7 @@ class TranslationService:
 
     def __init__(self, config: TranslationConfig, batch_size: int = 40):
         """Initialize the translation service.
-        
+
         Args:
             config (TranslationConfig): Configuration for the translation service
             batch_size (int): Size of batches for bulk translation

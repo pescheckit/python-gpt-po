@@ -3,7 +3,7 @@ set -e
 
 # Display help information if no arguments are provided
 if [ $# -eq 0 ]; then
-  VERSION=$(gpt-po-translator --version | cut -d' ' -f2)
+  VERSION=$(python -m python_gpt_po.main --version)
   echo "GPT PO Translator Docker Container v$VERSION"
   echo "==========================================="
   echo 
@@ -33,15 +33,15 @@ fi
 
 # Check if we need to display version
 if [ "$1" = "--version" ]; then
-  gpt-po-translator --version
+  python -m python_gpt_po.main --version
   exit 0
 fi
 
 # Check if we need to display help
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-  gpt-po-translator --help
+  python -m python_gpt_po.main --help
   exit 0
 fi
 
 # Execute command with args
-exec gpt-po-translator "$@"
+exec python -m python_gpt_po.main "$@"

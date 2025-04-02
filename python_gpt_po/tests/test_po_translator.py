@@ -34,7 +34,7 @@ def fixture_translation_config(mock_openai_client):
     """
     provider_clients = ProviderClients()
     provider_clients.openai_client = mock_openai_client
-    
+
     model = "gpt-3.5-turbo"
     return TranslationConfig(
         provider_clients=provider_clients,
@@ -104,7 +104,7 @@ msgstr ""
 
     # We need to mock the _prepare_po_file method to use our mock
     original_prepare = translation_service._prepare_po_file
-    
+
     def mock_prepare(po_file_path, languages):
         if translation_service.config.fuzzy:
             translation_service.po_file_handler.disable_fuzzy_translations(po_file_path)
@@ -112,16 +112,16 @@ msgstr ""
         mock_po.__iter__.return_value = []
         mock_po.metadata = {"Language": "es"}
         return mock_po
-        
+
     translation_service._prepare_po_file = mock_prepare
-    
+
     # Mock get_translations to avoid actual API calls
     translation_service.get_translations = MagicMock(return_value=[])
-    
+
     try:
         # Process the .po file
         translation_service.process_po_file(str(po_file_path), ['es'])
-        
+
         # No assertions needed here - we just want to make sure it runs without errors
     finally:
         # Restore original method
@@ -165,7 +165,7 @@ def test_translate_single(translation_service):
             }
             mock_response.raise_for_status = MagicMock()
             mock_post.return_value = mock_response
-            
+
             translated_text = translation_service.translate_single(text_to_translate, 'es')
             assert translated_text == "Salud"
             return
