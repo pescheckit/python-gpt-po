@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.9-3.12.
+A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.8-3.12.
 
 ## Features
 
@@ -20,7 +20,7 @@ A robust tool for translating gettext (.po) files using AI models from multiple 
 
 ## Requirements
 
-- Python 3.9+ (Python 3.9, 3.10, 3.11, and 3.12 are officially supported)
+- Python 3.8+ (Python 3.8, 3.9, 3.10, 3.11, and 3.12 are officially supported)
 - [polib](https://pypi.org/project/polib/)
 - [openai](https://pypi.org/project/openai/)
 - [tenacity](https://pypi.org/project/tenacity/)
