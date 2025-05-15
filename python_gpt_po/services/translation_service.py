@@ -476,7 +476,13 @@ class TranslationService:
                 else:
                     logging.error("Failed to translate '%s' after final attempt.", entry.msgid)
 
-    def fix_fuzzy_entries(self, po_file, po_file_path: str, target_language: str, detail_language: Optional[str] = None):
+    def fix_fuzzy_entries(
+        self,
+        po_file,
+        po_file_path: str,
+        target_language: str,
+        detail_language: Optional[str] = None,
+    ):
         """Find and fix fuzzy entries in a PO file using AI translation."""
         fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
 
