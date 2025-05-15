@@ -336,32 +336,31 @@ class TranslationService:
                 logging.info("Discovered .po file: %s", po_file_path)
 
                 # Prepare the PO file, if it returns None then skip this file
-                po_file = self._prepare_po_file(po_file_path, languages)
-                if po_file is None:
+                po_file_result = self._prepare_po_file(po_file_path, languages)
+                if po_file_result is None:
                     logging.info("Skipping file %s due to language mismatch or other issues", po_file_path)
                     continue
 
-                # Process the file
-                self.process_po_file(po_file_path, languages, detail_languages)
+                # Process the file, passing the prepared po_file and file_lang
+                po_file, file_lang = po_file_result
+                self.process_po_file(po_file_path, languages, detail_languages, po_file=po_file, file_lang=file_lang)
 
     def process_po_file(
         self,
         po_file_path: str,
         languages: List[str],
-        detail_languages: Optional[Dict[str, str]] = None
+        detail_languages: Optional[Dict[str, str]] = None,
+        po_file=None,
+        file_lang=None
     ):
         """Processes a single .po file with translations."""
         try:
-            po_file, file_lang = self._prepare_po_file(po_file_path, languages)
-            if not po_file:
-                return
-
-            file_lang = self.po_file_handler.get_file_language(
-                po_file_path,
-                po_file,
-                languages,
-                self.config.folder_language
-            )
+            # Only prepare the po_file if not provided (for backward compatibility)
+            if po_file is None or file_lang is None:
+                po_file_result = self._prepare_po_file(po_file_path, languages)
+                if po_file_result is None:
+                    return
+                po_file, file_lang = po_file_result
 
             # Get the detailed language name if available
             detail_lang = detail_languages.get(file_lang) if detail_languages else None
