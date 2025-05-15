@@ -184,6 +184,7 @@ def main():
             model=model,
             bulk_mode=args.bulk,
             fuzzy=args.fuzzy,
+            fix_fuzzy=args.fix_fuzzy,
             folder_language=args.folder_language
         )
 

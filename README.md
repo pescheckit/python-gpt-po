@@ -179,6 +179,9 @@ docker run -v /Users/username/translations:/input \
 ```bash
 python -m pytest
 ```
+```bash
+docker run --rm -v $(pwd):/app -w /app --entrypoint python python-gpt-po -m pytest -v
+```
 
 ## Documentation
 

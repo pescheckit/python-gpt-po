@@ -352,7 +352,7 @@ class TranslationService:
     ):
         """Processes a single .po file with translations."""
         try:
-            po_file = self._prepare_po_file(po_file_path, languages)
+            po_file, file_lang = self._prepare_po_file(po_file_path, languages)
             if not po_file:
                 return
 
@@ -365,6 +365,10 @@ class TranslationService:
 
             # Get the detailed language name if available
             detail_lang = detail_languages.get(file_lang) if detail_languages else None
+
+            if self.config.fix_fuzzy:
+                self.fix_fuzzy_entries(po_file, po_file_path, file_lang, detail_lang)
+                return
 
             texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip() and entry.msgid]
             translations = self.get_translations(texts_to_translate, file_lang, po_file_path, detail_lang)
@@ -384,6 +388,9 @@ class TranslationService:
     def _prepare_po_file(self, po_file_path: str, languages: List[str]):
         """Prepares the .po file for translation."""
         if self.config.fuzzy:
+            logging.warning(
+                "Consider running with '--fix-fuzzy' to clean and update the fuzzy translations properly.",
+            )
             self.po_file_handler.disable_fuzzy_translations(po_file_path)
         po_file = polib.pofile(po_file_path)
         file_lang = self.po_file_handler.get_file_language(
@@ -395,7 +402,7 @@ class TranslationService:
         if not file_lang:
             logging.warning("Skipping .po file due to language mismatch: %s", po_file_path)
             return None
-        return po_file
+        return po_file, file_lang
 
     def get_translations(
             self,
@@ -423,6 +430,22 @@ class TranslationService:
                 logging.info("Translated '%s' to '%s'", entry.msgid, translation)
             else:
                 self._handle_empty_translation(entry, target_language, detail_language)
+
+    def _update_fuzzy_po_entries(
+        self,
+        po_file,
+        translations: List[str],
+        entries_to_update: list
+    ):
+        """Update only fuzzy entries, remove 'fuzzy' flag, and log cleanly."""
+        for entry, translation in zip(entries_to_update, translations):
+            if translation.strip():
+                self.po_file_handler.update_po_entry(po_file, entry.msgid, translation)
+                if 'fuzzy' in entry.flags:
+                    entry.flags.remove('fuzzy')
+                logging.info("Fixed fuzzy entry '%s' -> '%s'", entry.msgid, translation)
+            else:
+                logging.warning("Translation for fuzzy '%s' is still empty, leaving fuzzy.", entry.msgid)
 
     def _handle_empty_translation(self, entry, target_language: str, detail_language: Optional[str] = None):
         """Handles cases where the initial translation is empty."""
@@ -453,3 +476,28 @@ class TranslationService:
                     )
                 else:
                     logging.error("Failed to translate '%s' after final attempt.", entry.msgid)
+
+    def fix_fuzzy_entries(self, po_file, po_file_path: str, target_language: str, detail_language: Optional[str] = None):
+        """Find and fix fuzzy entries in a PO file using AI translation."""
+        fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
+
+        if not fuzzy_entries:
+            logging.info("No fuzzy entries found in %s", po_file_path)
+            return
+
+        logging.info("Found %d fuzzy entries to fix in %s", len(fuzzy_entries), po_file_path)
+
+        texts_to_translate = [entry.msgid for entry in fuzzy_entries]
+        translations = self.get_translations(texts_to_translate, target_language, po_file_path, detail_language)
+
+        self._update_fuzzy_po_entries(po_file, translations, entries_to_update=fuzzy_entries)
+
+        po_file.save(po_file_path)
+
+        self.po_file_handler.log_translation_status(
+            po_file_path,
+            texts_to_translate,
+            [entry.msgstr for entry in fuzzy_entries]
+        )
+
+        logging.info("Fuzzy fix completed for %s", po_file_path)

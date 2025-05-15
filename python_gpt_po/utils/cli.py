@@ -68,6 +68,7 @@ Examples:
     provider_group = parser.add_argument_group('Provider Settings')
     api_group = parser.add_argument_group('API Keys')
     advanced_group = parser.add_argument_group('Advanced Options')
+    fuzzy_group = advanced_group.add_mutually_exclusive_group()
 
     # Required arguments (not required if listing models)
     required_group.add_argument(
@@ -136,11 +137,6 @@ Examples:
 
     # Advanced options
     advanced_group.add_argument(
-        "--fuzzy",
-        action="store_true",
-        help="Process fuzzy translations (remove fuzzy markers)"
-    )
-    advanced_group.add_argument(
         "--bulk",
         action="store_true",
         help="Use bulk translation mode (faster, but may be less accurate)"
@@ -151,6 +147,16 @@ Examples:
         default=50,
         metavar="SIZE",
         help="Number of strings to translate in each batch (default: 50)"
+    )
+    fuzzy_group.add_argument(
+        "--fuzzy",
+        action="store_true",
+        help="Remove fuzzy markers without translating (legacy behavior, risky)"
+    )
+    fuzzy_group.add_argument(
+        "--fix-fuzzy",
+        action="store_true",
+        help="Translate and clean fuzzy entries safely (recommended)"
     )
 
     # Version information
