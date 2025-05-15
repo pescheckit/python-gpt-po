@@ -16,4 +16,5 @@ class TranslationConfig:
     model: str
     bulk_mode: bool = False
     fuzzy: bool = False
+    fix_fuzzy: bool = False
     folder_language: bool = False
