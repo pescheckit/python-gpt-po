@@ -353,14 +353,13 @@ class TranslationService:
     ):
         """Processes a single .po file with translations."""
         try:
-            po_file, file_lang = po_file_result
-
             # Only prepare the po_file if not provided (for backward compatibility)
-            if po_file is None or file_lang is None:
+            if po_file_result is None:
                 po_file_result = self._prepare_po_file(po_file_path, languages)
                 if po_file_result is None:
                     return
-                po_file, file_lang = po_file_result
+
+            po_file, file_lang = po_file_result
 
             # Get the detailed language name if available
             detail_lang = detail_languages.get(file_lang) if detail_languages else None
