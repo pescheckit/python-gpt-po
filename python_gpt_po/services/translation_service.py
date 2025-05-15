@@ -342,19 +342,19 @@ class TranslationService:
                     continue
 
                 # Process the file, passing the prepared po_file and file_lang
-                po_file, file_lang = po_file_result
-                self.process_po_file(po_file_path, languages, detail_languages, po_file=po_file, file_lang=file_lang)
+                self.process_po_file(po_file_path, languages, detail_languages, po_file_result)
 
     def process_po_file(
         self,
         po_file_path: str,
         languages: List[str],
         detail_languages: Optional[Dict[str, str]] = None,
-        po_file=None,
-        file_lang=None
+        po_file_result=None,
     ):
         """Processes a single .po file with translations."""
         try:
+            po_file, file_lang = po_file_result
+
             # Only prepare the po_file if not provided (for backward compatibility)
             if po_file is None or file_lang is None:
                 po_file_result = self._prepare_po_file(po_file_path, languages)
