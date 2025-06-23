@@ -71,6 +71,13 @@ class ModelManager:
                 else:
                     logging.error("DeepSeek API key not set")
 
+            elif provider == ModelProvider.AZURE_OPENAI:
+                if provider_clients.azure_openai_client:
+                    response = provider_clients.azure_openai_client.models.list()
+                    models = [model.id for model in response.data]
+                else:
+                    logging.error("Azure OpenAI client not initialized")
+
         except Exception as e:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
 
@@ -109,9 +116,10 @@ class ModelManager:
         default_models = {
             ModelProvider.OPENAI: "gpt-4o-mini",
             ModelProvider.ANTHROPIC: "claude-3-5-haiku-latest",
-            ModelProvider.DEEPSEEK: "deepseek-chat"
+            ModelProvider.DEEPSEEK: "deepseek-chat",
+            ModelProvider.AZURE_OPENAI: "",
         }
-        return default_models.get(provider)
+        return default_models.get(provider, "")
 
     @staticmethod
     def verify_model_capabilities(

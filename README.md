@@ -29,6 +29,8 @@ pip install gpt-po-translator
 
 ### Basic Usage
 
+To translate the `po` files for the German and French languages found in the `locales` folder, using OpenAI:
+
 ```bash
 # Set up your API key
 export OPENAI_API_KEY='your_api_key_here'
@@ -77,6 +79,7 @@ export OPENAI_API_KEY='your_api_key_here'
 # Or for other providers:
 export ANTHROPIC_API_KEY='your_api_key_here'
 export DEEPSEEK_API_KEY='your_api_key_here'
+export AZURE_OPENAI_API_KEY='your_api_key_here'
 ```
 
 ### Option 2: Command Line
@@ -110,8 +113,14 @@ gpt-po-translator --provider anthropic --folder ./locales --lang de
 # Use DeepSeek models
 gpt-po-translator --provider deepseek --folder ./locales --lang de
 
-# List available models
+# List available models for openai
 gpt-po-translator --provider openai --list-models
+
+# List available models for openai
+gpt-po-translator --provider azure_openai \
+  --azure-openai-endpoint https://<deployment>.cognitiveservices.azure.com/ \
+  --azure-openai-api-version <api_version> \
+  --list-models
 ```
 
 ## Command Reference

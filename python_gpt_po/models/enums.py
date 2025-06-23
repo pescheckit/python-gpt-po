@@ -10,3 +10,4 @@ class ModelProvider(Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     DEEPSEEK = "deepseek"
+    AZURE_OPENAI = "azure_openai"

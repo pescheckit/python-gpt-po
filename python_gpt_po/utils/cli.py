@@ -17,7 +17,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
     """
     Custom ArgumentParser that handles errors in a more user-friendly way.
     """
-    def error(self, message):
+    def error(self, message: str):
         """
         Display a cleaner error message with usage information.
 
@@ -29,7 +29,7 @@ class CustomArgumentParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments with a more user-friendly interface.
 
@@ -99,7 +99,7 @@ Examples:
     # Provider settings
     provider_group.add_argument(
         "--provider",
-        choices=["openai", "anthropic", "deepseek"],
+        choices=["openai", "anthropic", "deepseek", "azure_openai"],
         help="AI provider to use (default: first provider with available API key)"
     )
     provider_group.add_argument(
@@ -130,9 +130,26 @@ Examples:
         help="DeepSeek API key (can also use DEEPSEEK_API_KEY env var)"
     )
     api_group.add_argument(
+        "--azure-openai-key",
+        metavar="KEY",
+        help="Azure OpenAI API key (can also use AZURE_OPENAI_API_KEY env var)"
+    )
+    api_group.add_argument(
         "--api_key",
         metavar="KEY",
         help="Fallback API key for OpenAI (deprecated, use --openai-key instead)"
+    )
+
+    # Azure OpenAI options
+    advanced_group.add_argument(
+        "--azure-openai-endpoint",
+        metavar="ENDPOINT",
+        help="Azure OpenAI endpoint URL (can also use AZURE_OPENAI_ENDPOINT env var)"
+    )
+    advanced_group.add_argument(
+        "--azure-openai-api-version",
+        metavar="VERSION",
+        help="Azure OpenAI API version (can also use AZURE_OPENAI_API_VERSION env var)"
     )
 
     # Advanced options
@@ -222,7 +239,7 @@ def create_language_mapping(lang_codes: List[str], detail_langs_arg: Optional[st
     return dict(zip(lang_codes, detail_langs))
 
 
-def get_provider_from_args(args) -> Optional[ModelProvider]:
+def get_provider_from_args(args: argparse.Namespace) -> Optional[ModelProvider]:
     """
     Get the provider from command line arguments.
 
@@ -237,7 +254,7 @@ def get_provider_from_args(args) -> Optional[ModelProvider]:
     return None
 
 
-def get_api_keys_from_args(args) -> Dict[str, str]:
+def get_api_keys_from_args(args: argparse.Namespace) -> Dict[str, str]:
     """
     Extract API keys from command line arguments and environment variables.
 
@@ -248,9 +265,10 @@ def get_api_keys_from_args(args) -> Dict[str, str]:
         Dict[str, str]: Dictionary of provider names to API keys
     """
     return {
-        "openai": args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", ""),
-        "anthropic": args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", ""),
-        "deepseek": args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", "")
+        ModelProvider.OPENAI.value: args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", ""),
+        ModelProvider.ANTHROPIC.value: args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", ""),
+        ModelProvider.DEEPSEEK.value: args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", ""),
+        ModelProvider.AZURE_OPENAI.value: args.azure_openai_key or os.getenv("AZURE_OPENAI_API_KEY", ""),
     }
 
 
@@ -264,7 +282,10 @@ def auto_select_provider(api_keys: Dict[str, str]) -> Optional[ModelProvider]:
     Returns:
         Optional[ModelProvider]: The auto-selected provider or None if no keys available
     """
-    for provider_name in ["openai", "anthropic", "deepseek"]:
+    for provider_name in [ModelProvider.OPENAI.value,
+                          ModelProvider.ANTHROPIC.value,
+                          ModelProvider.DEEPSEEK.value,
+                          ModelProvider.AZURE_OPENAI.value]:
         if api_keys.get(provider_name):
             provider = ModelProvider(provider_name)
             logging.info("Auto-selected provider: %s (based on available API key)", provider_name)

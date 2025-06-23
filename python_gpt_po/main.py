@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import sys
 import traceback
+from argparse import Namespace
 from typing import Dict, List, Optional
 
 from .models.config import TranslationConfig
@@ -30,7 +31,7 @@ def setup_logging():
     )
 
 
-def initialize_provider(args) -> tuple[ProviderClients, ModelProvider, str]:
+def initialize_provider(args: Namespace) -> tuple[ProviderClients, ModelProvider, str]:
     """
     Initialize the provider client and determine the appropriate model.
 
@@ -48,7 +49,7 @@ def initialize_provider(args) -> tuple[ProviderClients, ModelProvider, str]:
 
     # Initialize provider clients
     provider_clients = ProviderClients()
-    provider_clients.initialize_clients(api_keys)
+    provider_clients.initialize_clients(args, api_keys)
 
     # Get provider from arguments or auto-select
     provider = get_provider_from_args(args)
