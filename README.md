@@ -116,7 +116,7 @@ gpt-po-translator --provider deepseek --folder ./locales --lang de
 # List available models for openai
 gpt-po-translator --provider openai --list-models
 
-# List available models for openai
+# List available models for azure openai
 gpt-po-translator --provider azure_openai \
   --azure-openai-endpoint https://<deployment>.cognitiveservices.azure.com/ \
   --azure-openai-api-version <api_version> \
