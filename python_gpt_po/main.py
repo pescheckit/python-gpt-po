@@ -145,7 +145,7 @@ def process_translations(config: TranslationConfig, folder: str,
         sys.exit(1)
 
     # Start processing files
-    logging.info("Starting translation with %s using model %s", config.provider.value, config.model)
+    logging.info("Starting translation with %s using model %s in folder %s", config.provider.value, config.model, folder)
     translation_service.scan_and_process_po_files(folder, languages, detail_languages)
     logging.info("Translation completed successfully")
 
