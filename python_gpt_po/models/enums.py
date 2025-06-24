@@ -11,3 +11,11 @@ class ModelProvider(Enum):
     ANTHROPIC = "anthropic"
     DEEPSEEK = "deepseek"
     AZURE_OPENAI = "azure_openai"
+
+
+ModelProviderList = [
+    ModelProvider.OPENAI.value,
+    ModelProvider.ANTHROPIC.value,
+    ModelProvider.DEEPSEEK.value,
+    ModelProvider.AZURE_OPENAI.value
+]

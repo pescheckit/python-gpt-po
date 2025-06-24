@@ -1,0 +1,19 @@
+{
+    "name": "Python",
+    "image": "mcr.microsoft.com/devcontainers/python:latest",
+    "features": {
+        "azure-cli": "latest",
+        "git": "latest"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "files.insertFinalNewline": true,
+                "files.trimTrailingWhitespace": true
+            },
+            "extensions": [
+                "ms-python.python"
+            ]
+        }
+    }
+}

@@ -9,7 +9,7 @@ import os
 import sys
 from typing import Dict, List, Optional
 
-from ..models.enums import ModelProvider
+from ..models.enums import ModelProvider, ModelProviderList
 from .helpers import get_version
 
 
@@ -99,7 +99,7 @@ Examples:
     # Provider settings
     provider_group.add_argument(
         "--provider",
-        choices=["openai", "anthropic", "deepseek", "azure_openai"],
+        choices=ModelProviderList,
         help="AI provider to use (default: first provider with available API key)"
     )
     provider_group.add_argument(
@@ -282,10 +282,7 @@ def auto_select_provider(api_keys: Dict[str, str]) -> Optional[ModelProvider]:
     Returns:
         Optional[ModelProvider]: The auto-selected provider or None if no keys available
     """
-    for provider_name in [ModelProvider.OPENAI.value,
-                          ModelProvider.ANTHROPIC.value,
-                          ModelProvider.DEEPSEEK.value,
-                          ModelProvider.AZURE_OPENAI.value]:
+    for provider_name in ModelProviderList:
         if api_keys.get(provider_name):
             provider = ModelProvider(provider_name)
             logging.info("Auto-selected provider: %s (based on available API key)", provider_name)
