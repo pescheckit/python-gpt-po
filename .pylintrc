@@ -6,4 +6,4 @@ logging-format-style = new
 disable = C0103,R0903,E1101,E1205,W0703
 
 [SIMILARITIES]
-ignore-paths=python_gpt_po/tests
+ignore-paths=python_gpt_po/tests, python_gpt_po/_version.py
