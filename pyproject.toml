@@ -15,7 +15,6 @@ name = "gpt-po-translator"
 dynamic = ["version"]
 authors = [
     {name = "Bram Mittendorff", email = "bram@pescheck.io"},
-    {name = "Vladimir Ritz Bossicard", email = "vbossica+github@gmail.com"},
 ]
 description = "A CLI tool for translating .po files using GPT models."
 readme = "README.md"
