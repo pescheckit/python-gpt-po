@@ -9,7 +9,7 @@ import os
 import sys
 from typing import Dict, List, Optional
 
-from ..models.enums import ModelProvider
+from ..models.enums import ModelProvider, ModelProviderList
 from .helpers import get_version
 
 
@@ -99,7 +99,7 @@ Examples:
     # Provider settings
     provider_group.add_argument(
         "--provider",
-        choices=["openai", "anthropic", "deepseek"],
+        choices=ModelProviderList,
         help="AI provider to use (default: first provider with available API key)"
     )
     provider_group.add_argument(
@@ -248,9 +248,9 @@ def get_api_keys_from_args(args) -> Dict[str, str]:
         Dict[str, str]: Dictionary of provider names to API keys
     """
     return {
-        "openai": args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", ""),
-        "anthropic": args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", ""),
-        "deepseek": args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", "")
+        ModelProvider.OPENAI.value: args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", ""),
+        ModelProvider.ANTHROPIC.value: args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", ""),
+        ModelProvider.DEEPSEEK.value: args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", "")
     }
 
 
@@ -264,7 +264,7 @@ def auto_select_provider(api_keys: Dict[str, str]) -> Optional[ModelProvider]:
     Returns:
         Optional[ModelProvider]: The auto-selected provider or None if no keys available
     """
-    for provider_name in ["openai", "anthropic", "deepseek"]:
+    for provider_name in ModelProviderList:
         if api_keys.get(provider_name):
             provider = ModelProvider(provider_name)
             logging.info("Auto-selected provider: %s (based on available API key)", provider_name)

@@ -7,6 +7,8 @@ from typing import Dict
 from anthropic import Anthropic
 from openai import OpenAI
 
+from .enums import ModelProvider
+
 
 class ProviderClients:
     """Class to store API clients for various providers."""
@@ -23,11 +25,11 @@ class ProviderClients:
         Args:
             api_keys (Dict[str, str]): Dictionary of provider names to API keys
         """
-        if api_keys.get("openai"):
-            self.openai_client = OpenAI(api_key=api_keys["openai"])
+        if api_keys.get(ModelProvider.OPENAI.value):
+            self.openai_client = OpenAI(api_key=api_keys[ModelProvider.OPENAI.value])
 
-        if api_keys.get("anthropic"):
-            self.anthropic_client = Anthropic(api_key=api_keys["anthropic"])
+        if api_keys.get(ModelProvider.ANTHROPIC.value):
+            self.anthropic_client = Anthropic(api_key=api_keys[ModelProvider.ANTHROPIC.value])
 
-        if api_keys.get("deepseek"):
-            self.deepseek_api_key = api_keys["deepseek"]
+        if api_keys.get(ModelProvider.DEEPSEEK.value):
+            self.deepseek_api_key = api_keys[ModelProvider.DEEPSEEK.value]
