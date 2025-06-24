@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.8-3.12.
+A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Azure OpenAI, Anthropic / Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.8-3.12.
 
 ## What is GPT-PO Translator?
 
@@ -12,7 +12,7 @@ This tool helps you translate gettext (.po) files using AI models. It's perfect 
 
 ### Key Features
 
-- **Multiple AI providers** - OpenAI, Anthropic/Claude, and DeepSeek
+- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek
 - **Flexible translation modes** - Bulk or entry-by-entry processing
 - **Smart language handling** - Auto-detects target languages from folder structure
 - **Production-ready** - Includes retry logic, validation, and detailed logging
@@ -28,6 +28,8 @@ pip install gpt-po-translator
 ```
 
 ### Basic Usage
+
+To translate the `po` files for the German and French languages found in the `locales` folder, using OpenAI:
 
 ```bash
 # Set up your API key
@@ -77,6 +79,7 @@ export OPENAI_API_KEY='your_api_key_here'
 # Or for other providers:
 export ANTHROPIC_API_KEY='your_api_key_here'
 export DEEPSEEK_API_KEY='your_api_key_here'
+export AZURE_OPENAI_API_KEY='your_api_key_here'
 ```
 
 ### Option 2: Command Line
@@ -110,8 +113,14 @@ gpt-po-translator --provider anthropic --folder ./locales --lang de
 # Use DeepSeek models
 gpt-po-translator --provider deepseek --folder ./locales --lang de
 
-# List available models
+# List available models for openai
 gpt-po-translator --provider openai --list-models
+
+# List available models for azure openai
+gpt-po-translator --provider azure_openai \
+  --azure-openai-endpoint https://<deployment>.cognitiveservices.azure.com/ \
+  --azure-openai-api-version <api_version> \
+  --list-models
 ```
 
 ## Command Reference

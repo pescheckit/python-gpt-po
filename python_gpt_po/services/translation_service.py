@@ -83,6 +83,19 @@ class TranslationService:
         response.raise_for_status()
         return response.json()["choices"][0]["message"]["content"].strip()
 
+    def _get_azure_openai_response(self, content: str) -> str:
+        """Get response from OpenAI API."""
+        if not self.config.provider_clients.azure_openai_client:
+            raise ValueError("OpenAI client not initialized")
+
+        message = {"role": "user", "content": content}
+        completion = self.config.provider_clients.azure_openai_client.chat.completions.create(
+            model=self.config.model,
+            max_tokens=4000,
+            messages=[message]
+        )
+        return completion.choices[0].message.content.strip()
+
     def validate_provider_connection(self) -> bool:
         """Validates the connection to the selected provider by making a test API call."""
         provider = self.config.provider
@@ -231,6 +244,8 @@ class TranslationService:
             return self._get_anthropic_response(content)
         if provider == ModelProvider.DEEPSEEK:
             return self._get_deepseek_response(content)
+        if provider == ModelProvider.AZURE_OPENAI:
+            return self._get_azure_openai_response(content)
         return ""
 
     def _process_bulk_response(self, response_text: str, original_texts: List[str]) -> List[str]:

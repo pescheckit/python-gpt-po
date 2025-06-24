@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-# Use find with namespaces=True to handle nested packages 
+# Use find with namespaces=True to handle nested packages
 packages = { find = { exclude = ["*.__pycache__", "*.__pycache__.*"], namespaces = true } }
 
 [tool.setuptools_scm]

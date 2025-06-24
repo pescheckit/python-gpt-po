@@ -130,9 +130,26 @@ Examples:
         help="DeepSeek API key (can also use DEEPSEEK_API_KEY env var)"
     )
     api_group.add_argument(
+        "--azure-openai-key",
+        metavar="KEY",
+        help="Azure OpenAI API key (can also use AZURE_OPENAI_API_KEY env var)"
+    )
+    api_group.add_argument(
         "--api_key",
         metavar="KEY",
         help="Fallback API key for OpenAI (deprecated, use --openai-key instead)"
+    )
+
+    # Azure OpenAI options
+    advanced_group.add_argument(
+        "--azure-openai-endpoint",
+        metavar="ENDPOINT",
+        help="Azure OpenAI endpoint URL (can also use AZURE_OPENAI_ENDPOINT env var)"
+    )
+    advanced_group.add_argument(
+        "--azure-openai-api-version",
+        metavar="VERSION",
+        help="Azure OpenAI API version (can also use AZURE_OPENAI_API_VERSION env var)"
     )
 
     # Advanced options
@@ -250,7 +267,8 @@ def get_api_keys_from_args(args: Namespace) -> Dict[str, str]:
     return {
         ModelProvider.OPENAI.value: args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", ""),
         ModelProvider.ANTHROPIC.value: args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", ""),
-        ModelProvider.DEEPSEEK.value: args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", "")
+        ModelProvider.DEEPSEEK.value: args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", ""),
+        ModelProvider.AZURE_OPENAI.value: args.azure_openai_key or os.getenv("AZURE_OPENAI_API_KEY", ""),
     }
 
 
