@@ -48,7 +48,7 @@ msgstr ""
 """
 
 # Sample model responses for different providers
-OPENAI_MODELS_RESPONSE: dict[str, object] = {
+OPENAI_MODELS_RESPONSE = {
     "data": [
         {"id": "gpt-4"},
         {"id": "gpt-4-turbo"},
@@ -58,9 +58,9 @@ OPENAI_MODELS_RESPONSE: dict[str, object] = {
     "object": "list"
 }
 
-AZURE_OPENAI_MODELS_RESPONSE: dict[str, object] = OPENAI_MODELS_RESPONSE
+AZURE_OPENAI_MODELS_RESPONSE = OPENAI_MODELS_RESPONSE
 
-ANTHROPIC_MODELS_RESPONSE: dict[str, object] = {
+ANTHROPIC_MODELS_RESPONSE = {
     "data": [
         {"type": "model", "id": "claude-3-7-sonnet-20250219", "display_name": "Claude 3.7 Sonnet", "created_at": "2025-02-19T00:00:00Z"},
         {"type": "model", "id": "claude-3-5-sonnet-20241022", "display_name": "Claude 3.5 Sonnet", "created_at": "2024-10-22T00:00:00Z"},
@@ -72,7 +72,7 @@ ANTHROPIC_MODELS_RESPONSE: dict[str, object] = {
     "last_id": "claude-3-opus-20240229"
 }
 
-DEEPSEEK_MODELS_RESPONSE: dict[str, object] = {
+DEEPSEEK_MODELS_RESPONSE = {
     "data": [
         {"id": "deepseek-chat"},
         {"id": "deepseek-coder"}
@@ -80,7 +80,7 @@ DEEPSEEK_MODELS_RESPONSE: dict[str, object] = {
 }
 
 # Translation responses for different providers
-OPENAI_TRANSLATION_RESPONSE: dict[str, object] = {
+OPENAI_TRANSLATION_RESPONSE = {
     "choices": [
         {
             "message": {
@@ -90,9 +90,9 @@ OPENAI_TRANSLATION_RESPONSE: dict[str, object] = {
     ]
 }
 
-AZURE_OPENAI_TRANSLATION_RESPONSE: dict[str, object] = OPENAI_TRANSLATION_RESPONSE
+AZURE_OPENAI_TRANSLATION_RESPONSE = OPENAI_TRANSLATION_RESPONSE
 
-ANTHROPIC_TRANSLATION_RESPONSE: dict[str, object] = {
+ANTHROPIC_TRANSLATION_RESPONSE = {
     "content": [
         {
             "text": '["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'
@@ -100,7 +100,7 @@ ANTHROPIC_TRANSLATION_RESPONSE: dict[str, object] = {
     ]
 }
 
-DEEPSEEK_TRANSLATION_RESPONSE: dict[str, object] = {
+DEEPSEEK_TRANSLATION_RESPONSE = {
     "choices": [
         {
             "message": {
