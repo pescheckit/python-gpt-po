@@ -79,7 +79,6 @@ class ModelManager:
 
         return models
 
-
     @staticmethod
     def _get_azure_openai_models(provider_clients: ProviderClients) -> List[str]:
         """Retrieve models from Azure OpenAI."""
@@ -89,7 +88,6 @@ class ModelManager:
 
         logging.error("Azure OpenAI client not initialized")
         return []
-
 
     @staticmethod
     def validate_model(provider_clients: ProviderClients, provider: ModelProvider, model: str) -> bool:
