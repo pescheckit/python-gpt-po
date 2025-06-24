@@ -14,7 +14,6 @@ from ..models.provider_clients import ProviderClients
 class ModelManager:
     """Class to manage models from different providers."""
 
-    # pylint: disable=too-many-branches
     @staticmethod
     def get_available_models(provider_clients: ProviderClients, provider: ModelProvider) -> List[str]:
         """Retrieve available models from a specific provider."""
@@ -73,17 +72,24 @@ class ModelManager:
                     logging.error("DeepSeek API key not set")
 
             elif provider == ModelProvider.AZURE_OPENAI:
-                if provider_clients.azure_openai_client:
-                    response = provider_clients.azure_openai_client.models.list()
-                    models = [model.id for model in response.data]
-                else:
-                    logging.error("Azure OpenAI client not initialized")
+                return ModelManager._get_azure_openai_models(provider_clients)
 
         except Exception as e:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
 
         return models
-    # pylint: enable=too-many-branches
+
+
+    @staticmethod
+    def _get_azure_openai_models(provider_clients: ProviderClients) -> List[str]:
+        """Retrieve models from Azure OpenAI."""
+        if provider_clients.azure_openai_client:
+            response = provider_clients.azure_openai_client.models.list()
+            return [model.id for model in response.data]
+
+        logging.error("Azure OpenAI client not initialized")
+        return []
+
 
     @staticmethod
     def validate_model(provider_clients: ProviderClients, provider: ModelProvider, model: str) -> bool:
@@ -119,7 +125,7 @@ class ModelManager:
             ModelProvider.OPENAI: "gpt-4o-mini",
             ModelProvider.ANTHROPIC: "claude-3-5-haiku-latest",
             ModelProvider.DEEPSEEK: "deepseek-chat",
-            ModelProvider.AZURE_OPENAI: "",
+            ModelProvider.AZURE_OPENAI: "gpt-35-turbo",
         }
         return default_models.get(provider, "")
 

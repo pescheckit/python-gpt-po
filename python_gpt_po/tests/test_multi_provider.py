@@ -3,6 +3,7 @@ Tests for the Enhanced Multi-Provider Translation Service.
 """
 
 import logging
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -47,7 +48,7 @@ msgstr ""
 """
 
 # Sample model responses for different providers
-OPENAI_MODELS_RESPONSE = {
+OPENAI_MODELS_RESPONSE: dict[str, object] = {
     "data": [
         {"id": "gpt-4"},
         {"id": "gpt-4-turbo"},
@@ -57,7 +58,9 @@ OPENAI_MODELS_RESPONSE = {
     "object": "list"
 }
 
-ANTHROPIC_MODELS_RESPONSE = {
+AZURE_OPENAI_MODELS_RESPONSE: dict[str, object] = OPENAI_MODELS_RESPONSE
+
+ANTHROPIC_MODELS_RESPONSE: dict[str, object] = {
     "data": [
         {"type": "model", "id": "claude-3-7-sonnet-20250219", "display_name": "Claude 3.7 Sonnet", "created_at": "2025-02-19T00:00:00Z"},
         {"type": "model", "id": "claude-3-5-sonnet-20241022", "display_name": "Claude 3.5 Sonnet", "created_at": "2024-10-22T00:00:00Z"},
@@ -69,7 +72,7 @@ ANTHROPIC_MODELS_RESPONSE = {
     "last_id": "claude-3-opus-20240229"
 }
 
-DEEPSEEK_MODELS_RESPONSE = {
+DEEPSEEK_MODELS_RESPONSE: dict[str, object] = {
     "data": [
         {"id": "deepseek-chat"},
         {"id": "deepseek-coder"}
@@ -77,7 +80,7 @@ DEEPSEEK_MODELS_RESPONSE = {
 }
 
 # Translation responses for different providers
-OPENAI_TRANSLATION_RESPONSE = {
+OPENAI_TRANSLATION_RESPONSE: dict[str, object] = {
     "choices": [
         {
             "message": {
@@ -87,7 +90,9 @@ OPENAI_TRANSLATION_RESPONSE = {
     ]
 }
 
-ANTHROPIC_TRANSLATION_RESPONSE = {
+AZURE_OPENAI_TRANSLATION_RESPONSE: dict[str, object] = OPENAI_TRANSLATION_RESPONSE
+
+ANTHROPIC_TRANSLATION_RESPONSE: dict[str, object] = {
     "content": [
         {
             "text": '["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'
@@ -95,7 +100,7 @@ ANTHROPIC_TRANSLATION_RESPONSE = {
     ]
 }
 
-DEEPSEEK_TRANSLATION_RESPONSE = {
+DEEPSEEK_TRANSLATION_RESPONSE: dict[str, object] = {
     "choices": [
         {
             "message": {
@@ -107,16 +112,16 @@ DEEPSEEK_TRANSLATION_RESPONSE = {
 
 
 @pytest.fixture
-def temp_po_file(tmp_path):
+def temp_po_file(tmp_path: str) -> str:
     """Create a temporary PO file for testing."""
-    po_file_path = tmp_path / "test.po"
+    po_file_path = os.path.join(tmp_path, "test.po")
     with open(po_file_path, "w", encoding="utf-8") as f:
         f.write(SAMPLE_PO_CONTENT)
     return str(po_file_path)
 
 
 @pytest.fixture
-def mock_provider_clients():
+def mock_provider_clients() -> ProviderClients:
     """Mock provider clients for testing."""
     clients = ProviderClients()
     clients.openai_client = MagicMock()
@@ -124,11 +129,13 @@ def mock_provider_clients():
     clients.anthropic_client.api_key = "sk-ant-mock-key"
     clients.deepseek_api_key = "sk-deepseek-mock-key"
     clients.deepseek_base_url = "https://api.deepseek.com/v1"
+    clients.azure_openai_client = MagicMock()
+    clients.azure_openai_client.api_key = "sk-aoi-mock-key"
     return clients
 
 
 @pytest.fixture
-def translation_config_openai(mock_provider_clients):
+def translation_config_openai(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create an OpenAI translation config for testing."""
     return TranslationConfig(
         provider_clients=mock_provider_clients,
@@ -141,7 +148,20 @@ def translation_config_openai(mock_provider_clients):
 
 
 @pytest.fixture
-def translation_config_anthropic(mock_provider_clients):
+def translation_config_azure_openai(mock_provider_clients: ProviderClients) -> TranslationConfig:
+    """Create an OpenAI translation config for testing."""
+    return TranslationConfig(
+        provider_clients=mock_provider_clients,
+        provider=ModelProvider.AZURE_OPENAI,
+        model="gpt-3.5-turbo",
+        bulk_mode=True,
+        fuzzy=False,
+        folder_language=False
+    )
+
+
+@pytest.fixture
+def translation_config_anthropic(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create an Anthropic translation config for testing."""
     return TranslationConfig(
         provider_clients=mock_provider_clients,
@@ -154,7 +174,7 @@ def translation_config_anthropic(mock_provider_clients):
 
 
 @pytest.fixture
-def translation_config_deepseek(mock_provider_clients):
+def translation_config_deepseek(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create a DeepSeek translation config for testing."""
     return TranslationConfig(
         provider_clients=mock_provider_clients,
@@ -167,25 +187,31 @@ def translation_config_deepseek(mock_provider_clients):
 
 
 @pytest.fixture
-def translation_service_openai(translation_config_openai):
+def translation_service_openai(translation_config_openai: TranslationConfig) -> TranslationService:
     """Create an OpenAI translation service for testing."""
     return TranslationService(config=translation_config_openai)
 
 
 @pytest.fixture
-def translation_service_anthropic(translation_config_anthropic):
+def translation_service_azure_openai(translation_config_azure_openai: TranslationConfig) -> TranslationService:
+    """Create an Azure OpenAI translation service for testing."""
+    return TranslationService(config=translation_config_azure_openai)
+
+
+@pytest.fixture
+def translation_service_anthropic(translation_config_anthropic: TranslationConfig) -> TranslationService:
     """Create an Anthropic translation service for testing."""
     return TranslationService(config=translation_config_anthropic)
 
 
 @pytest.fixture
-def translation_service_deepseek(translation_config_deepseek):
+def translation_service_deepseek(translation_config_deepseek: TranslationConfig) -> TranslationService:
     """Create a DeepSeek translation service for testing."""
     return TranslationService(config=translation_config_deepseek)
 
 
 @patch('requests.get')
-def test_get_openai_models(mock_get, mock_provider_clients):
+def test_get_openai_models(mock_get, mock_provider_clients: ProviderClients):
     """Test getting OpenAI models."""
     # Setup mock response
     mock_response = MagicMock()
@@ -206,8 +232,30 @@ def test_get_openai_models(mock_get, mock_provider_clients):
     assert "gpt-4" in models
 
 
+@patch('requests.get')
+def test_get_ayure_openai_models(mock_get, mock_provider_clients: ProviderClients):
+    """Test getting OpenAI models."""
+    # Setup mock response
+    mock_response = MagicMock()
+    mock_response.json.return_value = AZURE_OPENAI_MODELS_RESPONSE
+    mock_response.raise_for_status = MagicMock()
+    mock_get.return_value = mock_response
+
+    # Mock the OpenAI client's models.list method
+    models_list_mock = MagicMock()
+    models_list_mock.data = [MagicMock(id="gpt-4"), MagicMock(id="gpt-3.5-turbo")]
+    mock_provider_clients.azure_openai_client.models.list.return_value = models_list_mock
+
+    # Call the function
+    model_manager = ModelManager()
+    models = model_manager.get_available_models(mock_provider_clients, ModelProvider.AZURE_OPENAI)
+
+    # Assert models are returned correctly
+    assert "gpt-3.5-turbo" in models
+
+
 @responses.activate
-def test_get_anthropic_models(mock_provider_clients):
+def test_get_anthropic_models(mock_provider_clients: ProviderClients):
     """Test getting Anthropic models."""
     # Setup mock response
     responses.add(
@@ -227,7 +275,7 @@ def test_get_anthropic_models(mock_provider_clients):
 
 
 @responses.activate
-def test_get_deepseek_models(mock_provider_clients):
+def test_get_deepseek_models(mock_provider_clients: ProviderClients):
     """Test getting DeepSeek models."""
     # Setup mock response
     responses.add(
@@ -247,7 +295,7 @@ def test_get_deepseek_models(mock_provider_clients):
 
 
 @patch('python_gpt_po.services.translation_service.requests.post')
-def test_translate_bulk_openai(mock_post, translation_service_openai):
+def test_translate_bulk_openai(mock_post, translation_service_openai: TranslationService):
     """Test bulk translation with OpenAI."""
     # Setup mock response
     mock_response = MagicMock()
@@ -267,7 +315,27 @@ def test_translate_bulk_openai(mock_post, translation_service_openai):
 
 
 @patch('python_gpt_po.services.translation_service.requests.post')
-def test_translate_bulk_anthropic(mock_post, translation_service_anthropic):
+def test_translate_bulk_azure_openai(mock_post, translation_service_azure_openai: TranslationService):
+    """Test bulk translation with OpenAI."""
+    # Setup mock response
+    mock_response = MagicMock()
+    mock_response.json.return_value = AZURE_OPENAI_TRANSLATION_RESPONSE
+    mock_post.return_value = mock_response
+
+    # Call function
+    translation_service_azure_openai.config.provider_clients.azure_openai_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'))]
+    )
+
+    texts = ["Hello", "World", "Welcome to our application", "Goodbye"]
+    translations = translation_service_azure_openai.translate_bulk(texts, "fr", "test.po")
+
+    # Assert translations are correct
+    assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
+
+
+@patch('python_gpt_po.services.translation_service.requests.post')
+def test_translate_bulk_anthropic(mock_post, translation_service_anthropic: TranslationService):
     """Test bulk translation with Anthropic."""
     # Setup mock client response
     translation_service_anthropic.config.provider_clients.anthropic_client.messages.create.return_value = MagicMock(
@@ -282,7 +350,7 @@ def test_translate_bulk_anthropic(mock_post, translation_service_anthropic):
 
 
 @responses.activate
-def test_translate_bulk_deepseek(translation_service_deepseek):
+def test_translate_bulk_deepseek(translation_service_deepseek: TranslationService):
     """Test bulk translation with DeepSeek."""
     # Setup mock response
     responses.add(
@@ -307,7 +375,7 @@ def test_translate_bulk_deepseek(translation_service_deepseek):
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
 
-def test_clean_json_response(translation_service_deepseek):
+def test_clean_json_response(translation_service_deepseek: TranslationService):
     """Test cleaning JSON responses from different formats."""
     # Test markdown code block format
     markdown_json = "```json\n[\"Bonjour\", \"Monde\"]\n```"
@@ -326,9 +394,12 @@ def test_clean_json_response(translation_service_deepseek):
 
 
 @patch('polib.pofile')
-def test_process_po_file_all_providers(mock_pofile, translation_service_openai,
-                                       translation_service_anthropic,
-                                       translation_service_deepseek, temp_po_file):
+def test_process_po_file_all_providers(mock_pofile,
+                                       translation_service_openai: TranslationService,
+                                       translation_service_anthropic: TranslationService,
+                                       translation_service_deepseek: TranslationService,
+                                       translation_service_azure_openai: TranslationService,
+                                       temp_po_file: str):
     """Test processing a PO file with all providers."""
     # Create a mock PO file
     mock_po = MagicMock()
@@ -346,7 +417,10 @@ def test_process_po_file_all_providers(mock_pofile, translation_service_openai,
     mock_pofile.return_value = mock_po
 
     # Setup translation method mocks for each service
-    for i, service in enumerate([translation_service_openai, translation_service_anthropic, translation_service_deepseek]):
+    for i, service in enumerate([translation_service_openai,
+                                 translation_service_anthropic,
+                                 translation_service_deepseek,
+                                 translation_service_azure_openai]):
         # Create a fresh mock for each service
         mock_po_new = MagicMock()
         mock_po_new.__iter__.return_value = mock_entries
@@ -365,8 +439,9 @@ def test_process_po_file_all_providers(mock_pofile, translation_service_openai,
         service.get_translations.assert_called_once()
         mock_po_new.save.assert_called_once()
 
+
 @patch('python_gpt_po.services.po_file_handler.POFileHandler.disable_fuzzy_translations')
-def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai, temp_po_file):
+def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai: TranslationService, temp_po_file):
     """Test handling of fuzzy translations."""
     # Enable fuzzy flag
     translation_service_openai.config.fuzzy = True
@@ -388,7 +463,10 @@ def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai, tem
 
 
 def test_validation_model_connection_all_providers(
-    translation_service_openai, translation_service_anthropic, translation_service_deepseek
+    translation_service_openai: TranslationService,
+    translation_service_anthropic: TranslationService,
+    translation_service_deepseek: TranslationService,
+    translation_service_azure_openai: TranslationService
 ):
     """Test validating connection to all providers."""
     # Configure OpenAI mock
@@ -398,6 +476,10 @@ def test_validation_model_connection_all_providers(
     translation_service_anthropic.config.provider_clients.anthropic_client.messages.create.return_value = MagicMock()
 
     # Configure DeepSeek mock
+
+    # Configure Azure OpenAI mock
+    translation_service_azure_openai.config.provider_clients.azure_openai_client.chat.completions.create.return_value = MagicMock()
+
     with patch('requests.post') as mock_post:
         mock_response = MagicMock()
         mock_response.raise_for_status = MagicMock()
@@ -407,11 +489,12 @@ def test_validation_model_connection_all_providers(
         assert translation_service_openai.validate_provider_connection() is True
         assert translation_service_anthropic.validate_provider_connection() is True
         assert translation_service_deepseek.validate_provider_connection() is True
+        assert translation_service_azure_openai.validate_provider_connection() is True
 
 
 @patch('os.walk')
 @patch('polib.pofile')
-def test_scan_and_process_po_files(mock_pofile, mock_walk, translation_service_openai):
+def test_scan_and_process_po_files(mock_pofile, mock_walk, translation_service_openai: TranslationService):
     """Test scanning and processing PO files."""
     # Setup mock directory structure
     mock_walk.return_value = [
