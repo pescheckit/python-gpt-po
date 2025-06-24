@@ -3,21 +3,21 @@ Command-line interface utilities for the PO translator.
 This module provides the argument parsing and command-line handling functionality,
 including argument definitions, help text generation, and command processing.
 """
-import argparse
 import logging
 import os
 import sys
+from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from typing import Dict, List, Optional
 
 from ..models.enums import ModelProvider
 from .helpers import get_version
 
 
-class CustomArgumentParser(argparse.ArgumentParser):
+class CustomArgumentParser(ArgumentParser):
     """
     Custom ArgumentParser that handles errors in a more user-friendly way.
     """
-    def error(self, message):
+    def error(self, message: str):
         """
         Display a cleaner error message with usage information.
 
@@ -29,12 +29,12 @@ class CustomArgumentParser(argparse.ArgumentParser):
         sys.exit(2)
 
 
-def parse_args():
+def parse_args() -> Namespace:
     """
     Parse command-line arguments with a more user-friendly interface.
 
     Returns:
-        argparse.Namespace: Parsed arguments
+        Namespace: Parsed arguments
     """
     # First pass - check if list-models is in args
     # This allows us to make folder and lang not required when listing models
@@ -59,7 +59,7 @@ Examples:
   # Process multiple translations in bulk with a specific model
   gpt-po-translator --folder ./locales --lang ja,ko --bulk --model gpt-4
 """,
-        formatter_class=lambda prog: argparse.RawDescriptionHelpFormatter(prog, max_help_position=35, width=100)
+        formatter_class=lambda prog: RawDescriptionHelpFormatter(prog, max_help_position=35, width=100)
     )
 
     # Create argument groups for better organization
@@ -222,12 +222,12 @@ def create_language_mapping(lang_codes: List[str], detail_langs_arg: Optional[st
     return dict(zip(lang_codes, detail_langs))
 
 
-def get_provider_from_args(args) -> Optional[ModelProvider]:
+def get_provider_from_args(args: Namespace) -> Optional[ModelProvider]:
     """
     Get the provider from command line arguments.
 
     Args:
-        args (argparse.Namespace): Parsed command line arguments
+        args (Namespace): Parsed command line arguments
 
     Returns:
         Optional[ModelProvider]: The selected provider or None if not specified
@@ -237,12 +237,12 @@ def get_provider_from_args(args) -> Optional[ModelProvider]:
     return None
 
 
-def get_api_keys_from_args(args) -> Dict[str, str]:
+def get_api_keys_from_args(args: Namespace) -> Dict[str, str]:
     """
     Extract API keys from command line arguments and environment variables.
 
     Args:
-        args (argparse.Namespace): Parsed command line arguments
+        args (Namespace): Parsed command line arguments
 
     Returns:
         Dict[str, str]: Dictionary of provider names to API keys
