@@ -10,3 +10,10 @@ class ModelProvider(Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     DEEPSEEK = "deepseek"
+
+
+ModelProviderList = [
+    ModelProvider.OPENAI.value,
+    ModelProvider.ANTHROPIC.value,
+    ModelProvider.DEEPSEEK.value
+]
