@@ -34,11 +34,11 @@ class ProviderClients:
         if api_keys.get(ModelProvider.AZURE_OPENAI.value):
             endpoint = args.azure_openai_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
             if not endpoint:
-                raise ValueError("Azure OpenAI endpoint must be provided either as an argument or environment variable.")
+                raise ValueError("Missing Azure OpenAI endpoint.")
 
             api_version = args.azure_openai_api_version or os.getenv("AZURE_OPENAI_API_VERSION")
             if not api_version:
-                raise ValueError("Azure OpenAI API version must be provided either as an argument or environment variable.")
+                raise ValueError("Missing Azure OpenAI API version.")
 
             self.azure_openai_client = AzureOpenAI(
                 azure_endpoint=endpoint,

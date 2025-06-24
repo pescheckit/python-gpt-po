@@ -14,6 +14,7 @@ from ..models.provider_clients import ProviderClients
 class ModelManager:
     """Class to manage models from different providers."""
 
+    # pylint: disable=too-many-branches
     @staticmethod
     def get_available_models(provider_clients: ProviderClients, provider: ModelProvider) -> List[str]:
         """Retrieve available models from a specific provider."""
@@ -82,6 +83,7 @@ class ModelManager:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
 
         return models
+    # pylint: enable=too-many-branches
 
     @staticmethod
     def validate_model(provider_clients: ProviderClients, provider: ModelProvider, model: str) -> bool:

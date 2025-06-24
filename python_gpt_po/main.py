@@ -117,7 +117,8 @@ def get_appropriate_model(
 
     # Fall back to default model if no models could be retrieved
     default_model = model_manager.get_default_model(provider)
-    logging.warning("No available models found from API; defaulting to %s", default_model)
+    logging.warning("No available models found from API; defaulting to %s",
+                    default_model)
     return default_model
 
 
@@ -145,7 +146,8 @@ def process_translations(config: TranslationConfig, folder: str,
         sys.exit(1)
 
     # Start processing files
-    logging.info("Starting translation with %s using model %s in folder %s", config.provider.value, config.model, folder)
+    logging.info("Starting translation with %s using model %s in folder %s",
+                 config.provider.value, config.model, folder)
     translation_service.scan_and_process_po_files(folder, languages, detail_languages)
     logging.info("Translation completed successfully")
 
