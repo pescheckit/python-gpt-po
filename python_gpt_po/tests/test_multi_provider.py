@@ -62,10 +62,30 @@ AZURE_OPENAI_MODELS_RESPONSE = OPENAI_MODELS_RESPONSE
 
 ANTHROPIC_MODELS_RESPONSE = {
     "data": [
-        {"type": "model", "id": "claude-3-7-sonnet-20250219", "display_name": "Claude 3.7 Sonnet", "created_at": "2025-02-19T00:00:00Z"},
-        {"type": "model", "id": "claude-3-5-sonnet-20241022", "display_name": "Claude 3.5 Sonnet", "created_at": "2024-10-22T00:00:00Z"},
-        {"type": "model", "id": "claude-3-5-haiku-20241022", "display_name": "Claude 3.5 Haiku", "created_at": "2024-10-22T00:00:00Z"},
-        {"type": "model", "id": "claude-3-opus-20240229", "display_name": "Claude 3 Opus", "created_at": "2024-02-29T00:00:00Z"}
+        {
+            "type": "model",
+            "id": "claude-3-7-sonnet-20250219",
+            "display_name": "Claude 3.7 Sonnet",
+            "created_at": "2025-02-19T00:00:00Z"
+        },
+        {
+            "type": "model",
+            "id": "claude-3-5-sonnet-20241022",
+            "display_name": "Claude 3.5 Sonnet",
+            "created_at": "2024-10-22T00:00:00Z"
+        },
+        {
+            "type": "model",
+            "id": "claude-3-5-haiku-20241022",
+            "display_name": "Claude 3.5 Haiku",
+            "created_at": "2024-10-22T00:00:00Z"
+        },
+        {
+            "type": "model",
+            "id": "claude-3-opus-20240229",
+            "display_name": "Claude 3 Opus",
+            "created_at": "2024-02-29T00:00:00Z"
+        }
     ],
     "has_more": False,
     "first_id": "claude-3-7-sonnet-20250219",
@@ -287,7 +307,9 @@ def test_get_deepseek_models(mock_provider_clients: ProviderClients):
 
     # Call the function
     model_manager = ModelManager()
-    models = model_manager.get_available_models(mock_provider_clients, ModelProvider.DEEPSEEK)
+    models = model_manager.get_available_models(
+        mock_provider_clients, ModelProvider.DEEPSEEK
+    )
 
     # Assert models are returned correctly
     assert "deepseek-chat" in models
@@ -303,8 +325,16 @@ def test_translate_bulk_openai(mock_post, translation_service_openai: Translatio
     mock_post.return_value = mock_response
 
     # Call function
-    translation_service_openai.config.provider_clients.openai_client.chat.completions.create.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'))]
+    translation_service_openai.config.provider_clients.openai_client.chat.completions.create.return_value = (
+        MagicMock(
+            choices=[
+                MagicMock(
+                    message=MagicMock(
+                        content='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'
+                    )
+                )
+            ]
+        )
     )
 
     texts = ["Hello", "World", "Welcome to our application", "Goodbye"]
@@ -323,8 +353,16 @@ def test_translate_bulk_azure_openai(mock_post, translation_service_azure_openai
     mock_post.return_value = mock_response
 
     # Call function
-    translation_service_azure_openai.config.provider_clients.azure_openai_client.chat.completions.create.return_value = MagicMock(
-        choices=[MagicMock(message=MagicMock(content='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'))]
+    azure_client = translation_service_azure_openai.config.provider_clients.azure_openai_client
+    azure_response = azure_client.chat.completions.create
+    azure_response.return_value = MagicMock(
+        choices=[
+            MagicMock(
+                message=MagicMock(
+                    content='["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'
+                )
+            )
+        ]
     )
 
     texts = ["Hello", "World", "Welcome to our application", "Goodbye"]
@@ -453,7 +491,9 @@ def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai: Tra
         mock_pofile.return_value = mock_po
 
         # Mock get_file_language to return a valid language
-        translation_service_openai.po_file_handler.get_file_language = MagicMock(return_value="fr")
+        translation_service_openai.po_file_handler.get_file_language = MagicMock(
+            return_value="fr"
+        )
 
         # Process the PO file
         translation_service_openai.process_po_file(temp_po_file, ["fr"])
@@ -470,15 +510,18 @@ def test_validation_model_connection_all_providers(
 ):
     """Test validating connection to all providers."""
     # Configure OpenAI mock
-    translation_service_openai.config.provider_clients.openai_client.chat.completions.create.return_value = MagicMock()
+    openai_client = translation_service_openai.config.provider_clients.openai_client
+    openai_client.chat.completions.create.return_value = MagicMock()
 
     # Configure Anthropic mock
-    translation_service_anthropic.config.provider_clients.anthropic_client.messages.create.return_value = MagicMock()
+    anthropic_client = translation_service_anthropic.config.provider_clients.anthropic_client
+    anthropic_client.messages.create.return_value = MagicMock()
 
     # Configure DeepSeek mock
 
     # Configure Azure OpenAI mock
-    translation_service_azure_openai.config.provider_clients.azure_openai_client.chat.completions.create.return_value = MagicMock()
+    azure_openai_client = translation_service_azure_openai.config.provider_clients.azure_openai_client
+    azure_openai_client.chat.completions.create.return_value = MagicMock()
 
     with patch('requests.post') as mock_post:
         mock_response = MagicMock()
