@@ -11,7 +11,7 @@ import traceback
 from argparse import Namespace
 from typing import Dict, List, Optional
 
-from .models.config import TranslationConfig
+from .models.config import TranslationConfig, TranslationFlags
 from .models.enums import ModelProvider
 from .models.provider_clients import ProviderClients
 from .services.model_manager import ModelManager
@@ -180,15 +180,25 @@ def main():
             logging.error(str(e))
             sys.exit(1)
 
+        # Check for deprecated --fuzzy option
+        if args.fuzzy:
+            logging.warning(
+                "WARNING: --fuzzy is DEPRECATED and has risky behavior. "
+                "Use --fix-fuzzy instead to properly translate and clean fuzzy entries."
+            )
         # Create translation configuration
+        flags = TranslationFlags(
+            bulk_mode=args.bulk,
+            fuzzy=args.fuzzy,
+            fix_fuzzy=args.fix_fuzzy,
+            folder_language=args.folder_language,
+            mark_ai_generated=not args.no_ai_comment
+        )
         config = TranslationConfig(
             provider_clients=provider_clients,
             provider=provider,
             model=model,
-            bulk_mode=args.bulk,
-            fuzzy=args.fuzzy,
-            fix_fuzzy=args.fix_fuzzy,
-            folder_language=args.folder_language
+            flags=flags
         )
 
         # Process translations

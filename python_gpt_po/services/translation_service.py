@@ -379,7 +379,7 @@ class TranslationService:
             # Get the detailed language name if available
             detail_lang = detail_languages.get(file_lang) if detail_languages else None
 
-            if self.config.fix_fuzzy:
+            if self.config.flags.fix_fuzzy:
                 self.fix_fuzzy_entries(po_file, po_file_path, file_lang, detail_lang)
                 return
 
@@ -400,7 +400,7 @@ class TranslationService:
 
     def _prepare_po_file(self, po_file_path: str, languages: List[str]):
         """Prepares the .po file for translation."""
-        if self.config.fuzzy:
+        if self.config.flags.fuzzy:
             logging.warning(
                 "Consider running with '--fix-fuzzy' to clean and update the fuzzy translations properly.",
             )
@@ -410,7 +410,7 @@ class TranslationService:
             po_file_path,
             po_file,
             languages,
-            self.config.folder_language
+            self.config.flags.folder_language
         )
         if not file_lang:
             logging.warning("Skipping .po file due to language mismatch: %s", po_file_path)
@@ -426,7 +426,7 @@ class TranslationService:
         """
         Retrieves translations for the given texts using either bulk or individual translation.
         """
-        if self.config.bulk_mode:
+        if self.config.flags.bulk_mode:
             return self.translate_bulk(texts, target_language, po_file_path, detail_language)
         return [self.translate_single(text, target_language, detail_language) for text in texts]
 
@@ -439,7 +439,9 @@ class TranslationService:
         """Updates the .po file entries with the provided translations."""
         for entry, translation in zip((e for e in po_file if not e.msgstr.strip()), translations):
             if translation.strip():
-                self.po_file_handler.update_po_entry(po_file, entry.msgid, translation)
+                self.po_file_handler.update_po_entry(
+                    po_file, entry.msgid, translation, self.config.flags.mark_ai_generated
+                )
                 logging.info("Translated '%s' to '%s'", entry.msgid, translation)
             else:
                 self._handle_empty_translation(entry, target_language, detail_language)
@@ -453,7 +455,9 @@ class TranslationService:
         """Update only fuzzy entries, remove 'fuzzy' flag, and log cleanly."""
         for entry, translation in zip(entries_to_update, translations):
             if translation.strip():
-                self.po_file_handler.update_po_entry(po_file, entry.msgid, translation)
+                self.po_file_handler.update_po_entry(
+                    po_file, entry.msgid, translation, self.config.flags.mark_ai_generated
+                )
                 if 'fuzzy' in entry.flags:
                     entry.flags.remove('fuzzy')
                 logging.info("Fixed fuzzy entry '%s' -> '%s'", entry.msgid, translation)
@@ -465,7 +469,9 @@ class TranslationService:
         logging.warning("Empty translation for '%s'. Attempting individual translation.", entry.msgid)
         individual_translation = self.translate_single(entry.msgid, target_language, detail_language)
         if individual_translation.strip():
-            self.po_file_handler.update_po_entry(entry.po_file, entry.msgid, individual_translation)
+            self.po_file_handler.update_po_entry(
+                entry.po_file, entry.msgid, individual_translation, self.config.flags.mark_ai_generated
+            )
             logging.info(
                 "Individual translation successful: '%s' to '%s'",
                 entry.msgid,
@@ -481,7 +487,9 @@ class TranslationService:
                 logging.warning("Untranslated entry found: '%s'. Attempting final translation.", entry.msgid)
                 final_translation = self.translate_single(entry.msgid, target_language, detail_language)
                 if final_translation.strip():
-                    self.po_file_handler.update_po_entry(po_file, entry.msgid, final_translation)
+                    self.po_file_handler.update_po_entry(
+                        po_file, entry.msgid, final_translation, self.config.flags.mark_ai_generated
+                    )
                     logging.info(
                         "Final translation successful: '%s' to '%s'",
                         entry.msgid,
