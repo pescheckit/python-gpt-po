@@ -28,7 +28,6 @@ class ModelManager:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
             return []
 
-
     @staticmethod
     def validate_model(provider_clients: ProviderClients, provider: ModelProvider, model: str) -> bool:
         """

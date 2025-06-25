@@ -135,9 +135,8 @@ def test_translate_bulk(translation_service, tmp_path):
 
     # Mock the response based on provider
     if translation_service.config.provider == ModelProvider.OPENAI:
-        translation_service.config.provider_clients.openai_client.chat.completions.create.return_value.choices[0].message.content = (
-            '["HR", "Inquilino", "Salud", "Transporte", "Servicios"]'
-        )
+        openai_response = translation_service.config.provider_clients.openai_client.chat.completions.create.return_value
+        openai_response.choices[0].message.content = '["HR", "Inquilino", "Salud", "Transporte", "Servicios"]'
 
     translated_texts = translation_service.translate_bulk(texts_to_translate, 'es', po_file_path)
     assert translated_texts == ["HR", "Inquilino", "Salud", "Transporte", "Servicios"]
