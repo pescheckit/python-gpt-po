@@ -4,246 +4,172 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-A robust tool for translating gettext (.po) files using AI models from multiple providers (OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek). It supports both bulk and individual translations, handles fuzzy entries, and can infer target languages based on folder structures. Available as a Python package and Docker container with support for Python 3.8-3.12.
+**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek with automatic AI translation tagging.
 
-## What is GPT-PO Translator?
-
-This tool helps you translate gettext (.po) files using AI models. It's perfect for developers who need to localize their applications quickly and accurately.
-
-### Key Features
-
-- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek
-- **Flexible translation modes** - Bulk or entry-by-entry processing
-- **Smart language handling** - Auto-detects target languages from folder structure
-- **AI translation tracking** - Automatically tags AI-generated translations with comments
-- **Production-ready** - Includes retry logic, validation, and detailed logging
-- **Easy deployment** - Available as a Python package or Docker container
-- **Cross-version support** - Works with Python 3.8-3.12
-
-## Getting Started
-
-### Quick Install
+## 🚀 Quick Start
 
 ```bash
+# Install
 pip install gpt-po-translator
-```
 
-### Basic Usage
-
-To translate the `po` files for the German and French languages found in the `locales` folder, using OpenAI:
-
-```bash
-# Set up your API key
+# Set API key
 export OPENAI_API_KEY='your_api_key_here'
 
-# Translate files to German and French
+# Translate to German and French
 gpt-po-translator --folder ./locales --lang de,fr --bulk
 ```
 
-## Installation Options
+## ✨ Key Features
+
+- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek
+- **AI translation tracking** - Auto-tags AI-generated translations with `#. AI-generated` comments
+- **Bulk processing** - Efficient batch translation for large files
+- **Smart language detection** - Auto-detects target languages from folder structure
+- **Fuzzy entry handling** - Translates and fixes fuzzy entries properly
+- **Docker ready** - Available as container for easy deployment
+
+## 📦 Installation
 
 ### PyPI (Recommended)
-
 ```bash
 pip install gpt-po-translator
 ```
 
-### Manual Installation
+### Docker
+```bash
+docker pull ghcr.io/pescheckit/python-gpt-po:latest
+```
 
+### Manual
 ```bash
 git clone https://github.com/pescheckit/python-gpt-po.git
 cd python-gpt-po
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 
-### Docker
+## 🔧 Setup
+
+### API Keys
+
+Choose your AI provider and set the corresponding API key:
 
 ```bash
-# Pull the latest image
-docker pull ghcr.io/pescheckit/python-gpt-po:latest
+# OpenAI
+export OPENAI_API_KEY='your_key'
 
-# Run with your local directory mounted
-docker run -v $(pwd):/data \
-  -e OPENAI_API_KEY="your_key" \
-  ghcr.io/pescheckit/python-gpt-po:latest \
-  --folder /data --lang fr,de --bulk
+# Anthropic/Claude
+export ANTHROPIC_API_KEY='your_key'
 
-# Or with Azure OpenAI
-docker run -v $(pwd):/data \
-  -e AZURE_OPENAI_API_KEY="your_key" \
-  -e AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/" \
-  -e AZURE_OPENAI_API_VERSION="2024-02-01" \
-  ghcr.io/pescheckit/python-gpt-po:latest \
-  --provider azure_openai --folder /data --lang fr,de --bulk
-```
+# DeepSeek
+export DEEPSEEK_API_KEY='your_key'
 
-## Setting Up API Keys
-
-### Option 1: Environment Variables
-
-```bash
-export OPENAI_API_KEY='your_api_key_here'
-# Or for other providers:
-export ANTHROPIC_API_KEY='your_api_key_here'
-export DEEPSEEK_API_KEY='your_api_key_here'
-
-# For Azure OpenAI:
-export AZURE_OPENAI_API_KEY='your_api_key_here'
+# Azure OpenAI
+export AZURE_OPENAI_API_KEY='your_key'
 export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'
 export AZURE_OPENAI_API_VERSION='2024-02-01'
 ```
 
-### Option 2: Command Line
-
-```bash
-gpt-po-translator --api_key 'your_api_key_here' [other options]
-```
-
-## Usage Examples
+## 💡 Usage Examples
 
 ### Basic Translation
-
 ```bash
 # Translate to German
 gpt-po-translator --folder ./locales --lang de
+
+# Multiple languages
+gpt-po-translator --folder ./locales --lang de,fr,es --bulk
 ```
 
-### Bulk Translation with Language Detection
-
+### Different AI Providers
 ```bash
-# Translate based on folder structure with custom batch size
-gpt-po-translator --folder ./locales --lang de,fr --bulk --bulksize 40 --folder-language
-```
-
-### Using Different AI Providers
-
-```bash
-# Use Claude models from Anthropic
+# Use Claude (Anthropic)
 gpt-po-translator --provider anthropic --folder ./locales --lang de
 
-# Use DeepSeek models
+# Use DeepSeek
 gpt-po-translator --provider deepseek --folder ./locales --lang de
 
 # Use Azure OpenAI
-gpt-po-translator --provider azure_openai \
-  --azure-openai-endpoint https://your-resource.openai.azure.com/ \
-  --azure-openai-api-version 2024-02-01 \
-  --folder ./locales --lang de
-
-# List available models for different providers
-gpt-po-translator --provider openai --list-models
-gpt-po-translator --provider azure_openai \
-  --azure-openai-endpoint https://your-resource.openai.azure.com/ \
-  --azure-openai-api-version 2024-02-01 \
-  --list-models
+gpt-po-translator --provider azure_openai --folder ./locales --lang de
 ```
 
-### AI Translation Tracking
-
-**By default, all AI-generated translations are automatically marked with comments** for easy tracking and compliance:
-
+### Docker Usage
 ```bash
-# Default behavior - AI translations are tagged with comments
-gpt-po-translator --folder ./locales --lang de
-
-# Result in PO file:
-#. AI-generated
-msgid "Hello"
-msgstr "Hallo"
-
-# To disable AI tagging (not recommended)
-gpt-po-translator --folder ./locales --lang de --no-ai-comment
-```
-
-This helps you:
-- Identify which translations were made by AI vs human translators  
-- Track incremental changes when new AI translations are added
-- Comply with requirements to identify AI-generated content
-
-**Note:** Django's `makemessages` removes these comments when updating PO files, but translations are preserved. Re-run the translator after `makemessages` to restore AI tagging.
-
-## Command Reference
-
-| Option | Description |
-|--------|-------------|
-| `--folder` | Path to your .po files |
-| `--lang` | Target language codes (comma-separated, e.g., `de,fr`) |
-| `--detail-lang` | Full language names (e.g., `"German,French"`) |
-| `--fuzzy` | Remove fuzzy entries before translating (DEPRECATED - use `--fix-fuzzy`) |
-| `--fix-fuzzy` | Translate and fix fuzzy entries properly (recommended) |
-| `--bulk` | Enable batch translation (recommended for large files) |
-| `--bulksize` | Entries per batch (default: 50) |
-| `--model` | Specific AI model to use |
-| `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, or `deepseek` |
-| `--list-models` | Show available models for selected provider |
-| `--api_key` | Your API key |
-| `--folder-language` | Auto-detect languages from folder structure |
-| `--no-ai-comment` | Disable AI-generated comment tagging (enabled by default) |
-
-## Advanced Docker Usage
-
-### Specific Python Versions
-
-```bash
-# Python 3.11 (default)
-docker pull ghcr.io/pescheckit/python-gpt-po:latest
-
-# Python 3.12
-docker pull ghcr.io/pescheckit/python-gpt-po:latest-py3.12
-
-# Specific version
-docker pull ghcr.io/pescheckit/python-gpt-po:0.3.0
-```
-
-### Volume Mounting
-
-Mount any local directory to use in the container:
-
-```bash
-# Windows example with OpenAI
-docker run -v D:/projects/website/locales:/locales \
+# Basic usage
+docker run -v $(pwd):/data \
   -e OPENAI_API_KEY="your_key" \
   ghcr.io/pescheckit/python-gpt-po:latest \
-  --folder /locales --lang fr,de --bulk
+  --folder /data --lang de,fr --bulk
 
-# Mac/Linux example with Azure OpenAI
-docker run -v /Users/username/translations:/input \
+# With Azure OpenAI
+docker run -v $(pwd):/data \
   -e AZURE_OPENAI_API_KEY="your_key" \
   -e AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/" \
   -e AZURE_OPENAI_API_VERSION="2024-02-01" \
   ghcr.io/pescheckit/python-gpt-po:latest \
-  --provider azure_openai --folder /input --lang fr,de --bulk
+  --provider azure_openai --folder /data --lang de
 ```
 
-## Requirements
+## 🏷️ AI Translation Tracking
 
-- Python 3.9+ (3.9, 3.10, 3.11, or 3.12)
-- Core dependencies:
-  - polib
-  - openai
-  - tenacity
-  - python-dotenv
+**All AI translations are automatically tagged** for transparency and compliance:
 
-## Development
+```po
+#. AI-generated
+msgid "Hello"
+msgstr "Hallo"
+```
 
-### Running Tests
+This helps you:
+- Track which translations are AI vs human-generated
+- Comply with AI content disclosure requirements
+- Manage incremental translation workflows
 
+**Note:** Django's `makemessages` removes these comments but preserves translations. Re-run the translator after `makemessages` to restore tags.
+
+## 📚 Command Reference
+
+| Option | Description |
+|--------|-------------|
+| `--folder` | Path to .po files |
+| `--lang` | Target languages (e.g., `de,fr,es`) |
+| `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, `deepseek` |
+| `--bulk` | Enable batch translation (recommended) |
+| `--bulksize` | Entries per batch (default: 50) |
+| `--model` | Specific model to use |
+| `--list-models` | Show available models |
+| `--fix-fuzzy` | Translate fuzzy entries |
+| `--folder-language` | Auto-detect languages from folders |
+| `--no-ai-comment` | Disable AI tagging |
+
+## 🛠️ Development
+
+### Build Docker Locally
 ```bash
+git clone https://github.com/pescheckit/python-gpt-po.git
+cd python-gpt-po
+docker build -t python-gpt-po .
+```
+
+### Run Tests
+```bash
+# Local
 python -m pytest
-```
-```bash
+
+# Docker
 docker run --rm -v $(pwd):/app -w /app --entrypoint python python-gpt-po -m pytest -v
 ```
 
-## Documentation
+## 📋 Requirements
 
-For more detailed information:
-- **[Advanced Usage Guide](docs/usage.md)** - Comprehensive guide with all options and internal mechanics
-- **[Development Guide](docs/development.md)** - For contributors
-- **[GitHub Repository](https://github.com/pescheckit/python-gpt-po)** - Source code and issues
+- Python 3.8+ 
+- Dependencies: `polib`, `openai`, `anthropic`, `requests`, `tenacity`
 
-## License
+## 📖 Documentation
 
-MIT License - See the [LICENSE](LICENSE) file for details.
+- **[Advanced Usage Guide](docs/usage.md)** - Comprehensive options and mechanics
+- **[Development Guide](docs/development.md)** - Contributing guidelines
+- **[GitHub Issues](https://github.com/pescheckit/python-gpt-po/issues)** - Bug reports and feature requests
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) for details.
