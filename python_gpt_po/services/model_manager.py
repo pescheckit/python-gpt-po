@@ -5,10 +5,9 @@ This module handles model discovery, validation, and selection across different 
 import logging
 from typing import List
 
-import requests
-
 from ..models.enums import ModelProvider
 from ..models.provider_clients import ProviderClients
+from .providers.registry import ProviderRegistry
 
 
 class ModelManager:
@@ -17,77 +16,18 @@ class ModelManager:
     @staticmethod
     def get_available_models(provider_clients: ProviderClients, provider: ModelProvider) -> List[str]:
         """Retrieve available models from a specific provider."""
-        models = []
+        provider_impl = ProviderRegistry.get_provider(provider)
+
+        if not provider_impl:
+            logging.error("Provider %s not registered", provider.value)
+            return []
 
         try:
-            if provider == ModelProvider.OPENAI:
-                if provider_clients.openai_client:
-                    response = provider_clients.openai_client.models.list()
-                    models = [model.id for model in response.data]
-                else:
-                    logging.error("OpenAI client not initialized")
-
-            elif provider == ModelProvider.ANTHROPIC:
-                if provider_clients.anthropic_client:
-                    # Use Anthropic's models endpoint
-                    try:
-                        headers = {
-                            "x-api-key": provider_clients.anthropic_client.api_key,
-                            "anthropic-version": "2023-06-01"
-                        }
-                        response = requests.get(
-                            "https://api.anthropic.com/v1/models",
-                            headers=headers,
-                            timeout=15
-                        )
-                        response.raise_for_status()
-                        model_data = response.json().get("data", [])
-                        models = [model["id"] for model in model_data]
-                    except Exception as e:
-                        logging.error("Error fetching Anthropic models: %s", str(e))
-                        # Fallback to commonly used models if API call fails
-                        models = [
-                            "claude-3-7-sonnet-latest",
-                            "claude-3-5-haiku-latest",
-                            "claude-3-5-sonnet-latest",
-                            "claude-3-opus-20240229",
-                        ]
-                else:
-                    logging.error("Anthropic client not initialized")
-
-            elif provider == ModelProvider.DEEPSEEK:
-                if provider_clients.deepseek_api_key:
-                    headers = {
-                        "Authorization": f"Bearer {provider_clients.deepseek_api_key}",
-                        "Content-Type": "application/json"
-                    }
-                    response = requests.get(
-                        f"{provider_clients.deepseek_base_url}/models",
-                        headers=headers,
-                        timeout=15
-                    )
-                    response.raise_for_status()
-                    models = [model["id"] for model in response.json().get("data", [])]
-                else:
-                    logging.error("DeepSeek API key not set")
-
-            elif provider == ModelProvider.AZURE_OPENAI:
-                return ModelManager._get_azure_openai_models(provider_clients)
-
+            return provider_impl.get_models(provider_clients)
         except Exception as e:
             logging.error("Error fetching models from %s: %s", provider.value, str(e))
+            return []
 
-        return models
-
-    @staticmethod
-    def _get_azure_openai_models(provider_clients: ProviderClients) -> List[str]:
-        """Retrieve models from Azure OpenAI."""
-        if provider_clients.azure_openai_client:
-            response = provider_clients.azure_openai_client.models.list()
-            return [model.id for model in response.data]
-
-        logging.error("Azure OpenAI client not initialized")
-        return []
 
     @staticmethod
     def validate_model(provider_clients: ProviderClients, provider: ModelProvider, model: str) -> bool:
@@ -119,13 +59,13 @@ class ModelManager:
         Returns:
             str: The default model ID
         """
-        default_models = {
-            ModelProvider.OPENAI: "gpt-4o-mini",
-            ModelProvider.ANTHROPIC: "claude-3-5-haiku-latest",
-            ModelProvider.DEEPSEEK: "deepseek-chat",
-            ModelProvider.AZURE_OPENAI: "gpt-35-turbo",
-        }
-        return default_models.get(provider, "")
+        provider_impl = ProviderRegistry.get_provider(provider)
+
+        if not provider_impl:
+            logging.warning("Provider %s not registered, returning empty default", provider.value)
+            return ""
+
+        return provider_impl.get_default_model()
 
     @staticmethod
     def verify_model_capabilities(
@@ -170,25 +110,23 @@ class ModelManager:
         Returns:
             str: The suggested model ID
         """
-        # For translation tasks, prefer more capable models when available
-        if task == "translation":
-            preferred_models = {
-                ModelProvider.OPENAI: ["gpt-4", "gpt-4o", "gpt-3.5-turbo"],
-                ModelProvider.ANTHROPIC: ["claude-3-opus", "claude-3-5-sonnet", "claude-3-5-haiku"],
-                ModelProvider.DEEPSEEK: ["deepseek-chat"]
-            }
+        provider_impl = ProviderRegistry.get_provider(provider)
 
-            available_models = ModelManager.get_available_models(provider_clients, provider)
+        if not provider_impl:
+            logging.warning("Provider %s not registered", provider.value)
+            return ""
 
-            # Try to find a match from the preferred models list
-            for preferred in preferred_models.get(provider, []):
-                for available in available_models:
-                    if preferred in available.lower():
-                        return available
+        preferred_models = provider_impl.get_preferred_models(task)
+        available_models = ModelManager.get_available_models(provider_clients, provider)
 
-            # Fall back to the first available model or the default
-            if available_models:
-                return available_models[0]
+        # Try to find a match from the preferred models list
+        for preferred in preferred_models:
+            for available in available_models:
+                if preferred in available.lower():
+                    return available
 
-        # Default to the standard default model
-        return ModelManager.get_default_model(provider)
+        # Fall back to the first available model or the default
+        if available_models:
+            return available_models[0]
+
+        return provider_impl.get_default_model()
