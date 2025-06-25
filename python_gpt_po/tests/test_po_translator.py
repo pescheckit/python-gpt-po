@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from python_gpt_po.models.config import TranslationConfig
+from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 # Import from the new modular structure
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
@@ -36,13 +36,16 @@ def fixture_translation_config(mock_openai_client):
     provider_clients.openai_client = mock_openai_client
 
     model = "gpt-3.5-turbo"
+    flags = TranslationFlags(
+        bulk_mode=True,
+        fuzzy=False,
+        folder_language=False
+    )
     return TranslationConfig(
         provider_clients=provider_clients,
         provider=ModelProvider.OPENAI,
         model=model,
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
 
 
@@ -100,13 +103,13 @@ msgstr ""
     mock_po_file_handler.get_file_language.return_value = 'es'
 
     # Explicitly setting fuzzy=True to trigger the function
-    translation_service.config.fuzzy = True
+    translation_service.config.flags.fuzzy = True
 
     # We need to mock the _prepare_po_file method to use our mock
     original_prepare = translation_service._prepare_po_file
 
     def mock_prepare(po_file_path, languages):
-        if translation_service.config.fuzzy:
+        if translation_service.config.flags.fuzzy:
             translation_service.po_file_handler.disable_fuzzy_translations(po_file_path)
         mock_po = MagicMock()
         mock_po.__iter__.return_value = []

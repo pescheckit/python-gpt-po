@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import polib
 import pytest
 
-from python_gpt_po.models.config import TranslationConfig
+from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 # Import from the new modular structure
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
@@ -102,13 +102,12 @@ def mock_provider_clients():
 @pytest.fixture
 def translation_service_openai(mock_provider_clients):
     """Create an OpenAI translation service for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     config = TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.OPENAI,
         model="gpt-3.5-turbo",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
     return TranslationService(config=config)
 
@@ -116,13 +115,12 @@ def translation_service_openai(mock_provider_clients):
 @pytest.fixture
 def translation_service_anthropic(mock_provider_clients):
     """Create an Anthropic translation service for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     config = TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.ANTHROPIC,
         model="claude-3-5-sonnet-20241022",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
     return TranslationService(config=config)
 
@@ -130,13 +128,12 @@ def translation_service_anthropic(mock_provider_clients):
 @pytest.fixture
 def translation_service_deepseek(mock_provider_clients):
     """Create a DeepSeek translation service for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     config = TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.DEEPSEEK,
         model="deepseek-chat",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
     return TranslationService(config=config)
 
@@ -290,7 +287,7 @@ msgstr "Une autre traduction floue"
 def test_folder_language_detection(translation_service_openai):
     """Test detecting languages from folder structure."""
     # Enable folder language detection
-    translation_service_openai.config.folder_language = True
+    translation_service_openai.config.flags.folder_language = True
 
     # Create a mock directory structure
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -511,13 +508,12 @@ def test_handling_diverse_po_formats():
     clients.openai_client = MagicMock()
 
     # Create a test translation service
+    flags = TranslationFlags(bulk_mode=False, fuzzy=False, folder_language=False)  # Use single mode to simplify mocking
     config = TranslationConfig(
         provider_clients=clients,
         provider=ModelProvider.OPENAI,
         model="gpt-3.5-turbo",
-        bulk_mode=False,  # Use single mode to simplify mocking
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
 
     service = TranslationService(config=config)
