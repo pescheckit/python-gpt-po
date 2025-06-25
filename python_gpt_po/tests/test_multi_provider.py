@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import responses
 
-from python_gpt_po.models.config import TranslationConfig
+from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 # Import the necessary classes from the new modular structure
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
@@ -157,52 +157,48 @@ def mock_provider_clients() -> ProviderClients:
 @pytest.fixture
 def translation_config_openai(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create an OpenAI translation config for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     return TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.OPENAI,
         model="gpt-3.5-turbo",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
 
 
 @pytest.fixture
 def translation_config_azure_openai(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create an OpenAI translation config for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     return TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.AZURE_OPENAI,
         model="gpt-3.5-turbo",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
 
 
 @pytest.fixture
 def translation_config_anthropic(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create an Anthropic translation config for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     return TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.ANTHROPIC,
         model="claude-3-5-sonnet-20241022",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
 
 
 @pytest.fixture
 def translation_config_deepseek(mock_provider_clients: ProviderClients) -> TranslationConfig:
     """Create a DeepSeek translation config for testing."""
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False)
     return TranslationConfig(
         provider_clients=mock_provider_clients,
         provider=ModelProvider.DEEPSEEK,
         model="deepseek-chat",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False
+        flags=flags
     )
 
 
@@ -482,7 +478,7 @@ def test_process_po_file_all_providers(mock_pofile,
 def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai: TranslationService, temp_po_file):
     """Test handling of fuzzy translations."""
     # Enable fuzzy flag
-    translation_service_openai.config.fuzzy = True
+    translation_service_openai.config.flags.fuzzy = True
 
     # Mock the PO file handling
     with patch('polib.pofile') as mock_pofile:

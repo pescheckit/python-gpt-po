@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import polib
 
-from python_gpt_po.models.config import TranslationConfig
+from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
 from python_gpt_po.services.translation_service import TranslationService
@@ -24,14 +24,12 @@ def test_fix_fuzzy_entries_on_sample_po_content(tmp_path):
 
     # Setup dummy config
     clients = ProviderClients()
+    flags = TranslationFlags(bulk_mode=True, fuzzy=False, folder_language=False, fix_fuzzy=True)
     config = TranslationConfig(
         provider_clients=clients,
         provider=ModelProvider.OPENAI,
         model="gpt-4o",
-        bulk_mode=True,
-        fuzzy=False,
-        folder_language=False,
-        fix_fuzzy=True
+        flags=flags
     )
     service = TranslationService(config=config)
 

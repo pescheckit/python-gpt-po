@@ -131,17 +131,28 @@ class POFileHandler:
             logging.info("File: %s - All %s texts successfully translated.", po_file_path, total)
 
     @staticmethod
-    def update_po_entry(po_file, original_text, translated_text):
+    def update_po_entry(po_file, original_text, translated_text, mark_ai_generated=True):
         """Updates a .po file entry with the translated text.
 
         Args:
             po_file (polib.POFile): The PO file object
             original_text (str): The original text to find
             translated_text (str): The translated text to set
+            mark_ai_generated (bool): Whether to mark this translation as AI-generated
         """
         entry = po_file.find(original_text)
         if entry:
             entry.msgstr = translated_text
+
+            # Add AI-generated comment if enabled
+            if mark_ai_generated:
+                ai_comment = "AI-generated"
+                if not entry.comment or ai_comment not in entry.comment:
+                    if entry.comment:
+                        entry.comment = f"{entry.comment}\n{ai_comment}"
+                    else:
+                        entry.comment = ai_comment
+
             logging.debug("Updated translation for '%s' to '%s'", original_text, translated_text)
         else:
             logging.warning("Original text '%s' not found in the .po file.", original_text)
@@ -212,3 +223,35 @@ class POFileHandler:
                 'language_team': po_file.metadata.get('Language-Team', '')
             }
         return metadata
+
+    @staticmethod
+    def get_ai_generated_entries(po_file):
+        """Gets all AI-generated entries from a PO file.
+
+        Args:
+            po_file (polib.POFile): The PO file object
+
+        Returns:
+            List[polib.POEntry]: List of AI-generated entries
+        """
+        ai_generated = []
+        for entry in po_file:
+            if entry.comment and "AI-generated" in entry.comment:
+                ai_generated.append(entry)
+        return ai_generated
+
+    @staticmethod
+    def remove_ai_generated_comments(po_file):
+        """Removes AI-generated comments from all entries in a PO file.
+
+        Args:
+            po_file (polib.POFile): The PO file object
+        """
+        for entry in po_file:
+            if entry.comment and "AI-generated" in entry.comment:
+                # Remove the AI-generated line from the comment
+                comment_lines = entry.comment.split('\n')
+                comment_lines = [line for line in comment_lines if "AI-generated" not in line]
+                entry.comment = '\n'.join(comment_lines).strip()
+                if not entry.comment:
+                    entry.comment = None

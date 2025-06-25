@@ -6,7 +6,7 @@ This guide provides an in-depth look at what really happens when you run `gpt-po
 
 ## Overview
 
-`gpt-po-translator` is a multi-provider tool for translating gettext (.po) files using AI models. It supports OpenAI, Anthropic, and DeepSeek. The tool offers two primary translation modes:
+`gpt-po-translator` is a multi-provider tool for translating gettext (.po) files using AI models. It supports OpenAI, Azure OpenAI, Anthropic, and DeepSeek. The tool offers two primary translation modes:
 - **Bulk Mode:** Processes a list of texts in batches to reduce the number of API calls.
 - **Individual Mode:** Translates each text entry one-by-one for more fine-grained control.
 
@@ -22,9 +22,9 @@ It also manages fuzzy translations (by disabling or removing them) and can infer
 
 - **API Key Setup:**  
   The tool collects API keys from multiple sources:
-  - Specific arguments (`--openai-key`, `--anthropic-key`, `--deepseek-key`)
+  - Specific arguments (`--openai-key`, `--azure-openai-key`, `--anthropic-key`, `--deepseek-key`)
   - A fallback argument (`--api_key`) for OpenAI if no dedicated key is provided
-  - Environment variables (e.g., `OPENAI_API_KEY`)
+  - Environment variables (e.g., `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY`)
   
   It then initializes a `ProviderClients` instance that creates API client objects for the chosen providers.
 
@@ -76,7 +76,7 @@ It also manages fuzzy translations (by disabling or removing them) and can infer
   The tool checks whether the translation is excessively verbose compared to the original text. If so, it retries the translation to ensure it remains concise.
 
 - **Updating PO Files:**  
-  After translation, each PO file entry is updated with the new translation using `polib`. The tool logs a summary of how many entries were successfully translated and warns if any remain untranslated.
+  After translation, each PO file entry is updated with the new translation using `polib`. By default, AI-generated translations are marked with a comment (`#. AI-generated`) for easy identification. The tool logs a summary of how many entries were successfully translated and warns if any remain untranslated.
 
 ---
 
@@ -114,9 +114,14 @@ Below is a detailed explanation of all command-line arguments:
   *Behind the scenes:* These names are used in the translation prompts to give the AI clearer context, potentially improving translation quality.  
   *Note:* The number of detailed names must match the number of language codes.
 
-- **`--fuzzy`**  
-  *Description:* A flag that, when set, instructs the tool to remove fuzzy entries from the PO files before translation.  
-  *Behind the scenes:* The tool calls a dedicated method to strip fuzzy markers and flags from both the file content and metadata.
+- **`--fuzzy`** *(DEPRECATED)*  
+  *Description:* A flag that, when set, instructs the tool to remove fuzzy entries from the PO files before translation. **This option is DEPRECATED due to its risky behavior of removing fuzzy markers without actually translating the content.**  
+  *Behind the scenes:* The tool calls a dedicated method to strip fuzzy markers and flags from both the file content and metadata.  
+  *Warning:* This can lead to data loss and confusion. Use `--fix-fuzzy` instead.
+
+- **`--fix-fuzzy`**  
+  *Description:* Translate and clean fuzzy entries safely (recommended over `--fuzzy`).  
+  *Behind the scenes:* The tool filters for entries with the 'fuzzy' flag and attempts to translate them, removing the flag upon successful translation. AI-generated translations are marked as usual unless `--no-ai-comment` is used.
 
 - **`--bulk`**  
   *Description:* Enables bulk translation mode, meaning multiple texts will be translated in a single API call.  
@@ -131,7 +136,7 @@ Below is a detailed explanation of all command-line arguments:
   *Behind the scenes:* This key is merged with keys provided through other command-line arguments or environment variables.
 
 - **`--provider <provider>`**  
-  *Description:* Specifies the AI provider to use for translations. Acceptable values are `openai`, `anthropic`, or `deepseek`.  
+  *Description:* Specifies the AI provider to use for translations. Acceptable values are `openai`, `azure_openai`, `anthropic`, or `deepseek`.  
   *Behind the scenes:* If not specified, the tool auto-selects the first provider for which an API key is available.
 
 - **`--model <model>`**  
@@ -150,6 +155,18 @@ Below is a detailed explanation of all command-line arguments:
   *Description:* Provides the Anthropic API key directly.  
   *Behind the scenes:* This key is used to initialize the Anthropic client.
 
+- **`--azure-openai-key`**  
+  *Description:* Provides the Azure OpenAI API key directly.  
+  *Behind the scenes:* This key is used to initialize the Azure OpenAI client.
+
+- **`--azure-openai-endpoint`**  
+  *Description:* Provides the Azure OpenAI endpoint URL (e.g., `https://your-resource.openai.azure.com/`).  
+  *Behind the scenes:* Required for Azure OpenAI connections along with the API version.
+
+- **`--azure-openai-api-version`**  
+  *Description:* Specifies the Azure OpenAI API version (e.g., `2024-02-01`).  
+  *Behind the scenes:* Different API versions support different features and models.
+
 - **`--deepseek-key`**  
   *Description:* Provides the DeepSeek API key directly.  
   *Behind the scenes:* This key is required to make API calls to DeepSeek’s translation service.
@@ -158,6 +175,81 @@ Below is a detailed explanation of all command-line arguments:
   *Description:* Enables inferring the target language from the folder structure.  
   *Behind the scenes:* The tool inspects the path components (directory names) of each PO file and matches them against the provided language codes.
 
+- **`--no-ai-comment`**  
+  *Description:* Disables the automatic addition of 'AI-generated' comments to translated entries.  
+  *Behind the scenes:* **By default (without this flag), every translation made by the AI is marked with a `#. AI-generated` comment in the PO file.** This flag prevents that marking, making AI translations indistinguishable from human translations in the file.  
+  *Note:* AI tagging is enabled by default for tracking, compliance, and quality assurance purposes.
+
+---
+
+## AI Translation Tracking
+
+### Overview
+
+**AI translation tracking is enabled by default.** The tool automatically tracks which translations were generated by AI versus human translators. This is particularly useful for:
+- Quality assurance and review processes
+- Compliance with requirements to identify AI-generated content
+- Incremental translation workflows where you need to track changes
+
+### How It Works
+
+When a translation is generated by the AI, the tool adds a translator comment to the PO entry:
+
+```po
+#. AI-generated
+msgid "Hello, world!"
+msgstr "Hola, mundo!"
+```
+
+These comments are:
+- **Persistent**: They're saved in the PO file and preserved across edits
+- **Standard-compliant**: Using the official gettext translator comment syntax (`#.`)
+- **Tool-friendly**: Visible in PO editors like Poedit, Lokalize, etc.
+- **Searchable**: Easy to find with grep or other search tools
+
+### Managing AI Comments
+
+**Finding AI translations:**
+```bash
+# Count AI-generated translations
+grep -c "^#\. AI-generated" locales/es/LC_MESSAGES/messages.po
+
+# List files with AI translations
+grep -l "^#\. AI-generated" locales/**/*.po
+```
+
+**Important: Django Workflow Consideration**
+Django's `makemessages` command removes translator comments (including AI-generated tags) when updating PO files. This means:
+
+- **After running our translator**: AI comments are preserved in PO files
+- **After running Django makemessages**: AI comments are removed, but translations remain
+- **Best practice**: Re-run the AI translator after Django makemessages to restore AI tagging on any remaining untranslated entries
+
+**Disabling AI comments:**
+If you don't want AI translations to be marked, use the `--no-ai-comment` flag:
+```bash
+gpt-po-translator --folder ./locales --lang de --no-ai-comment
+```
+
+### Programmatic Access
+
+The tool provides helper methods for working with AI-generated translations programmatically:
+
+```python
+from python_gpt_po.services.po_file_handler import POFileHandler
+import polib
+
+# Load a PO file
+po_file = polib.pofile('messages.po')
+
+# Get all AI-generated entries
+ai_entries = POFileHandler.get_ai_generated_entries(po_file)
+
+# Remove AI-generated comments if needed
+POFileHandler.remove_ai_generated_comments(po_file)
+po_file.save()
+```
+
 ---
 
 ## Behind the Scenes: API Calls and Post-Processing
@@ -165,6 +257,7 @@ Below is a detailed explanation of all command-line arguments:
 - **Provider-Specific API Calls:**  
   The tool constructs different API requests based on the selected provider. For example:
   - **OpenAI:** Uses the OpenAI Python client to create a chat completion.
+  - **Azure OpenAI:** Uses the OpenAI Python client configured for Azure endpoints.
   - **Anthropic:** Sends a request to Anthropic’s API using custom headers.
   - **DeepSeek:** Uses the `requests` library to post JSON data, and then cleans up responses that may be wrapped in markdown code blocks.
 

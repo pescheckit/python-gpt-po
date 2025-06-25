@@ -168,12 +168,17 @@ Examples:
     fuzzy_group.add_argument(
         "--fuzzy",
         action="store_true",
-        help="Remove fuzzy markers without translating (legacy behavior, risky)"
+        help="DEPRECATED: Remove fuzzy markers without translating (risky! use --fix-fuzzy instead)"
     )
     fuzzy_group.add_argument(
         "--fix-fuzzy",
         action="store_true",
         help="Translate and clean fuzzy entries safely (recommended)"
+    )
+    advanced_group.add_argument(
+        "--no-ai-comment",
+        action="store_true",
+        help="Disable 'AI-generated' comment tagging (enabled by default for tracking)"
     )
 
     # Version information
