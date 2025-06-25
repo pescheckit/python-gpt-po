@@ -2,11 +2,11 @@
 Initialize and register all providers.
 """
 from ...models.enums import ModelProvider
-from .registry import ProviderRegistry
-from .openai_provider import OpenAIProvider
 from .anthropic_provider import AnthropicProvider
-from .deepseek_provider import DeepSeekProvider
 from .azure_openai_provider import AzureOpenAIProvider
+from .deepseek_provider import DeepSeekProvider
+from .openai_provider import OpenAIProvider
+from .registry import ProviderRegistry
 
 
 def initialize_providers():
