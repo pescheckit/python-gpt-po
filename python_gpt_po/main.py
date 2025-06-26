@@ -16,8 +16,8 @@ from .models.enums import ModelProvider
 from .models.provider_clients import ProviderClients
 from .services.model_manager import ModelManager
 from .services.translation_service import TranslationService
-from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args,
-                        parse_args, parse_languages, show_help_and_exit, validate_provider_key)
+from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args, parse_args,
+                        parse_languages, show_help_and_exit, validate_provider_key)
 
 
 def setup_logging():
