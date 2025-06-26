@@ -28,7 +28,7 @@ def fixture_mock_openai_client():
 
 
 @pytest.fixture(name='translation_config')
-def fixture_translation_config(mock_openai_client):
+def fixture_translation_config(mock_openai_client: MagicMock):
     """
     Fixture to create a TranslationConfig instance.
     """
@@ -50,7 +50,7 @@ def fixture_translation_config(mock_openai_client):
 
 
 @pytest.fixture(name='translation_service')
-def fixture_translation_service(translation_config):
+def fixture_translation_service(translation_config: MagicMock):
     """
     Fixture to create a TranslationService instance.
     """
@@ -65,14 +65,14 @@ def fixture_mock_po_file_handler():
     return MagicMock(spec=POFileHandler)
 
 
-def test_validate_openai_connection(translation_service):
+def test_validate_openai_connection(translation_service: MagicMock):
     """Test to validate the connection."""
     # The new method is validate_provider_connection instead of validate_openai_connection
     assert translation_service.validate_provider_connection() is True
 
 
 @patch('python_gpt_po.services.po_file_handler.POFileHandler')
-def test_process_po_file(mock_po_file_handler_class, translation_service, tmp_path):
+def test_process_po_file(mock_po_file_handler_class: MagicMock, translation_service: MagicMock, tmp_path: MagicMock):
     """
     Test the process_po_file method.
     """
@@ -131,7 +131,7 @@ msgstr ""
         translation_service._prepare_po_file = original_prepare
 
 
-def test_translate_bulk(translation_service, tmp_path):
+def test_translate_bulk(translation_service: MagicMock, tmp_path: MagicMock):
     """Test the bulk translation functionality."""
     texts_to_translate = ["HR", "TENANT", "HEALTHCARE", "TRANSPORT", "SERVICES"]
     po_file_path = str(tmp_path / "django.po")
@@ -145,7 +145,7 @@ def test_translate_bulk(translation_service, tmp_path):
     assert translated_texts == ["HR", "Inquilino", "Salud", "Transporte", "Servicios"]
 
 
-def test_translate_single(translation_service):
+def test_translate_single(translation_service: MagicMock):
     """Test the single translation functionality."""
     text_to_translate = "HEALTHCARE"
 

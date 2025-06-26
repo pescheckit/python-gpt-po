@@ -16,6 +16,7 @@ from python_gpt_po.models.provider_clients import ProviderClients
 from python_gpt_po.services.model_manager import ModelManager
 from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
+from providers.test_deepseek_provider import DEEPSEEK_TRANSLATION_RESPONSE
 
 logging.basicConfig(level=logging.INFO)
 
@@ -98,38 +99,6 @@ DEEPSEEK_MODELS_RESPONSE = {
         {"id": "deepseek-coder"}
     ]
 }
-
-# Translation responses for different providers
-OPENAI_TRANSLATION_RESPONSE = {
-    "choices": [
-        {
-            "message": {
-                "content": '["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'
-            }
-        }
-    ]
-}
-
-AZURE_OPENAI_TRANSLATION_RESPONSE = OPENAI_TRANSLATION_RESPONSE
-
-ANTHROPIC_TRANSLATION_RESPONSE = {
-    "content": [
-        {
-            "text": '["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]'
-        }
-    ]
-}
-
-DEEPSEEK_TRANSLATION_RESPONSE = {
-    "choices": [
-        {
-            "message": {
-                "content": "```json\n[\"Bonjour\", \"Monde\", \"Bienvenue dans notre application\", \"Au revoir\"]\n```"
-            }
-        }
-    ]
-}
-
 
 @pytest.fixture
 def temp_po_file(tmp_path: str) -> str:
@@ -227,7 +196,7 @@ def translation_service_deepseek(translation_config_deepseek: TranslationConfig)
 
 
 @patch('requests.get')
-def test_get_openai_models(mock_get, mock_provider_clients: ProviderClients):
+def test_get_openai_models(mock_get: MagicMock, mock_provider_clients: ProviderClients):
     """Test getting OpenAI models."""
     # Setup mock response
     mock_response = MagicMock()
@@ -249,7 +218,7 @@ def test_get_openai_models(mock_get, mock_provider_clients: ProviderClients):
 
 
 @patch('requests.get')
-def test_get_ayure_openai_models(mock_get, mock_provider_clients: ProviderClients):
+def test_get_ayure_openai_models(mock_get: MagicMock, mock_provider_clients: ProviderClients):
     """Test getting OpenAI models."""
     # Setup mock response
     mock_response = MagicMock()
@@ -415,7 +384,7 @@ def test_clean_json_response(translation_service_deepseek: TranslationService):
 
 
 @patch('polib.pofile')
-def test_process_po_file_all_providers(mock_pofile,
+def test_process_po_file_all_providers(mock_pofile: MagicMock,
                                        translation_service_openai: TranslationService,
                                        translation_service_anthropic: TranslationService,
                                        translation_service_deepseek: TranslationService,
@@ -462,7 +431,7 @@ def test_process_po_file_all_providers(mock_pofile,
 
 
 @patch('python_gpt_po.services.po_file_handler.POFileHandler.disable_fuzzy_translations')
-def test_fuzzy_flag_handling(mock_disable_fuzzy, translation_service_openai: TranslationService, temp_po_file):
+def test_fuzzy_flag_handling(mock_disable_fuzzy: MagicMock, translation_service_openai: TranslationService, temp_po_file: MagicMock):
     """Test handling of fuzzy translations."""
     # Enable fuzzy flag
     translation_service_openai.config.flags.fuzzy = True
@@ -520,7 +489,7 @@ def test_validation_model_connection_all_providers(
 
 @patch('os.walk')
 @patch('polib.pofile')
-def test_scan_and_process_po_files(mock_pofile, mock_walk, translation_service_openai: TranslationService):
+def test_scan_and_process_po_files(mock_pofile: MagicMock, mock_walk: MagicMock, translation_service_openai: TranslationService):
     """Test scanning and processing PO files."""
     # Setup mock directory structure
     mock_walk.return_value = [
