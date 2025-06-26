@@ -16,7 +16,7 @@ from .models.enums import ModelProvider
 from .models.provider_clients import ProviderClients
 from .services.model_manager import ModelManager
 from .services.translation_service import TranslationService
-from .utils.cli import (auto_select_provider, create_language_mapping, get_api_keys_from_args, get_provider_from_args,
+from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args,
                         parse_args, parse_languages, show_help_and_exit, validate_provider_key)
 
 
@@ -44,12 +44,9 @@ def initialize_provider(args: Namespace) -> tuple[ProviderClients, ModelProvider
     Raises:
         SystemExit: If no valid provider can be found or initialized
     """
-    # Get API keys from arguments and environment variables
-    api_keys = get_api_keys_from_args(args)
-
     # Initialize provider clients
     provider_clients = ProviderClients()
-    provider_clients.initialize_clients(args, api_keys)
+    api_keys = provider_clients.initialize_clients(args)
 
     # Get provider from arguments or auto-select
     provider = get_provider_from_args(args)

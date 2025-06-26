@@ -259,24 +259,6 @@ def get_provider_from_args(args: Namespace) -> Optional[ModelProvider]:
     return None
 
 
-def get_api_keys_from_args(args: Namespace) -> Dict[str, str]:
-    """
-    Extract API keys from command line arguments and environment variables.
-
-    Args:
-        args (Namespace): Parsed command line arguments
-
-    Returns:
-        Dict[str, str]: Dictionary of provider names to API keys
-    """
-    return {
-        ModelProvider.OPENAI.value: args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", ""),
-        ModelProvider.ANTHROPIC.value: args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", ""),
-        ModelProvider.DEEPSEEK.value: args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", ""),
-        ModelProvider.AZURE_OPENAI.value: args.azure_openai_key or os.getenv("AZURE_OPENAI_API_KEY", ""),
-    }
-
-
 def auto_select_provider(api_keys: Dict[str, str]) -> Optional[ModelProvider]:
     """
     Auto-select a provider based on available API keys.
