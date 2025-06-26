@@ -58,3 +58,16 @@ class ModelProviderInterface(ABC):
             List of fallback model IDs
         """
         return []
+
+    @abstractmethod
+    def translate(self, provider_clients: ProviderClients, model: str, content: str) -> str:
+        """Translate content using the specified model.
+
+        Args:
+            provider_clients: Provider clients instance
+            model: Model to use for translation
+            content: Content to translate
+
+        Returns:
+            Translated content
+        """

@@ -54,3 +54,26 @@ class DeepSeekProvider(ModelProviderInterface):
     def get_fallback_models(self) -> List[str]:
         """Get fallback models for DeepSeek."""
         return ["deepseek-chat", "deepseek-coder"]
+
+    def translate(self, provider_clients: ProviderClients, model: str, content: str) -> str:
+        """Get response from DeepSeek API."""
+        if not self.is_client_initialized(provider_clients):
+            raise ValueError("DeepSeek client not initialized")
+
+        headers = {
+            "Authorization": f"Bearer {provider_clients.deepseek_api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": content}],
+            "max_tokens": 4000
+        }
+        response = requests.post(
+            f"{provider_clients.deepseek_base_url}/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"].strip()

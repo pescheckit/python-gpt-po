@@ -51,3 +51,15 @@ class OpenAIProvider(ModelProviderInterface):
             "gpt-4",
             "gpt-3.5-turbo"
         ]
+
+    def translate(self, provider_clients: ProviderClients, model: str, content: str) -> str:
+        """Get response from OpenAI API."""
+        if not self.is_client_initialized(provider_clients):
+            raise ValueError("OpenAI client not initialized")
+
+        message = {"role": "user", "content": content}
+        completion = provider_clients.openai_client.chat.completions.create(
+            model=model,
+            messages=[message]
+        )
+        return completion.choices[0].message.content.strip()
