@@ -22,16 +22,20 @@ class ProviderClients:
         self.deepseek_api_key = None
         self.deepseek_base_url = "https://api.deepseek.com/v1"
 
-    def initialize_clients(self, args: Namespace, api_keys: Dict[str, str]):
+    def initialize_clients(self, args: Namespace) -> Dict[str, str]:
         """Initialize API clients for all providers with available keys.
 
         Args:
-            api_keys (Dict[str, str]): Dictionary of provider names to API keys
+            args (Namespace): Parsed command line arguments
+        Returns:
+            Dict[str, str]: Dictionary of API keys for each provider
         """
-        if api_keys.get(ModelProvider.OPENAI.value):
-            self.openai_client = OpenAI(api_key=api_keys[ModelProvider.OPENAI.value])
+        openai_key = args.openai_key or args.api_key or os.getenv("OPENAI_API_KEY", "")
+        if openai_key:
+            self.openai_client = OpenAI(api_key=openai_key)
 
-        if api_keys.get(ModelProvider.AZURE_OPENAI.value):
+        azure_openai_key = args.azure_openai_key or os.getenv("AZURE_OPENAI_API_KEY", "")
+        if azure_openai_key:
             endpoint = args.azure_openai_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
             if not endpoint:
                 raise ValueError("Missing Azure OpenAI endpoint.")
@@ -42,12 +46,21 @@ class ProviderClients:
 
             self.azure_openai_client = AzureOpenAI(
                 azure_endpoint=endpoint,
-                api_key=api_keys[ModelProvider.AZURE_OPENAI.value],
+                api_key=azure_openai_key,
                 api_version=api_version
             )
 
-        if api_keys.get(ModelProvider.ANTHROPIC.value):
-            self.anthropic_client = Anthropic(api_key=api_keys[ModelProvider.ANTHROPIC.value])
+        antropic_key = args.anthropic_key or os.getenv("ANTHROPIC_API_KEY", "")
+        if antropic_key:
+            self.anthropic_client = Anthropic(api_key=antropic_key)
 
-        if api_keys.get(ModelProvider.DEEPSEEK.value):
-            self.deepseek_api_key = api_keys[ModelProvider.DEEPSEEK.value]
+        deepseek_key = args.deepseek_key or os.getenv("DEEPSEEK_API_KEY", "")
+        if deepseek_key:
+            self.deepseek_api_key = deepseek_key
+
+        return {
+            ModelProvider.OPENAI.value: openai_key,
+            ModelProvider.ANTHROPIC.value: antropic_key,
+            ModelProvider.DEEPSEEK.value: deepseek_key,
+            ModelProvider.AZURE_OPENAI.value: azure_openai_key,
+        }

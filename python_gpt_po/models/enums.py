@@ -13,9 +13,4 @@ class ModelProvider(Enum):
     AZURE_OPENAI = "azure_openai"
 
 
-ModelProviderList = [
-    ModelProvider.OPENAI.value,
-    ModelProvider.ANTHROPIC.value,
-    ModelProvider.DEEPSEEK.value,
-    ModelProvider.AZURE_OPENAI.value
-]
+ModelProviderList = [provider.value for provider in ModelProvider]
