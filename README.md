@@ -161,7 +161,7 @@ docker run --rm -v $(pwd):/app -w /app --entrypoint python python-gpt-po -m pyte
 
 ## 📋 Requirements
 
-- Python 3.8+ 
+- Python 3.9+
 - Dependencies: `polib`, `openai`, `anthropic`, `requests`, `tenacity`
 
 ## 📖 Documentation
