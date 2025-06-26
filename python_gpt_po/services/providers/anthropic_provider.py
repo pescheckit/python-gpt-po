@@ -62,3 +62,16 @@ class AnthropicProvider(ModelProviderInterface):
             "claude-3-5-sonnet-latest",
             "claude-3-opus-20240229",
         ]
+
+    def translate(self, provider_clients: ProviderClients, model: str, content: str) -> str:
+        """Get response from Anthropic API."""
+        if not self.is_client_initialized(provider_clients):
+            raise ValueError("Anthropic client not initialized")
+
+        message = {"role": "user", "content": content}
+        completion = provider_clients.anthropic_client.messages.create(
+            model=model,
+            max_tokens=4000,
+            messages=[message]
+        )
+        return completion.content[0].text.strip()

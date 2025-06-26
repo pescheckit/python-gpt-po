@@ -45,3 +45,16 @@ class AzureOpenAIProvider(ModelProviderInterface):
     def get_fallback_models(self) -> List[str]:
         """Get fallback models for Azure OpenAI."""
         return ["gpt-35-turbo", "gpt-4"]
+
+    def translate(self, provider_clients: ProviderClients, model: str, content: str) -> str:
+        """Get response from OpenAI API."""
+        if not self.is_client_initialized(provider_clients):
+            raise ValueError("OpenAI client not initialized")
+
+        message = {"role": "user", "content": content}
+        completion = provider_clients.azure_openai_client.chat.completions.create(
+            model=model,
+            max_tokens=4000,
+            messages=[message]
+        )
+        return completion.choices[0].message.content.strip()

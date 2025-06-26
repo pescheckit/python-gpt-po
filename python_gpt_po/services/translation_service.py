@@ -10,13 +10,12 @@ import os
 from typing import Any, Dict, List, Optional
 
 import polib
-import requests
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from ..models.config import TranslationConfig
-from ..models.enums import ModelProvider
 from .model_manager import ModelManager
 from .po_file_handler import POFileHandler
+from .providers.registry import ProviderRegistry
 
 
 class TranslationService:
@@ -34,67 +33,6 @@ class TranslationService:
         self.total_batches = 0
         self.po_file_handler = POFileHandler()
         self.model_manager = ModelManager()
-
-    def _get_openai_response(self, content: str) -> str:
-        """Get response from OpenAI API."""
-        if not self.config.provider_clients.openai_client:
-            raise ValueError("OpenAI client not initialized")
-
-        message = {"role": "user", "content": content}
-        completion = self.config.provider_clients.openai_client.chat.completions.create(
-            model=self.config.model,
-            messages=[message]
-        )
-        return completion.choices[0].message.content.strip()
-
-    def _get_anthropic_response(self, content: str) -> str:
-        """Get response from Anthropic API."""
-        if not self.config.provider_clients.anthropic_client:
-            raise ValueError("Anthropic client not initialized")
-
-        message = {"role": "user", "content": content}
-        completion = self.config.provider_clients.anthropic_client.messages.create(
-            model=self.config.model,
-            max_tokens=4000,
-            messages=[message]
-        )
-        return completion.content[0].text.strip()
-
-    def _get_deepseek_response(self, content: str) -> str:
-        """Get response from DeepSeek API."""
-        if not self.config.provider_clients.deepseek_api_key:
-            raise ValueError("DeepSeek API key not set")
-
-        headers = {
-            "Authorization": f"Bearer {self.config.provider_clients.deepseek_api_key}",
-            "Content-Type": "application/json"
-        }
-        payload = {
-            "model": self.config.model,
-            "messages": [{"role": "user", "content": content}],
-            "max_tokens": 4000
-        }
-        response = requests.post(
-            f"{self.config.provider_clients.deepseek_base_url}/chat/completions",
-            headers=headers,
-            json=payload,
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"].strip()
-
-    def _get_azure_openai_response(self, content: str) -> str:
-        """Get response from OpenAI API."""
-        if not self.config.provider_clients.azure_openai_client:
-            raise ValueError("OpenAI client not initialized")
-
-        message = {"role": "user", "content": content}
-        completion = self.config.provider_clients.azure_openai_client.chat.completions.create(
-            model=self.config.model,
-            max_tokens=4000,
-            messages=[message]
-        )
-        return completion.choices[0].message.content.strip()
 
     def validate_provider_connection(self) -> bool:
         """Validates the connection to the selected provider by making a test API call."""
@@ -238,15 +176,13 @@ class TranslationService:
         """Get translation response from the selected provider."""
         provider = self.config.provider
 
-        if provider == ModelProvider.OPENAI:
-            return self._get_openai_response(content)
-        if provider == ModelProvider.ANTHROPIC:
-            return self._get_anthropic_response(content)
-        if provider == ModelProvider.DEEPSEEK:
-            return self._get_deepseek_response(content)
-        if provider == ModelProvider.AZURE_OPENAI:
-            return self._get_azure_openai_response(content)
-        return ""
+        if not provider:
+            return ""
+
+        provider_instance = ProviderRegistry.get_provider(provider)
+        if not provider_instance:
+            return ""
+        return provider_instance.translate(self.config.provider_clients, self.config.model, content)
 
     def _process_bulk_response(self, response_text: str, original_texts: List[str]) -> List[str]:
         """Process a bulk translation response."""
