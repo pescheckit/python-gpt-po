@@ -312,14 +312,8 @@ def test_get_deepseek_models(mock_provider_clients: ProviderClients):
     assert "deepseek-coder" in models
 
 
-@patch('python_gpt_po.services.translation_service.requests.post')
-def test_translate_bulk_openai(mock_post, translation_service_openai: TranslationService):
+def test_translate_bulk_openai(translation_service_openai: TranslationService):
     """Test bulk translation with OpenAI."""
-    # Setup mock response
-    mock_response = MagicMock()
-    mock_response.json.return_value = OPENAI_TRANSLATION_RESPONSE
-    mock_post.return_value = mock_response
-
     # Call function
     translation_service_openai.config.provider_clients.openai_client.chat.completions.create.return_value = (
         MagicMock(
@@ -340,14 +334,8 @@ def test_translate_bulk_openai(mock_post, translation_service_openai: Translatio
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
 
-@patch('python_gpt_po.services.translation_service.requests.post')
-def test_translate_bulk_azure_openai(mock_post, translation_service_azure_openai: TranslationService):
+def test_translate_bulk_azure_openai(translation_service_azure_openai: TranslationService):
     """Test bulk translation with OpenAI."""
-    # Setup mock response
-    mock_response = MagicMock()
-    mock_response.json.return_value = AZURE_OPENAI_TRANSLATION_RESPONSE
-    mock_post.return_value = mock_response
-
     # Call function
     azure_client = translation_service_azure_openai.config.provider_clients.azure_openai_client
     azure_response = azure_client.chat.completions.create
@@ -368,8 +356,7 @@ def test_translate_bulk_azure_openai(mock_post, translation_service_azure_openai
     assert translations == ["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
 
 
-@patch('python_gpt_po.services.translation_service.requests.post')
-def test_translate_bulk_anthropic(mock_post, translation_service_anthropic: TranslationService):
+def test_translate_bulk_anthropic(translation_service_anthropic: TranslationService):
     """Test bulk translation with Anthropic."""
     # Setup mock client response
     translation_service_anthropic.config.provider_clients.anthropic_client.messages.create.return_value = MagicMock(
