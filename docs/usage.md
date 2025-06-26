@@ -121,7 +121,7 @@ Below is a detailed explanation of all command-line arguments:
 
 - **`--fix-fuzzy`**  
   *Description:* Translate and clean fuzzy entries safely (recommended over `--fuzzy`).  
-  *Behind the scenes:* The tool filters for entries with the 'fuzzy' flag and attempts to translate them, removing the flag upon successful translation. AI-generated translations are marked as usual unless `--no-ai-comment` is used.
+  *Behind the scenes:* The tool filters for entries with the 'fuzzy' flag and attempts to translate them, removing the flag upon successful translation.
 
 - **`--bulk`**  
   *Description:* Enables bulk translation mode, meaning multiple texts will be translated in a single API call.  
@@ -229,25 +229,6 @@ Django's `makemessages` command removes translator comments (including AI-genera
 If you don't want AI translations to be marked, use the `--no-ai-comment` flag:
 ```bash
 gpt-po-translator --folder ./locales --lang de --no-ai-comment
-```
-
-### Programmatic Access
-
-The tool provides helper methods for working with AI-generated translations programmatically:
-
-```python
-from python_gpt_po.services.po_file_handler import POFileHandler
-import polib
-
-# Load a PO file
-po_file = polib.pofile('messages.po')
-
-# Get all AI-generated entries
-ai_entries = POFileHandler.get_ai_generated_entries(po_file)
-
-# Remove AI-generated comments if needed
-POFileHandler.remove_ai_generated_comments(po_file)
-po_file.save()
 ```
 
 ---
