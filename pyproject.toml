@@ -18,7 +18,7 @@ authors = [
 ]
 description = "A CLI tool for translating .po files using GPT models."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = {text = "MIT"}
 dependencies = [
     "polib==1.2.0",
@@ -41,11 +41,11 @@ classifiers = [
     "Topic :: Text Processing :: Linguistic",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
     "Natural Language :: English",
     "Natural Language :: Dutch",
