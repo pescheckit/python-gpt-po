@@ -1,8 +1,10 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from python_gpt_po.models.provider_clients import ProviderClients
 from python_gpt_po.services.providers.openai_provider import OpenAIProvider
+
 
 @pytest.fixture
 def mock_provider_clients() -> ProviderClients:

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import responses
+from providers.test_deepseek_provider import DEEPSEEK_TRANSLATION_RESPONSE
 
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 # Import the necessary classes from the new modular structure
@@ -16,7 +17,6 @@ from python_gpt_po.models.provider_clients import ProviderClients
 from python_gpt_po.services.model_manager import ModelManager
 from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
-from providers.test_deepseek_provider import DEEPSEEK_TRANSLATION_RESPONSE
 
 logging.basicConfig(level=logging.INFO)
 
