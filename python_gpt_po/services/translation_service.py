@@ -316,7 +316,7 @@ class TranslationService:
                     # More sophisticated regex to handle quotes inside strings
                     fixed_response = re.sub(
                         r'"([^"\\]*(\\.[^"\\]*)*)"',
-                        lambda m: f'"{m.group(1).replace(chr(92)+chr(34), chr(34))}"',
+                        lambda m: f'"{m.group(1).replace(chr(92) + chr(34), chr(34))}"',
                         fixed_response)
                     translated_texts = json.loads(fixed_response)
                 except json.JSONDecodeError as e:
