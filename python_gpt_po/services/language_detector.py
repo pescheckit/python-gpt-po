@@ -138,7 +138,8 @@ class LanguageDetector:
     @staticmethod
     def _is_language_code(code: str) -> bool:
         """Check if a string looks like a language code."""
-        if not code or len(code) > 10:  # Reasonable limit
+        # Basic validation
+        if not code or len(code) < 2 or len(code) > 10 or not code[0].isalpha():
             return False
 
         # Common language code patterns:
@@ -146,33 +147,17 @@ class LanguageDetector:
         # - 2+2 codes: en_US, fr_FR, etc.
         # - Special codes: zh_Hans, sr_Latn, be@tarask, etc.
 
-        # Basic checks
-        if len(code) < 2:
-            return False
-
-        # Must start with letters
-        if not code[0].isalpha():
-            return False
-
-        # Common patterns
-        # Standard patterns: en, en_US, zh_Hans, be@tarask
-        if re.match(r'^[a-z]{2,3}(_[A-Z][a-z]+|_[A-Z]{2}|@[a-z]+)?$', code):
-            return True
-
-        # Some special cases used in Django
+        # Special cases used in Django
         special_codes = {
             'zh-hans', 'zh-hant', 'sr-latn', 'sr-cyrl', 'az-latn', 'az-cyrl',
             'uz-latn', 'uz-cyrl', 'kk-latn', 'kk-cyrl', 'ky-latn', 'ky-cyrl'
         }
 
-        if code.lower() in special_codes:
-            return True
-
-        # Handle some edge cases
-        if re.match(r'^[a-z]{2,3}$', code):  # Basic 2-3 letter codes
-            return True
-
-        return False
+        # Check all valid patterns
+        pattern_match = re.match(r'^[a-z]{2,3}(_[A-Z][a-z]+|_[A-Z]{2}|@[a-z]+)?$', code) is not None
+        in_special = code.lower() in special_codes
+        basic_match = re.match(r'^[a-z]{2,3}$', code) is not None
+        return pattern_match or in_special or basic_match
 
     @staticmethod
     def validate_or_detect_languages(folder: str, lang_arg: str = None,

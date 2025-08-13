@@ -9,6 +9,7 @@ import logging
 import sys
 import traceback
 from argparse import Namespace
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from .models.config import TranslationConfig, TranslationFlags
@@ -137,33 +138,40 @@ def get_appropriate_model(
     return default_model
 
 
-def process_translations(config: TranslationConfig, folder: str,
-                         languages: List[str], detail_languages: Dict[str, str],
-                         batch_size: int, respect_gitignore: bool = True):
+@dataclass
+class TranslationTask:
+    """Parameters for translation processing."""
+    config: TranslationConfig
+    folder: str
+    languages: List[str]
+    detail_languages: Dict[str, str]
+    batch_size: int
+    respect_gitignore: bool = True
+
+
+def process_translations(task: TranslationTask):
     """
-    Process translations for the given languages and directory.
+    Process translations for the given task parameters.
 
     Args:
-        config (TranslationConfig): The translation configuration
-        folder (str): Directory containing .po files
-        languages (List[str]): List of language codes to process
-        detail_languages (Dict[str, str]): Mapping of language codes to detailed names
-        batch_size (int): Size of batches for bulk translation
+        task: TranslationTask containing all processing parameters
     """
     # Initialize translation service
-    translation_service = TranslationService(config, batch_size)
+    translation_service = TranslationService(task.config, task.batch_size)
 
     # Validate provider connection
     if not translation_service.validate_provider_connection():
         logging.error(
-            "%s connection failed. Please check your API key and network connection.", config.provider.value
+            "%s connection failed. Please check your API key and network connection.", task.config.provider.value
         )
         sys.exit(1)
 
     # Start processing files
     logging.info("Starting translation with %s using model %s in folder %s",
-                 config.provider.value, config.model, folder)
-    translation_service.scan_and_process_po_files(folder, languages, detail_languages, respect_gitignore)
+                 task.config.provider.value, task.config.model, task.folder)
+    translation_service.scan_and_process_po_files(
+        task.folder, task.languages, task.detail_languages, task.respect_gitignore
+    )
     logging.info("Translation completed successfully")
 
 
@@ -230,7 +238,15 @@ def main():
 
         # Process translations
         respect_gitignore = not args.no_gitignore  # Invert the flag
-        process_translations(config, args.folder, languages, detail_languages, args.bulksize, respect_gitignore)
+        task = TranslationTask(
+            config=config,
+            folder=args.folder,
+            languages=languages,
+            detail_languages=detail_languages,
+            batch_size=args.bulksize,
+            respect_gitignore=respect_gitignore
+        )
+        process_translations(task)
 
     except KeyboardInterrupt:
         logging.info("\nTranslation cancelled.")

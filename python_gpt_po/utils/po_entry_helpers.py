@@ -46,3 +46,18 @@ def get_all_untranslated_entries(po_file):
         list: List of POEntry objects that need translation
     """
     return [entry for entry in po_file if is_entry_untranslated(entry)]
+
+
+def add_ai_generated_comment(entry):
+    """
+    Add AI-generated comment to a PO entry if not already present.
+
+    Args:
+        entry: A polib.POEntry object to add comment to
+    """
+    ai_comment = "AI-generated"
+    if not entry.comment or ai_comment not in entry.comment:
+        if entry.comment:
+            entry.comment = f"{entry.comment}\n{ai_comment}"
+        else:
+            entry.comment = ai_comment

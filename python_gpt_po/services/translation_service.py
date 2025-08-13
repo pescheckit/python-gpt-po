@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 import polib
@@ -17,10 +18,77 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from ..models.config import TranslationConfig
 from ..utils.gitignore import create_gitignore_parser
-from ..utils.po_entry_helpers import is_entry_untranslated
-from .model_manager import ModelManager
+from ..utils.po_entry_helpers import add_ai_generated_comment, is_entry_untranslated
 from .po_file_handler import POFileHandler
 from .providers.registry import ProviderRegistry
+
+
+@dataclass
+class FileCounters:
+    """File-related counters."""
+    processed: int = 0
+    skipped: int = 0
+
+
+@dataclass
+class EntryCounters:
+    """Entry-related counters."""
+    translated: int = 0
+    failed: int = 0
+    attempted: int = 0
+    total_in_files: int = 0
+    translated_before: int = 0
+
+
+@dataclass
+class TranslationStats:
+    """Statistics for translation processing."""
+    files: FileCounters = None
+    entries: EntryCounters = None
+    elapsed_time: float = 0.0
+
+    def __post_init__(self):
+        if self.files is None:
+            self.files = FileCounters()
+        if self.entries is None:
+            self.entries = EntryCounters()
+
+
+@dataclass
+class TranslationRequest:
+    """Parameters for translation processing."""
+    po_file: object  # polib.POFile
+    entries: list
+    texts: List[str]
+    target_language: str
+    po_file_path: str
+    detail_language: Optional[str] = None
+
+
+@dataclass
+class ScanResults:
+    """Results from scanning PO files."""
+    files_to_process: list = None
+    total_entries: int = 0
+    total_entries_in_all_files: int = 0
+    total_translated_in_all_files: int = 0
+    skipped_files: list = None
+    files_scanned: int = 0
+    language_mismatch_files: int = 0
+
+    def __post_init__(self):
+        if self.files_to_process is None:
+            self.files_to_process = []
+        if self.skipped_files is None:
+            self.skipped_files = []
+
+
+@dataclass
+class FileStats:
+    """Statistics for a single PO file."""
+    total_in_file: int = 0
+    untranslated: int = 0
+    translated_in_file: int = 0
 
 
 class TranslationService:
@@ -35,9 +103,7 @@ class TranslationService:
         """
         self.config = config
         self.batch_size = batch_size
-        self.total_batches = 0
         self.po_file_handler = POFileHandler()
-        self.model_manager = ModelManager()
 
     def validate_provider_connection(self) -> bool:
         """Validates the connection to the selected provider by making a minimal test API call."""
@@ -59,6 +125,33 @@ class TranslationService:
             logging.error("Failed to validate %s connection: %s", provider.value, str(e))
             return False
 
+    def _translate_chunk(self, chunk_data):
+        """Translate a single chunk of texts."""
+        chunk, target_language, detail_language, chunk_num, total_chunks = chunk_data
+        logging.info("Batch %d/%d: Translating %d entries...", chunk_num, total_chunks, len(chunk))
+        try:
+            translations = self.perform_translation(
+                chunk, target_language, is_bulk=True, detail_language=detail_language
+            )
+            logging.info("Batch %d/%d: Successfully translated %d entries",
+                         chunk_num, total_chunks, len(translations))
+            return translations
+        except Exception as e:
+            logging.error("Batch %d translation failed: %s", chunk_num, str(e))
+            logging.info("Retrying entries individually...")
+            results = []
+            for j, text in enumerate(chunk, 1):
+                try:
+                    logging.info("  Translating entry %d/%d...", j, len(chunk))
+                    translation = self.perform_translation(
+                        text, target_language, is_bulk=False, detail_language=detail_language
+                    )
+                    results.append(translation)
+                except Exception as inner_e:
+                    logging.error("  Entry translation failed: %s", str(inner_e)[:100])
+                    results.append("")  # Placeholder for failed translation
+            return results
+
     def translate_bulk(
             self,
             texts: List[str],
@@ -67,34 +160,15 @@ class TranslationService:
             detail_language: Optional[str] = None) -> List[str]:
         """Translates a list of texts in bulk, processing in smaller chunks."""
         translated_texts = []
-        chunk_size = self.batch_size
-        total_chunks = (len(texts) - 1) // chunk_size + 1
+        total_chunks = (len(texts) - 1) // self.batch_size + 1
 
-        for i in range(0, len(texts), chunk_size):
-            chunk = texts[i:i + chunk_size]
-            current_chunk = i // chunk_size + 1
-            logging.info("Batch %d/%d: Translating %d entries...", current_chunk, total_chunks, len(chunk))
-
-            try:
-                translations = self.perform_translation(
-                    chunk, target_language, is_bulk=True, detail_language=detail_language
-                )
-                translated_texts.extend(translations)
-                logging.info("Batch %d/%d: Successfully translated %d entries",
-                             current_chunk, total_chunks, len(translations))
-            except Exception as e:
-                logging.error("Batch %d translation failed: %s", current_chunk, str(e))
-                logging.info("Retrying entries individually...")
-                for j, text in enumerate(chunk, 1):
-                    try:
-                        logging.info("  Translating entry %d/%d...", j, len(chunk))
-                        translation = self.perform_translation(
-                            text, target_language, is_bulk=False, detail_language=detail_language
-                        )
-                        translated_texts.append(translation)
-                    except Exception as inner_e:
-                        logging.error("  Entry translation failed: %s", str(inner_e)[:100])
-                        translated_texts.append("")  # Placeholder for failed translation
+        for i in range(0, len(texts), self.batch_size):
+            chunk_num = i // self.batch_size + 1
+            chunk_data = (
+                texts[i:i + self.batch_size], target_language, detail_language, chunk_num, total_chunks
+            )
+            translations = self._translate_chunk(chunk_data)
+            translated_texts.extend(translations)
 
             logging.info("Progress: %d/%d entries (%.1f%% complete)",
                          len(translated_texts), len(texts),
@@ -349,16 +423,7 @@ class TranslationService:
             logging.debug("Retry failed: %s", str(e)[:100])
             return ""  # Return empty string instead of English text
 
-    def _show_results_summary(
-            self,
-            files_processed: int,
-            files_skipped: int,
-            entries_translated: int,
-            entries_failed: int,
-            total_entries_attempted: int,
-            total_entries_in_all_files: int,
-            total_translated_before: int,
-            elapsed_time: float):
+    def _show_results_summary(self, stats: TranslationStats):
         """Show final results summary after processing."""
         logging.info("")
         logging.info("=" * 70)
@@ -366,39 +431,42 @@ class TranslationService:
         logging.info("=" * 70)
 
         logging.info("PROCESSING SUMMARY:")
-        logging.info("  Files processed: %d", files_processed)
-        logging.info("  Files skipped (already complete): %d", files_skipped)
-        logging.info("  Total files handled: %d", files_processed + files_skipped)
+        logging.info("  Files processed: %d", stats.files.processed)
+        logging.info("  Files skipped (already complete): %d", stats.files.skipped)
+        logging.info("  Total files handled: %d", stats.files.processed + stats.files.skipped)
 
         logging.info("")
         logging.info("TRANSLATION RESULTS:")
-        logging.info("  Entries successfully translated: %d", entries_translated)
-        if entries_failed > 0:
-            logging.info("  Entries failed/skipped: %d", entries_failed)
+        logging.info("  Entries successfully translated: %d", stats.entries.translated)
+        if stats.entries.failed > 0:
+            logging.info("  Entries failed/skipped: %d", stats.entries.failed)
 
-        success_rate = (entries_translated / total_entries_attempted * 100) if total_entries_attempted > 0 else 0
+        success_rate = (
+            (stats.entries.translated / stats.entries.attempted * 100)
+            if stats.entries.attempted > 0 else 0
+        )
         logging.info("  Success rate: %.1f%%", success_rate)
 
         logging.info("")
         logging.info("OVERALL PROGRESS:")
-        total_translated_after = total_translated_before + entries_translated
-        logging.info("  Total entries: %d", total_entries_in_all_files)
-        logging.info("  Translated before: %d", total_translated_before)
+        total_translated_after = stats.entries.translated_before + stats.entries.translated
+        logging.info("  Total entries: %d", stats.entries.total_in_files)
+        logging.info("  Translated before: %d", stats.entries.translated_before)
         logging.info("  Translated now: %d", total_translated_after)
 
-        if total_entries_in_all_files > 0:
-            before_percent = (total_translated_before / total_entries_in_all_files) * 100
-            after_percent = (total_translated_after / total_entries_in_all_files) * 100
+        if stats.entries.total_in_files > 0:
+            before_percent = (stats.entries.translated_before / stats.entries.total_in_files) * 100
+            after_percent = (total_translated_after / stats.entries.total_in_files) * 100
             logging.info("  Completion: %.1f%% → %.1f%% (+%.1f%%)",
                          before_percent, after_percent, after_percent - before_percent)
 
-        if elapsed_time > 0:
+        if stats.elapsed_time > 0:
             logging.info("")
             logging.info("PERFORMANCE:")
-            minutes = elapsed_time / 60
+            minutes = stats.elapsed_time / 60
             logging.info("  Time elapsed: %.1f minutes", minutes)
-            if entries_translated > 0:
-                rate = entries_translated / minutes
+            if stats.entries.translated > 0:
+                rate = stats.entries.translated / minutes
                 logging.info("  Translation rate: %.1f entries/minute", rate)
                 if self.config.flags.bulk_mode:
                     logging.info("  Mode: BULK (batch size: %d)", self.batch_size)
@@ -406,6 +474,149 @@ class TranslationService:
                     logging.info("  Mode: SINGLE")
 
         logging.info("=" * 70)
+
+    def _show_performance_warning(self, total_entries: int):
+        """Show performance warning for large single-mode translations."""
+        estimated_time = total_entries * 1.5 / 60
+        bulk_time = (total_entries // 50 + 1) * 4 / 60
+        logging.warning("")
+        logging.warning("⚠ Performance Alert: Using SINGLE mode for %d translations", total_entries)
+        logging.warning("  This will take approximately %.0f minutes", estimated_time)
+        logging.warning("  Tip: Use --bulk mode to reduce time to ~%.0f minutes (%.0fx faster)",
+                        bulk_time, estimated_time / bulk_time)
+        logging.warning("  Example: gpt-po-translator [your-args] --bulk --bulksize 50")
+        logging.warning("")
+
+        if total_entries > 100:
+            logging.warning("Starting in 10 seconds. Press Ctrl+C to cancel and use --bulk mode instead.")
+
+            # Give user 10 seconds to press Ctrl+C
+            try:
+                for i in range(10, 0, -1):
+                    sys.stdout.write(f"\rStarting in {i} seconds... ")
+                    sys.stdout.flush()
+                    time.sleep(1)
+                sys.stdout.write("\n")
+                logging.info("Starting translation...")
+            except KeyboardInterrupt:
+                logging.info("\nCancelled by user. Restart with --bulk mode for better performance.")
+                sys.exit(0)
+
+    def _show_mode_info(self, total_entries: int):
+        """Show translation mode information."""
+        mode_info = "BULK" if self.config.flags.bulk_mode else "SINGLE"
+        if self.config.flags.bulk_mode:
+            batches = (total_entries + self.batch_size - 1) // self.batch_size
+            logging.info("  Mode: %s (batch size: %d)", mode_info, self.batch_size)
+            logging.info("  Batches to process: %d", batches)
+        else:
+            logging.info("  Mode: %s", mode_info)
+
+    def _show_translation_summary(self, scan_results, languages):
+        """Show summary of files to translate."""
+        logging.info("=" * 70)
+        logging.info("TRANSLATION OVERVIEW")
+        logging.info("=" * 70)
+        logging.info("SCAN RESULTS:")
+        logging.info("  Total PO files found: %d", scan_results['files_scanned'])
+        files_matched = len(scan_results['files_to_process']) + len(scan_results['skipped_files'])
+        logging.info("  Files matching languages: %d", files_matched)
+        logging.info("  Files with language mismatch: %d", scan_results['language_mismatch_files'])
+        logging.info("")
+        logging.info("TRANSLATION STATUS:")
+        logging.info("  Files needing translation: %d", len(scan_results['files_to_process']))
+        logging.info("  Files already fully translated: %d", len(scan_results['skipped_files']))
+        logging.info("")
+        logging.info("ENTRY STATISTICS:")
+        logging.info("  Total entries in all files: %d", scan_results['total_entries_in_all_files'])
+        logging.info("  Already translated entries: %d", scan_results['total_translated_in_all_files'])
+        logging.info("  Entries to translate: %d", scan_results['total_entries'])
+
+        if scan_results['total_entries_in_all_files'] > 0:
+            completion_percent = (
+                (scan_results['total_translated_in_all_files'] / scan_results['total_entries_in_all_files']) * 100
+            )
+            logging.info("  Overall completion: %.1f%%", completion_percent)
+
+        logging.info("")
+        logging.info("TARGET:")
+        logging.info("  Language(s): %s", ', '.join(languages))
+
+    def _analyze_po_file(self, po_file):
+        """Analyze a single PO file and return statistics."""
+        stats = FileStats()
+        stats.total_in_file = len([e for e in po_file if e.msgid])
+        stats.untranslated = len([e for e in po_file if is_entry_untranslated(e)])
+        stats.translated_in_file = stats.total_in_file - stats.untranslated
+        return stats
+
+    def _scan_po_files(self, input_folder: str, languages: List[str], gitignore_parser):
+        """Scan PO files and collect statistics."""
+        results = ScanResults()
+
+        for root, dirs, files in os.walk(input_folder):
+            # Filter directories and files using gitignore parser
+            dirs[:], files = gitignore_parser.filter_walk_results(root, dirs, files)
+            for file in filter(lambda f: f.endswith(".po"), files):
+                results.files_scanned += 1
+                po_file_path = os.path.join(root, file)
+                po_file_result = self._prepare_po_file(po_file_path, languages)
+
+                if po_file_result is not None:
+                    po_file, _ = po_file_result
+                    stats = self._analyze_po_file(po_file)
+
+                    results.total_entries_in_all_files += stats.total_in_file
+                    results.total_translated_in_all_files += stats.translated_in_file
+
+                    if stats.untranslated > 0:
+                        results.files_to_process.append((po_file_path, po_file_result, stats.untranslated))
+                        results.total_entries += stats.untranslated
+                        logging.debug("File %s: %d/%d entries need translation",
+                                      po_file_path, stats.untranslated, stats.total_in_file)
+                    else:
+                        results.skipped_files.append(po_file_path)
+                        logging.debug("Skipping fully translated file: %s", po_file_path)
+                else:
+                    results.language_mismatch_files += 1
+
+        return vars(results)  # Convert to dict for compatibility
+
+    def _track_file_progress(self, po_file_path, initial_count):
+        """Track translation progress for a single file."""
+        try:
+            po_file = polib.pofile(po_file_path)
+            remaining = len([e for e in po_file if is_entry_untranslated(e)])
+            return initial_count - remaining, remaining
+        except Exception:
+            return initial_count, 0
+
+    def _process_files(self, files_to_process, languages, detail_languages, scan_results):
+        """Process all files that need translation."""
+        stats = TranslationStats()
+        start_time = None
+
+        for po_file_path, po_file_result, untranslated_count in files_to_process:
+            if start_time is None:
+                start_time = time.time()
+
+            logging.info("Processing: %s (%d entries)", po_file_path, untranslated_count)
+            self.process_po_file(po_file_path, languages, detail_languages, po_file_result)
+
+            # Track progress
+            translated, failed = self._track_file_progress(po_file_path, untranslated_count)
+            stats.entries.translated += translated
+            stats.entries.failed += failed
+            stats.files.processed += 1
+
+        # Show final results summary
+        if stats.files.processed > 0:
+            stats.elapsed_time = time.time() - start_time if start_time else 0
+            stats.files.skipped = len(scan_results['skipped_files'])
+            stats.entries.attempted = scan_results['total_entries']
+            stats.entries.total_in_files = scan_results['total_entries_in_all_files']
+            stats.entries.translated_before = scan_results['total_translated_in_all_files']
+            self._show_results_summary(stats)
 
     def scan_and_process_po_files(
             self,
@@ -421,163 +632,64 @@ class TranslationService:
         else:
             logging.debug("Created gitignore parser for %s (gitignore disabled)", input_folder)
 
-        # First, scan all files to count total entries
-        files_to_process = []
-        total_entries = 0
-        total_entries_in_all_files = 0
-        total_translated_in_all_files = 0
-        skipped_files = []  # Track files that are fully translated
-        files_scanned = 0
-        language_mismatch_files = 0
+        # Scan all PO files
+        scan_results = self._scan_po_files(input_folder, languages, gitignore_parser)
 
-        for root, dirs, files in os.walk(input_folder):
-            # Filter directories and files using gitignore parser
-            dirs[:], files = gitignore_parser.filter_walk_results(root, dirs, files)
-            for file in filter(lambda f: f.endswith(".po"), files):
-                files_scanned += 1
-                po_file_path = os.path.join(root, file)
-                po_file_result = self._prepare_po_file(po_file_path, languages)
-                if po_file_result is not None:
-                    po_file, _ = po_file_result
-                    # Count entries and untranslated entries
-                    total_in_file = len([e for e in po_file if e.msgid])
-                    untranslated = len([e for e in po_file if is_entry_untranslated(e)])
-                    translated_in_file = total_in_file - untranslated
+        files_to_process = scan_results['files_to_process']
+        total_entries = scan_results['total_entries']
+        skipped_files = scan_results['skipped_files']
 
-                    total_entries_in_all_files += total_in_file
-                    total_translated_in_all_files += translated_in_file
-
-                    if untranslated > 0:
-                        files_to_process.append((po_file_path, po_file_result, untranslated))
-                        total_entries += untranslated
-                        logging.debug("File %s: %d/%d entries need translation",
-                                      po_file_path, untranslated, total_in_file)
-                    else:
-                        # File is fully translated, skip it
-                        skipped_files.append(po_file_path)
-                        logging.debug("Skipping fully translated file: %s (%d entries already translated)",
-                                      po_file_path, total_in_file)
-                else:
-                    language_mismatch_files += 1
-
-        # Show summary and warning if needed
-        if files_to_process or skipped_files:
-            logging.info("=" * 70)
-            logging.info("TRANSLATION OVERVIEW")
-            logging.info("=" * 70)
-            logging.info("SCAN RESULTS:")
-            logging.info("  Total PO files found: %d", files_scanned)
-            logging.info("  Files matching languages: %d", len(files_to_process) + len(skipped_files))
-            logging.info("  Files with language mismatch: %d", language_mismatch_files)
-            logging.info("")
-            logging.info("TRANSLATION STATUS:")
-            logging.info("  Files needing translation: %d", len(files_to_process))
-            logging.info("  Files already fully translated: %d", len(skipped_files))
-            logging.info("")
-            logging.info("ENTRY STATISTICS:")
-            logging.info("  Total entries in all files: %d", total_entries_in_all_files)
-            logging.info("  Already translated entries: %d", total_translated_in_all_files)
-            logging.info("  Entries to translate: %d", total_entries)
-
-            if total_entries_in_all_files > 0:
-                completion_percent = (total_translated_in_all_files / total_entries_in_all_files) * 100
-                logging.info("  Overall completion: %.1f%%", completion_percent)
-
-            logging.info("")
-            logging.info("TARGET:")
-            logging.info("  Language(s): %s", ', '.join(languages))
-
-            if not self.config.flags.bulk_mode and total_entries > 30:
-                estimated_time = total_entries * 1.5 / 60
-                bulk_time = (total_entries // 50 + 1) * 4 / 60
-                logging.warning("")
-                logging.warning("⚠ Performance Alert: Using SINGLE mode for %d translations", total_entries)
-                logging.warning("  This will take approximately %.0f minutes", estimated_time)
-                logging.warning("  Tip: Use --bulk mode to reduce time to ~%.0f minutes (%.0fx faster)",
-                                bulk_time, estimated_time / bulk_time)
-                logging.warning("  Example: gpt-po-translator [your-args] --bulk --bulksize 50")
-                logging.warning("")
-
-                if total_entries > 100:
-                    logging.warning("Starting in 10 seconds. Press Ctrl+C to cancel and use --bulk mode instead.")
-
-                    # Give user 10 seconds to press Ctrl+C
-                    try:
-                        for i in range(10, 0, -1):
-                            sys.stdout.write(f"\rStarting in {i} seconds... ")
-                            sys.stdout.flush()
-                            time.sleep(1)
-                        sys.stdout.write("\n")
-                        logging.info("Starting translation...")
-                    except KeyboardInterrupt:
-                        logging.info("\nCancelled by user. Restart with --bulk mode for better performance.")
-                        sys.exit(0)
-            else:
-                mode_info = "BULK" if self.config.flags.bulk_mode else "SINGLE"
-                if self.config.flags.bulk_mode:
-                    batches = (total_entries + self.batch_size - 1) // self.batch_size
-                    logging.info("  Mode: %s (batch size: %d)", mode_info, self.batch_size)
-                    logging.info("  Batches to process: %d", batches)
-                else:
-                    logging.info("  Mode: %s", mode_info)
-
-            logging.info("=" * 70)
-
-            # Only process if there are files needing translation
-            if not files_to_process:
-                logging.info("All files are already fully translated. Nothing to do!")
-                return
-        elif skipped_files:
-            # Only skipped files were found, no files to process
-            logging.info("=" * 70)
-            logging.info("All %d PO files are already fully translated. Nothing to do!", len(skipped_files))
-            logging.info("=" * 70)
+        # Check if all files are already translated
+        if not files_to_process:
+            if skipped_files:
+                logging.info("=" * 70)
+                logging.info("All %d PO files are already fully translated. Nothing to do!", len(skipped_files))
+                logging.info("=" * 70)
             return
 
-        # Track results
-        start_time = None
-        files_processed = 0
-        entries_translated = 0
-        entries_failed = 0
+        # Show summary and warning if needed
+        self._show_translation_summary(scan_results, languages)
 
-        # Process each file
-        for po_file_path, po_file_result, untranslated_count in files_to_process:
-            if start_time is None:
-                start_time = time.time()
+        if not self.config.flags.bulk_mode and total_entries > 30:
+            self._show_performance_warning(total_entries)
+        else:
+            self._show_mode_info(total_entries)
 
-            logging.info("Processing: %s (%d entries)", po_file_path, untranslated_count)
+        logging.info("=" * 70)
 
-            # Track before processing
-            initial_untranslated = untranslated_count
+        # Process all files
+        self._process_files(files_to_process, languages, detail_languages, scan_results)
 
-            self.process_po_file(po_file_path, languages, detail_languages, po_file_result)
-
-            # Check how many were actually translated
-            try:
-                po_file = polib.pofile(po_file_path)
-                remaining_untranslated = len([e for e in po_file if is_entry_untranslated(e)])
-                actually_translated = initial_untranslated - remaining_untranslated
-                entries_translated += actually_translated
-                entries_failed += remaining_untranslated
-                files_processed += 1
-            except Exception:
-                # If we can't read the file, assume all were processed
-                entries_translated += initial_untranslated
-                files_processed += 1
-
-        # Show final results summary
-        if files_processed > 0:
-            elapsed_time = time.time() - start_time if start_time else 0
-            self._show_results_summary(
-                files_processed,
-                len(skipped_files),
-                entries_translated,
-                entries_failed,
-                total_entries,
-                total_entries_in_all_files,
-                total_translated_in_all_files,
-                elapsed_time
+    def _warn_large_file(self, file_path: str, entry_count: int):
+        """Warn user about large files in single mode."""
+        if not self.config.flags.bulk_mode and entry_count > 30:
+            estimated_time = entry_count * 1.5 / 60
+            logging.warning(
+                "Large file alert: %s has %d translations to process",
+                os.path.basename(file_path), entry_count
             )
+            logging.warning(
+                "  Using single mode (~%.1f minutes). Consider --bulk mode for faster processing.",
+                estimated_time
+            )
+            if entry_count > 100:
+                logging.warning("  Starting in 5 seconds. Press Ctrl+C to cancel.")
+                time.sleep(5)
+
+    def _prepare_translation_request(self, po_file, po_file_path, file_lang, detail_languages):
+        """Prepare a translation request from PO file data."""
+        entries = [entry for entry in po_file if is_entry_untranslated(entry)]
+        texts = [entry.msgid for entry in entries]
+        detail_lang = detail_languages.get(file_lang) if detail_languages else None
+
+        return TranslationRequest(
+            po_file=po_file,
+            entries=entries,
+            texts=texts,
+            target_language=file_lang,
+            po_file_path=po_file_path,
+            detail_language=detail_lang
+        )
 
     def process_po_file(
         self,
@@ -587,13 +699,11 @@ class TranslationService:
         po_file_result=None,
     ):
         """Processes a single .po file with translations."""
-        # Initialize these outside try block so they're available in except block
-        entries_to_translate = []
-        texts_to_translate = []
+        request = None
         po_file = None
 
         try:
-            # Only prepare the po_file if not provided (for backward compatibility)
+            # Prepare PO file if not provided
             if po_file_result is None:
                 po_file_result = self._prepare_po_file(po_file_path, languages)
                 if po_file_result is None:
@@ -601,169 +711,125 @@ class TranslationService:
 
             po_file, file_lang = po_file_result
 
-            # Get the detailed language name if available
-            detail_lang = detail_languages.get(file_lang) if detail_languages else None
-
+            # Handle fuzzy entries if requested
             if self.config.flags.fix_fuzzy:
+                detail_lang = detail_languages.get(file_lang) if detail_languages else None
                 self.fix_fuzzy_entries(po_file, po_file_path, file_lang, detail_lang)
                 return
 
-            # Keep track of which entries we're translating
-            entries_to_translate = [entry for entry in po_file if is_entry_untranslated(entry)]
-            texts_to_translate = [entry.msgid for entry in entries_to_translate]
+            # Prepare translation request
+            request = self._prepare_translation_request(po_file, po_file_path, file_lang, detail_languages)
 
-            # Warn user about large files in single mode
-            if not self.config.flags.bulk_mode and len(texts_to_translate) > 30:
-                estimated_time = len(texts_to_translate) * 1.5 / 60  # Estimate 1.5 seconds per translation
-                file_name = os.path.basename(po_file_path)
-                logging.warning(
-                    "Large file alert: %s has %d translations to process",
-                    file_name, len(texts_to_translate)
-                )
-                logging.warning(
-                    "  Using single mode (~%.1f minutes). Consider --bulk mode for faster processing.",
-                    estimated_time
-                )
+            # Warn about large files
+            self._warn_large_file(po_file_path, len(request.texts))
 
-                # Give user a chance to abort with a pause
-                if len(texts_to_translate) > 100:
-                    logging.warning(
-                        "  Starting in 5 seconds. Press Ctrl+C to cancel."
-                    )
-                    time.sleep(5)
-
-            # Process with incremental saving
+            # Process translations
             if self.config.flags.bulk_mode:
-                self._process_with_incremental_save_bulk(
-                    po_file, entries_to_translate, texts_to_translate, file_lang, po_file_path, detail_lang
-                )
+                self._process_with_incremental_save_bulk(request)
             else:
-                self._process_with_incremental_save_single(
-                    po_file, entries_to_translate, texts_to_translate, file_lang, po_file_path, detail_lang
-                )
+                self._process_with_incremental_save_single(request)
 
             # Final save and logging
             po_file.save(po_file_path)
-            # Get translations from the specific entries we processed
-            final_translations = [entry.msgstr for entry in entries_to_translate]
             self.po_file_handler.log_translation_status(
-                po_file_path,
-                texts_to_translate,
-                final_translations
+                po_file_path, request.texts,
+                [entry.msgstr for entry in request.entries]
             )
         except KeyboardInterrupt:
             logging.info("\nTranslation interrupted. Saving progress...")
             if po_file is not None:
                 po_file.save(po_file_path)
-                # Count completed translations from the specific entries we were translating
-                completed = len([e for e in entries_to_translate if e.msgstr.strip()])
-                logging.info("Progress saved: %d of %d translations completed", completed, len(texts_to_translate))
+                if request is not None:
+                    completed = len([e for e in request.entries if e.msgstr.strip()])
+                    logging.info("Progress saved: %d of %d translations completed",
+                                 completed, len(request.texts))
             raise
         except Exception as e:
             logging.error("Error processing file %s: %s", po_file_path, e)
 
-    def _process_with_incremental_save_bulk(
-            self,
-            po_file,
-            entries_to_translate: list,
-            texts_to_translate: List[str],
-            target_language: str,
-            po_file_path: str,
-            detail_language: Optional[str] = None):
-        """Process translations in bulk mode with incremental saves after each batch."""
-        # entries_to_translate is now passed in
-        total_entries = len(texts_to_translate)
+    def _process_batch(self, batch_info, po_file, po_file_path, detail_language=None):
+        """Process a single batch of translations."""
+        batch_texts, batch_entries, current_batch, total_batches, target_language = batch_info
         translated_count = 0
+
+        logging.info("[BULK %d/%d] Translating %d entries...", current_batch, total_batches, len(batch_texts))
+
+        # Get translations for this batch
+        translations = self.perform_translation(
+            batch_texts, target_language, is_bulk=True, detail_language=detail_language
+        )
+
+        # Update entries with translations
+        for entry, translation in zip(batch_entries, translations):
+            if translation.strip():
+                entry.msgstr = translation
+                if self.config.flags.mark_ai_generated:
+                    add_ai_generated_comment(entry)
+                translated_count += 1
+
+        # Save after batch
+        po_file.save(po_file_path)
+        return translated_count
+
+    def _process_with_incremental_save_bulk(self, request: TranslationRequest):
+        """Process translations in bulk mode with incremental saves after each batch."""
+        total_entries = len(request.texts)
+        translated_count = 0
+        total_batches = (total_entries - 1) // self.batch_size + 1
 
         # Process in batches
         for i in range(0, total_entries, self.batch_size):
-            batch_texts = texts_to_translate[i:i + self.batch_size]
-            batch_entries = entries_to_translate[i:i + self.batch_size]
-            current_batch = i // self.batch_size + 1
-            total_batches = (total_entries - 1) // self.batch_size + 1
+            batch_num = i // self.batch_size + 1
+            batch_info = (
+                request.texts[i:i + self.batch_size],
+                request.entries[i:i + self.batch_size],
+                batch_num,
+                total_batches,
+                request.target_language
+            )
 
             try:
-                logging.info("[BULK %d/%d] Translating %d entries...", current_batch, total_batches, len(batch_texts))
-
-                # Get translations for this batch using perform_translation directly
-                translations = self.perform_translation(
-                    batch_texts, target_language, is_bulk=True, detail_language=detail_language
+                translated_count += self._process_batch(
+                    batch_info, request.po_file, request.po_file_path, request.detail_language
                 )
-
-                # Update entries with translations
-                for entry, translation in zip(batch_entries, translations):
-                    if translation.strip():
-                        # Update the entry directly instead of searching for it
-                        entry.msgstr = translation
-
-                        # Add AI-generated comment if enabled
-                        if self.config.flags.mark_ai_generated:
-                            ai_comment = "AI-generated"
-                            if not entry.comment or ai_comment not in entry.comment:
-                                if entry.comment:
-                                    entry.comment = f"{entry.comment}\n{ai_comment}"
-                                else:
-                                    entry.comment = ai_comment
-
-                        translated_count += 1
-
-                # Save after each batch
-                po_file.save(po_file_path)
                 logging.info("Batch %d/%d completed. Saved %d translations (%.1f%% total)",
-                             current_batch, total_batches, translated_count,
+                             batch_num, total_batches, translated_count,
                              100.0 * translated_count / total_entries)
-
             except KeyboardInterrupt:
-                logging.info("\nInterrupted at batch %d of %d. Saving...", current_batch, total_batches)
-                po_file.save(po_file_path)
+                logging.info("\nInterrupted at batch %d of %d. Saving...", batch_num, total_batches)
+                request.po_file.save(request.po_file_path)
                 logging.info("Saved: %d of %d translations completed", translated_count, total_entries)
                 raise
             except Exception as e:
-                logging.error("Error in batch %d: %s", current_batch, str(e))
+                logging.error("Error in batch %d: %s", batch_num, str(e))
                 # Continue with next batch even if one fails
 
-    def _process_with_incremental_save_single(
-            self,
-            po_file,
-            entries_to_translate: list,
-            texts_to_translate: List[str],
-            target_language: str,
-            po_file_path: str,
-            detail_language: Optional[str] = None):
+    def _process_with_incremental_save_single(self, request: TranslationRequest):
         """Process translations in single mode with periodic saves."""
-        total_entries = len(texts_to_translate)
-        # Save every 10 entries for small files, or every 10% for large files
+        total_entries = len(request.texts)
         save_interval = max(10, total_entries // 10) if total_entries > 100 else 10
 
-        for i, (text, entry) in enumerate(zip(texts_to_translate, entries_to_translate), 1):
+        for i, (text, entry) in enumerate(zip(request.texts, request.entries), 1):
             try:
                 logging.info("[SINGLE %d/%d] Translating entry...", i, total_entries)
 
-                translation = self.translate_single(text, target_language, detail_language)
+                translation = self.translate_single(text, request.target_language, request.detail_language)
 
                 if translation.strip():
-                    # Update the entry directly instead of searching for it
                     entry.msgstr = translation
-
-                    # Add AI-generated comment if enabled
                     if self.config.flags.mark_ai_generated:
-                        ai_comment = "AI-generated"
-                        if not entry.comment or ai_comment not in entry.comment:
-                            if entry.comment:
-                                entry.comment = f"{entry.comment}\n{ai_comment}"
-                            else:
-                                entry.comment = ai_comment
+                        add_ai_generated_comment(entry)
 
                 # Save periodically
                 if i % save_interval == 0 or i == total_entries:
-                    po_file.save(po_file_path)
+                    request.po_file.save(request.po_file_path)
                     logging.info("Progress: %d/%d entries completed (%.1f%%). File saved.",
                                  i, total_entries, 100.0 * i / total_entries)
 
             except KeyboardInterrupt:
                 logging.info("\nInterrupted at entry %d of %d. Saving...", i, total_entries)
-                po_file.save(po_file_path)
-                logging.info("Saved: %d of %d translations completed", i - 1, total_entries)
+                request.po_file.save(request.po_file_path)
+                logging.info("Saved: %d of %d translations", i - 1, total_entries)
                 raise
             except Exception as e:
                 logging.error("Error translating entry %d: %s", i, str(e))
@@ -811,28 +877,6 @@ class TranslationService:
                 logging.info("Progress: %d/%d entries completed (%.1f%%)", i, total, 100.0 * i / total)
         return translations
 
-    def _update_po_entries(
-            self,
-            po_file,
-            translations: List[str],
-            target_language: str,
-            detail_language: Optional[str] = None):
-        """Updates the .po file entries with the provided translations."""
-        successful_count = 0
-        untranslated_entries = [e for e in po_file if is_entry_untranslated(e)]
-        for entry, translation in zip(untranslated_entries, translations):
-            if translation.strip():
-                self.po_file_handler.update_po_entry(
-                    po_file, entry.msgid, translation, self.config.flags.mark_ai_generated
-                )
-                successful_count += 1
-                logging.debug("Translated '%s' to '%s'", entry.msgid, translation)
-            else:
-                self._handle_empty_translation(entry, target_language, detail_language)
-
-        if successful_count > 0:
-            logging.info("Successfully updated %d translations in the file", successful_count)
-
     def _update_fuzzy_po_entries(
         self,
         po_file,
@@ -866,24 +910,6 @@ class TranslationService:
             )
         else:
             logging.error("Failed to translate '%s' after individual attempt.", entry.msgid)
-
-    def _handle_untranslated_entries(self, po_file, target_language: str, detail_language: Optional[str] = None):
-        """Handles any remaining untranslated entries in the .po file."""
-        for entry in po_file:
-            if is_entry_untranslated(entry):
-                logging.warning("Failed to translate entry, retrying: %s", entry.msgid[:50])
-                final_translation = self.translate_single(entry.msgid, target_language, detail_language)
-                if final_translation.strip():
-                    self.po_file_handler.update_po_entry(
-                        po_file, entry.msgid, final_translation, self.config.flags.mark_ai_generated
-                    )
-                    logging.info(
-                        "Final translation successful: '%s' to '%s'",
-                        entry.msgid,
-                        final_translation
-                    )
-                else:
-                    logging.error("Failed to translate '%s' after final attempt.", entry.msgid)
 
     def fix_fuzzy_entries(
         self,

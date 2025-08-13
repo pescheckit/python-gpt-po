@@ -91,9 +91,16 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Process with single mode
         entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-        self.service._process_with_incremental_save_single(
-            po_file, entries_to_translate, texts_to_translate, "fr", po_path
+        from python_gpt_po.services.translation_service import TranslationRequest
+        request = TranslationRequest(
+            po_file=po_file,
+            entries=entries_to_translate,
+            texts=texts_to_translate,
+            target_language="fr",
+            po_file_path=po_path,
+            detail_language=None
         )
+        self.service._process_with_incremental_save_single(request)
 
         # Should save every 10 entries and at the end (10, 20, 25)
         self.assertEqual(len(save_calls), 3)
@@ -138,9 +145,16 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Process with bulk mode
         entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-        self.service._process_with_incremental_save_bulk(
-            po_file, entries_to_translate, texts_to_translate, "fr", po_path
+        from python_gpt_po.services.translation_service import TranslationRequest
+        request = TranslationRequest(
+            po_file=po_file,
+            entries=entries_to_translate,
+            texts=texts_to_translate,
+            target_language="fr",
+            po_file_path=po_path,
+            detail_language=None
         )
+        self.service._process_with_incremental_save_bulk(request)
 
         # Should save after each batch (10, 20, 30, 35)
         self.assertEqual(len(save_counts), 4)
@@ -169,10 +183,17 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Process and expect KeyboardInterrupt
         entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
+        from python_gpt_po.services.translation_service import TranslationRequest
+        request = TranslationRequest(
+            po_file=po_file,
+            entries=entries_to_translate,
+            texts=texts_to_translate,
+            target_language="fr",
+            po_file_path=po_path,
+            detail_language=None
+        )
         with self.assertRaises(KeyboardInterrupt):
-            self.service._process_with_incremental_save_single(
-                po_file, entries_to_translate, texts_to_translate, "fr", po_path
-            )
+            self.service._process_with_incremental_save_single(request)
 
         # Check that file was saved with partial translations
         # (Should have saved at least the first batch before interrupt)
@@ -209,10 +230,17 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Process and expect KeyboardInterrupt
         entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
+        from python_gpt_po.services.translation_service import TranslationRequest
+        request = TranslationRequest(
+            po_file=po_file,
+            entries=entries_to_translate,
+            texts=texts_to_translate,
+            target_language="fr",
+            po_file_path=po_path,
+            detail_language=None
+        )
         with self.assertRaises(KeyboardInterrupt):
-            self.service._process_with_incremental_save_bulk(
-                po_file, entries_to_translate, texts_to_translate, "fr", po_path
-            )
+            self.service._process_with_incremental_save_bulk(request)
 
         # Check that completed batches were saved
         saved_po = polib.pofile(po_path)
@@ -268,9 +296,16 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Process - should continue despite error
         entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-        self.service._process_with_incremental_save_single(
-            po_file, entries_to_translate, texts_to_translate, "fr", po_path
+        from python_gpt_po.services.translation_service import TranslationRequest
+        request = TranslationRequest(
+            po_file=po_file,
+            entries=entries_to_translate,
+            texts=texts_to_translate,
+            target_language="fr",
+            po_file_path=po_path,
+            detail_language=None
         )
+        self.service._process_with_incremental_save_single(request)
 
         # Should have 9 translations (all except the failed one)
         saved_po = polib.pofile(po_path)
@@ -303,9 +338,16 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Process - should continue despite batch 2 error
         entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-        self.service._process_with_incremental_save_bulk(
-            po_file, entries_to_translate, texts_to_translate, "fr", po_path
+        from python_gpt_po.services.translation_service import TranslationRequest
+        request = TranslationRequest(
+            po_file=po_file,
+            entries=entries_to_translate,
+            texts=texts_to_translate,
+            target_language="fr",
+            po_file_path=po_path,
+            detail_language=None
         )
+        self.service._process_with_incremental_save_bulk(request)
 
         # Should have 10 translations (batch 1 and 3, but not batch 2)
         saved_po = polib.pofile(po_path)
