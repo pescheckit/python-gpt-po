@@ -199,9 +199,11 @@ def main():
                 languages = parse_languages(args.lang)
                 logging.info("Using specified languages: %s", ', '.join(languages))
             else:
+                respect_gitignore = not args.no_gitignore  # Invert the flag
                 languages = LanguageDetector.detect_languages_from_folder(
                     args.folder,
-                    use_folder_structure=args.folder_language
+                    use_folder_structure=args.folder_language,
+                    respect_gitignore=respect_gitignore
                 )
                 detection_method = "folder structure" if args.folder_language else "metadata"
                 logging.info("Auto-detected languages from %s: %s", detection_method, ', '.join(languages))

@@ -45,13 +45,15 @@ class GitignoreParser:
         self._load_gitignore_files()
 
     def _load_gitignore_files(self):
-        """Load patterns from .gitignore files in the directory tree."""
-        # Start from root and walk down to find all .gitignore files
-        for root, _, files in os.walk(self.root_path):
-            if '.gitignore' in files:
-                gitignore_path = Path(root) / '.gitignore'
-                self._parse_gitignore_file(gitignore_path)
-                logging.debug("Loaded patterns from %s", gitignore_path)
+        """Load patterns from .gitignore files - only from the root directory."""
+        # Only load root .gitignore file, not from subdirectories
+        # This prevents issues with overly broad patterns in subdirectories like .ruff_cache/*
+        root_gitignore = Path(self.root_path) / '.gitignore'
+        if root_gitignore.exists():
+            self._parse_gitignore_file(root_gitignore)
+            logging.debug("Loaded patterns from %s", root_gitignore)
+        else:
+            logging.debug("No .gitignore file found in root directory %s", self.root_path)
 
     def _parse_gitignore_file(self, gitignore_path: Path):
         """Parse a single .gitignore file."""
