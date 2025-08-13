@@ -15,6 +15,7 @@ DEEPSEEK_TRANSLATION_RESPONSE = {
     ]
 }
 
+
 @pytest.fixture
 def mock_provider_clients() -> ProviderClients:
     """Mock provider clients for testing."""
@@ -22,6 +23,7 @@ def mock_provider_clients() -> ProviderClients:
     clients.deepseek_api_key = "sk-deepseek-mock-key"
     clients.deepseek_base_url = "https://api.deepseek.com/v1"
     return clients
+
 
 @patch('python_gpt_po.services.providers.deepseek_provider.requests.post')
 def test_translate(mock_post: MagicMock, mock_provider_clients: ProviderClients) -> None:

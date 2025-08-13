@@ -78,9 +78,10 @@ Examples:
     )
     required_group.add_argument(
         "-l", "--lang",
-        required=(not list_models_present),
+        required=False,  # Now optional - will auto-detect from PO files if not provided
         metavar="LANG",
-        help="Comma-separated language codes to translate (e.g., fr,es,de)"
+        help=("Comma-separated language codes to translate (e.g., fr,es,de or locale codes like fr_CA,pt_BR,en-US). "
+              "If not provided, will auto-detect from PO files")
     )
 
     # Language options
@@ -178,6 +179,22 @@ Examples:
         "--no-ai-comment",
         action="store_true",
         help="Disable 'AI-generated' comment tagging (enabled by default for tracking)"
+    )
+    advanced_group.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=0,
+        help="Increase output verbosity (-v for INFO, -vv for DEBUG)"
+    )
+    advanced_group.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Quiet mode - only show warnings and errors"
+    )
+    advanced_group.add_argument(
+        "--no-gitignore",
+        action="store_true",
+        help="Disable .gitignore file processing (scan all directories)"
     )
 
     # Version information

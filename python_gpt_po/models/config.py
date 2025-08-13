@@ -2,10 +2,15 @@
 Configuration classes for the PO translator application.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .enums import ModelProvider
-from .provider_clients import ProviderClients
+
+if TYPE_CHECKING:
+    from .provider_clients import ProviderClients
 
 
 @dataclass

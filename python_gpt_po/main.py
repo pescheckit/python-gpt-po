@@ -9,26 +9,46 @@ import logging
 import sys
 import traceback
 from argparse import Namespace
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from .models.config import TranslationConfig, TranslationFlags
 from .models.enums import ModelProvider
 from .models.provider_clients import ProviderClients
+from .services.language_detector import LanguageDetector
 from .services.model_manager import ModelManager
 from .services.translation_service import TranslationService
 from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args, parse_args,
                         parse_languages, show_help_and_exit, validate_provider_key)
 
 
-def setup_logging():
+def setup_logging(verbose: int = 0, quiet: bool = False):
     """
-    Initialize logging configuration.
+    Initialize logging configuration based on verbosity level.
+
+    Args:
+        verbose: Verbosity level (0=WARNING, 1=INFO, 2+=DEBUG)
+        quiet: If True, only show errors
     """
+    # Determine logging level based on flags
+    if quiet:
+        level = logging.ERROR
+    elif verbose >= 2:
+        level = logging.DEBUG
+    elif verbose == 1:
+        level = logging.INFO
+    else:
+        level = logging.WARNING  # Default: only warnings and errors
+
     logging.basicConfig(
-        level=logging.INFO,
+        level=level,
         format='%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        datefmt='%Y-%m-%d %H:%M:%S',
+        force=True  # Force reconfiguration even if logging is already configured
     )
+
+    # Explicitly set root logger level
+    logging.getLogger().setLevel(level)
 
 
 def initialize_provider(args: Namespace) -> tuple[ProviderClients, ModelProvider, str]:
@@ -101,7 +121,7 @@ def get_appropriate_model(
             return requested_model
         # If requested model is not valid, log a warning
         logging.warning(
-            "Model '%s' not found for provider %s. Will use a default model instead.",
+            "Model '%s' not available. Using default model for %s provider.",
             requested_model, provider.value
         )
 
@@ -114,38 +134,44 @@ def get_appropriate_model(
 
     # Fall back to default model if no models could be retrieved
     default_model = model_manager.get_default_model(provider)
-    logging.warning("No available models found from API; defaulting to %s",
-                    default_model)
+    logging.info("Using default model: %s", default_model)
     return default_model
 
 
-def process_translations(config: TranslationConfig, folder: str,
-                         languages: List[str], detail_languages: Dict[str, str],
-                         batch_size: int):
+@dataclass
+class TranslationTask:
+    """Parameters for translation processing."""
+    config: TranslationConfig
+    folder: str
+    languages: List[str]
+    detail_languages: Dict[str, str]
+    batch_size: int
+    respect_gitignore: bool = True
+
+
+def process_translations(task: TranslationTask):
     """
-    Process translations for the given languages and directory.
+    Process translations for the given task parameters.
 
     Args:
-        config (TranslationConfig): The translation configuration
-        folder (str): Directory containing .po files
-        languages (List[str]): List of language codes to process
-        detail_languages (Dict[str, str]): Mapping of language codes to detailed names
-        batch_size (int): Size of batches for bulk translation
+        task: TranslationTask containing all processing parameters
     """
     # Initialize translation service
-    translation_service = TranslationService(config, batch_size)
+    translation_service = TranslationService(task.config, task.batch_size)
 
     # Validate provider connection
     if not translation_service.validate_provider_connection():
         logging.error(
-            "%s connection failed. Please check your API key and network connection.", config.provider.value
+            "%s connection failed. Please check your API key and network connection.", task.config.provider.value
         )
         sys.exit(1)
 
     # Start processing files
     logging.info("Starting translation with %s using model %s in folder %s",
-                 config.provider.value, config.model, folder)
-    translation_service.scan_and_process_po_files(folder, languages, detail_languages)
+                 task.config.provider.value, task.config.model, task.folder)
+    translation_service.scan_and_process_po_files(
+        task.folder, task.languages, task.detail_languages, task.respect_gitignore
+    )
     logging.info("Translation completed successfully")
 
 
@@ -153,9 +179,6 @@ def main():
     """
     Main function to parse arguments and initiate processing.
     """
-    # Initialize logging
-    setup_logging()
-
     # Show help if no arguments
     if len(sys.argv) == 1:
         show_help_and_exit()
@@ -163,12 +186,30 @@ def main():
     # Parse command line arguments
     args = parse_args()
 
+    # Initialize logging with verbosity settings
+    setup_logging(verbose=args.verbose, quiet=args.quiet)
+
     try:
         # Initialize provider
         provider_clients, provider, model = initialize_provider(args)
 
-        # Parse languages
-        languages = parse_languages(args.lang)
+        # Get languages - either from args or auto-detect from PO files
+        try:
+            if args.lang:
+                languages = parse_languages(args.lang)
+                logging.info("Using specified languages: %s", ', '.join(languages))
+            else:
+                respect_gitignore = not args.no_gitignore  # Invert the flag
+                languages = LanguageDetector.detect_languages_from_folder(
+                    args.folder,
+                    use_folder_structure=args.folder_language,
+                    respect_gitignore=respect_gitignore
+                )
+                detection_method = "folder structure" if args.folder_language else "metadata"
+                logging.info("Auto-detected languages from %s: %s", detection_method, ', '.join(languages))
+        except ValueError as e:
+            logging.error(str(e))
+            sys.exit(1)
 
         # Create mapping between language codes and detailed names
         try:
@@ -180,8 +221,7 @@ def main():
         # Check for deprecated --fuzzy option
         if args.fuzzy:
             logging.warning(
-                "WARNING: --fuzzy is DEPRECATED and has risky behavior. "
-                "Use --fix-fuzzy instead to properly translate and clean fuzzy entries."
+                "Note: --fuzzy flag is deprecated. Use --fix-fuzzy for safer fuzzy entry handling."
             )
         # Create translation configuration
         flags = TranslationFlags(
@@ -199,8 +239,21 @@ def main():
         )
 
         # Process translations
-        process_translations(config, args.folder, languages, detail_languages, args.bulksize)
+        respect_gitignore = not args.no_gitignore  # Invert the flag
+        task = TranslationTask(
+            config=config,
+            folder=args.folder,
+            languages=languages,
+            detail_languages=detail_languages,
+            batch_size=args.bulksize,
+            respect_gitignore=respect_gitignore
+        )
+        process_translations(task)
 
+    except KeyboardInterrupt:
+        logging.info("\nTranslation cancelled.")
+        logging.info("All completed translations have been saved.")
+        sys.exit(130)  # Standard exit code for Ctrl+C
     except Exception as e:
         logging.error("An unexpected error occurred: %s", str(e))
         logging.debug(traceback.format_exc())

@@ -73,11 +73,14 @@ export AZURE_OPENAI_API_VERSION='2024-02-01'
 
 ### Basic Translation
 ```bash
-# Translate to German
+# Translate to German (default: shows warnings/errors only)
 gpt-po-translator --folder ./locales --lang de
 
-# Multiple languages
-gpt-po-translator --folder ./locales --lang de,fr,es --bulk
+# With progress information
+gpt-po-translator --folder ./locales --lang de -v
+
+# Multiple languages with verbose output
+gpt-po-translator --folder ./locales --lang de,fr,es -v --bulk
 ```
 
 ### Different AI Providers
@@ -131,15 +134,18 @@ This helps you:
 | Option | Description |
 |--------|-------------|
 | `--folder` | Path to .po files |
-| `--lang` | Target languages (e.g., `de,fr,es`) |
+| `--lang` | Target languages (e.g., `de,fr,es`, `fr_CA`, `pt_BR`) |
 | `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, `deepseek` |
-| `--bulk` | Enable batch translation (recommended) |
+| `--bulk` | Enable batch translation (recommended for large files) |
 | `--bulksize` | Entries per batch (default: 50) |
 | `--model` | Specific model to use |
 | `--list-models` | Show available models |
 | `--fix-fuzzy` | Translate fuzzy entries |
 | `--folder-language` | Auto-detect languages from folders |
 | `--no-ai-comment` | Disable AI tagging |
+| `-v, --verbose` | Show progress information (use `-vv` for debug) |
+| `-q, --quiet` | Only show errors |
+| `--version` | Show version and exit |
 
 ## 🛠️ Development
 

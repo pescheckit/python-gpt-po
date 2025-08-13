@@ -18,10 +18,10 @@ class TestAIGeneratedTagging:
         po = polib.POFile()
         entry = polib.POEntry(msgid="Hello", msgstr="")
         po.append(entry)
-        
+
         # Update with AI tagging enabled
         POFileHandler.update_po_entry(po, "Hello", "Bonjour", mark_ai_generated=True)
-        
+
         # Check that the comment was added
         updated_entry = po.find("Hello")
         assert updated_entry.msgstr == "Bonjour"
@@ -33,10 +33,10 @@ class TestAIGeneratedTagging:
         po = polib.POFile()
         entry = polib.POEntry(msgid="Hello", msgstr="")
         po.append(entry)
-        
+
         # Update with AI tagging disabled
         POFileHandler.update_po_entry(po, "Hello", "Bonjour", mark_ai_generated=False)
-        
+
         # Check that no comment was added
         updated_entry = po.find("Hello")
         assert updated_entry.msgstr == "Bonjour"
@@ -48,10 +48,10 @@ class TestAIGeneratedTagging:
         po = polib.POFile()
         entry = polib.POEntry(msgid="Hello", msgstr="", comment="Existing comment")
         po.append(entry)
-        
+
         # Update with AI tagging enabled
         POFileHandler.update_po_entry(po, "Hello", "Bonjour", mark_ai_generated=True)
-        
+
         # Check that both comments are present
         updated_entry = po.find("Hello")
         assert updated_entry.msgstr == "Bonjour"
@@ -65,10 +65,10 @@ class TestAIGeneratedTagging:
         po = polib.POFile()
         entry = polib.POEntry(msgid="Hello", msgstr="Old", comment="AI-generated")
         po.append(entry)
-        
+
         # Update again with AI tagging enabled
         POFileHandler.update_po_entry(po, "Hello", "Bonjour", mark_ai_generated=True)
-        
+
         # Check that AI-generated appears only once
         updated_entry = po.find("Hello")
         assert updated_entry.msgstr == "Bonjour"
@@ -83,10 +83,10 @@ class TestAIGeneratedTagging:
         po.append(polib.POEntry(msgid="World", msgstr="Monde", comment="Human translation"))
         po.append(polib.POEntry(msgid="Test", msgstr="Test", comment="Some comment\nAI-generated"))
         po.append(polib.POEntry(msgid="No comment", msgstr="Sans commentaire"))
-        
+
         # Get AI-generated entries
         ai_entries = POFileHandler.get_ai_generated_entries(po)
-        
+
         # Check results
         assert len(ai_entries) == 2
         assert ai_entries[0].msgid == "Hello"
@@ -99,18 +99,18 @@ class TestAIGeneratedTagging:
         po.append(polib.POEntry(msgid="Hello", msgstr="Bonjour", comment="AI-generated"))
         po.append(polib.POEntry(msgid="World", msgstr="Monde", comment="Human comment\nAI-generated"))
         po.append(polib.POEntry(msgid="Test", msgstr="Test", comment="Only human comment"))
-        
+
         # Remove AI-generated comments
         POFileHandler.remove_ai_generated_comments(po)
-        
+
         # Check results
         entry1 = po.find("Hello")
         assert entry1.comment is None
-        
+
         entry2 = po.find("World")
         assert entry2.comment == "Human comment"
         assert "AI-generated" not in entry2.comment
-        
+
         entry3 = po.find("Test")
         assert entry3.comment == "Only human comment"
 
@@ -118,26 +118,26 @@ class TestAIGeneratedTagging:
         """Test that AI-generated comments persist when saving and loading PO files."""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.po', delete=False) as tmp:
             tmp_path = tmp.name
-            
+
         try:
             # Create and save a PO file with AI-generated comments
             po = polib.POFile()
             po.metadata = {'Language': 'fr'}
             entry = polib.POEntry(msgid="Hello", msgstr="")
             po.append(entry)
-            
+
             # Update with AI tag
             POFileHandler.update_po_entry(po, "Hello", "Bonjour", mark_ai_generated=True)
             po.save(tmp_path)
-            
+
             # Load the file back
             loaded_po = polib.pofile(tmp_path)
             loaded_entry = loaded_po.find("Hello")
-            
+
             # Verify the comment persisted
             assert loaded_entry.msgstr == "Bonjour"
             assert loaded_entry.comment == "AI-generated"
-            
+
         finally:
             # Clean up
             Path(tmp_path).unlink(missing_ok=True)

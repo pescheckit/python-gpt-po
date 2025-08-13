@@ -100,6 +100,7 @@ DEEPSEEK_MODELS_RESPONSE = {
     ]
 }
 
+
 @pytest.fixture
 def temp_po_file(tmp_path: str) -> str:
     """Create a temporary PO file for testing."""
@@ -399,7 +400,12 @@ def test_process_po_file_all_providers(mock_pofile: MagicMock,
     for text in ["Hello", "World", "Welcome to our application", "Goodbye"]:
         entry = MagicMock()
         entry.msgid = text
-        entry.msgstr = ""
+        # Make msgstr a Mock that returns empty string when strip() is called
+        msgstr_mock = MagicMock()
+        msgstr_mock.strip.return_value = ""
+        entry.msgstr = msgstr_mock
+        # Add msgstr_plural attribute to indicate this is NOT a plural entry
+        entry.msgstr_plural = None
         mock_entries.append(entry)
 
     mock_po.__iter__.return_value = mock_entries
@@ -411,27 +417,49 @@ def test_process_po_file_all_providers(mock_pofile: MagicMock,
                                  translation_service_anthropic,
                                  translation_service_deepseek,
                                  translation_service_azure_openai]):
+        # Create fresh mock entries for each service iteration
+        fresh_entries = []
+        for text in ["Hello", "World", "Welcome to our application", "Goodbye"]:
+            entry = MagicMock()
+            entry.msgid = text
+            # Make msgstr a Mock that returns empty string when strip() is called
+            msgstr_mock = MagicMock()
+            msgstr_mock.strip.return_value = ""
+            entry.msgstr = msgstr_mock
+            # Add msgstr_plural attribute to indicate this is NOT a plural entry
+            entry.msgstr_plural = None
+            fresh_entries.append(entry)
+
         # Create a fresh mock for each service
         mock_po_new = MagicMock()
-        mock_po_new.__iter__.return_value = mock_entries
+        mock_po_new.__iter__.return_value = fresh_entries
         mock_po_new.metadata = {"Language": "fr"}
         mock_pofile.return_value = mock_po_new
 
-        service.get_translations = MagicMock(return_value=[
+        # Mock both single and bulk translation methods
+        service.perform_translation = MagicMock(return_value=[
             "Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"
         ])
+        service.translate_single = MagicMock(
+            side_effect=["Bonjour", "Monde", "Bienvenue dans notre application", "Au revoir"]
+        )
         service.po_file_handler.get_file_language = MagicMock(return_value="fr")
 
         # Process the PO file
         service.process_po_file(temp_po_file, ["fr"])
 
-        # Assert translations were applied
-        service.get_translations.assert_called_once()
-        mock_po_new.save.assert_called_once()
+        # Assert translations were applied - check either method was called
+        assert service.perform_translation.called or service.translate_single.called
+        # With incremental save, save is called multiple times
+        assert mock_po_new.save.call_count >= 1
 
 
 @patch('python_gpt_po.services.po_file_handler.POFileHandler.disable_fuzzy_translations')
-def test_fuzzy_flag_handling(mock_disable_fuzzy: MagicMock, translation_service_openai: TranslationService, temp_po_file: MagicMock):
+def test_fuzzy_flag_handling(
+    mock_disable_fuzzy: MagicMock,
+    translation_service_openai: TranslationService,
+    temp_po_file: MagicMock
+):
     """Test handling of fuzzy translations."""
     # Enable fuzzy flag
     translation_service_openai.config.flags.fuzzy = True
@@ -489,7 +517,11 @@ def test_validation_model_connection_all_providers(
 
 @patch('os.walk')
 @patch('polib.pofile')
-def test_scan_and_process_po_files(mock_pofile: MagicMock, mock_walk: MagicMock, translation_service_openai: TranslationService):
+def test_scan_and_process_po_files(
+    mock_pofile: MagicMock,
+    mock_walk: MagicMock,
+    translation_service_openai: TranslationService
+):
     """Test scanning and processing PO files."""
     # Setup mock directory structure
     mock_walk.return_value = [

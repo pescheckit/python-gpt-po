@@ -9,6 +9,8 @@ import os
 import polib
 import pycountry
 
+from ..utils.po_entry_helpers import add_ai_generated_comment
+
 
 class POFileHandler:
     """Handles operations related to .po files."""
@@ -46,6 +48,33 @@ class POFileHandler:
             logging.error("Error while disabling fuzzy translations in file %s: %s", po_file_path, e)
 
     @staticmethod
+    def _try_language_variants(lang_code, languages):
+        """Try different variants of a language code."""
+        # Try exact match
+        if lang_code in languages:
+            return lang_code
+
+        # Try underscore to hyphen
+        if '_' in lang_code:
+            hyphen_lang = lang_code.replace('_', '-')
+            if hyphen_lang in languages:
+                return hyphen_lang
+
+        # Try hyphen to underscore
+        if '-' in lang_code:
+            underscore_lang = lang_code.replace('-', '_')
+            if underscore_lang in languages:
+                return underscore_lang
+
+        return None
+
+    @staticmethod
+    def _should_skip_fallback(lang_code):
+        """Check if this language code should skip base language fallback."""
+        special_codes = ['zh_Hans', 'zh_Hant', 'sr_Latn', 'sr@latin', 'be@tarask']
+        return lang_code in special_codes
+
+    @staticmethod
     def get_file_language(po_file_path, po_file, languages, folder_language):
         """Determines the language for a .po file.
 
@@ -56,55 +85,162 @@ class POFileHandler:
             folder_language (bool): Whether to infer language from folder structure
 
         Returns:
-            str or None: The normalized language code or None if not found
+            str or None: The matched language code or None if not found
         """
         file_lang = po_file.metadata.get('Language', '')
-        normalized_lang = POFileHandler.normalize_language_code(file_lang)
 
-        if normalized_lang in languages:
-            return normalized_lang
+        # Debug logging for language matching issues
+        if file_lang in ['zh_Hans', 'no']:
+            logging.debug("Checking Django special code %s against languages: %s", file_lang, languages)
+
+        # Try different variants of the language code
+        variant_match = POFileHandler._try_language_variants(file_lang, languages)
+        if variant_match:
+            logging.info("Matched language for .po file: %s as %s", po_file_path, variant_match)
+            return variant_match
+
+        # Try base language fallback unless it's a special code
+        if not POFileHandler._should_skip_fallback(file_lang):
+            normalized_lang = POFileHandler.normalize_language_code(file_lang)
+            if normalized_lang and normalized_lang in languages:
+                return normalized_lang
 
         if folder_language:
             for part in po_file_path.split(os.sep):
-                norm_part = POFileHandler.normalize_language_code(part)
-                if norm_part in languages:
-                    logging.info("Inferred language for .po file: %s as %s", po_file_path, norm_part)
-                    return norm_part
+                # Try variants of the folder part
+                variant_match = POFileHandler._try_language_variants(part, languages)
+                if variant_match:
+                    logging.info("Inferred language for .po file: %s as %s", po_file_path, variant_match)
+                    return variant_match
+
+                # Try base language fallback
+                if not POFileHandler._should_skip_fallback(part):
+                    norm_part = POFileHandler.normalize_language_code(part)
+                    if norm_part and norm_part in languages:
+                        logging.info("Inferred language for .po file: %s as %s (base of %s)",
+                                     po_file_path, norm_part, part)
+                        return norm_part
 
         return None
 
     @staticmethod
-    def normalize_language_code(lang):
-        """Convert language name or code to ISO 639-1 code.
+    def _is_django_special_code(lang):
+        """Check if a language code is a Django special code that shouldn't be normalized.
 
         Args:
-            lang (str): Language name or code to normalize
+            lang (str): Language code to check
 
         Returns:
-            str or None: The normalized ISO 639-1 language code or None if not found
+            bool: True if it's a Django special code
+        """
+        # Comprehensive list of Django special codes that don't follow standard patterns
+        django_special_codes = {
+            # Chinese variants (script-based)
+            'zh_Hans', 'zh_Hant',
+            'zh-hans', 'zh-hant',  # Hyphenated variants
+            'zh_CN', 'zh_TW', 'zh_HK', 'zh_MO', 'zh_MY', 'zh_SG',  # Regional Chinese
+
+            # Serbian variants (script-based)
+            'sr_Latn', 'sr-latn', 'sr@latin',
+
+            # Norwegian variants
+            'no', 'nb', 'nn',  # Norwegian (no), Bokmål (nb), Nynorsk (nn)
+
+            # Belarusian variant
+            'be@tarask',
+
+            # Other special regional codes
+            'en_AU', 'en_GB',  # English variants
+            'es_AR', 'es_CO', 'es_MX', 'es_NI', 'es_VE',  # Spanish variants
+            'pt_BR',  # Portuguese variant
+            'ar_DZ',  # Arabic variant
+            'fy_NL',  # Frisian
+        }
+
+        # Check exact match
+        if lang in django_special_codes:
+            return True
+
+        # Check with case variations
+        if lang.lower() in {code.lower() for code in django_special_codes}:
+            return True
+
+        # Check if it's a variant with @ or has script/region codes
+        if '@' in lang or '_' in lang and len(lang) > 3:
+            parts = lang.replace('-', '_').split('_')
+            if len(parts) == 2 and (len(parts[1]) > 2 or parts[1].isupper()):
+                return True
+
+        return False
+
+    @staticmethod
+    def normalize_language_code(lang):
+        """Convert language name or code to ISO 639-1 base code.
+
+        This function extracts the base language from locale codes.
+        For example: fr_CA -> fr, en_US -> en, pt_BR -> pt
+
+        Special handling for Django language codes like zh_Hans, zh_Hant, etc.
+
+        Args:
+            lang (str): Language name, code, or locale to normalize
+
+        Returns:
+            str or None: The base ISO 639-1 language code or None if not found
         """
         if not lang:
             return None
 
+        # Special handling for Django language codes that should be kept as-is
+        # These are valid Django language codes that don't follow the typical pattern
+        django_special_mapping = {
+            # Chinese script variants
+            'zh_Hans': 'zh', 'zh-hans': 'zh',  # Simplified Chinese
+            'zh_Hant': 'zh', 'zh-hant': 'zh',  # Traditional Chinese
+            'zh_CN': 'zh', 'zh_TW': 'zh', 'zh_HK': 'zh',  # Regional Chinese
+            'zh_MO': 'zh', 'zh_MY': 'zh', 'zh_SG': 'zh',
+
+            # Serbian script variants
+            'sr_Latn': 'sr', 'sr-latn': 'sr', 'sr@latin': 'sr',  # Serbian Latin
+
+            # Norwegian variants
+            'no': 'no',  # Norwegian (kept as-is)
+            'nb': 'nb',  # Norwegian Bokmål
+            'nn': 'nn',  # Norwegian Nynorsk
+
+            # Belarusian variant
+            'be@tarask': 'be',  # Belarusian Taraskievica
+        }
+
+        result = None
+
+        # Check Django special mapping first
+        if lang in django_special_mapping:
+            result = django_special_mapping[lang]
+        # Handle locale codes (e.g., fr_CA, en_US, pt_BR)
+        elif '_' in lang or '-' in lang:
+            base_lang = lang.split('_')[0] if '_' in lang else lang.split('-')[0]
+            result = POFileHandler.normalize_language_code(base_lang)
         # Try direct lookup for 2-letter codes
-        if len(lang) == 2:
+        elif len(lang) == 2:
             try:
-                return pycountry.languages.get(alpha_2=lang.lower()).alpha_2
+                result = pycountry.languages.get(alpha_2=lang.lower()).alpha_2
             except AttributeError:
-                pass
+                result = None
 
-        # Try by name
-        try:
-            return pycountry.languages.get(name=lang.title()).alpha_2
-        except AttributeError:
-            pass
+        # If still no result, try other methods
+        if not result:
+            # Try by name
+            try:
+                result = pycountry.languages.get(name=lang.title()).alpha_2
+            except AttributeError:
+                # Try by native name
+                for language in pycountry.languages:
+                    if hasattr(language, 'inverted_name') and language.inverted_name.lower() == lang.lower():
+                        result = language.alpha_2
+                        break
 
-        # Try by native name
-        for language in pycountry.languages:
-            if hasattr(language, 'inverted_name') and language.inverted_name.lower() == lang.lower():
-                return language.alpha_2
-
-        return None
+        return result
 
     @staticmethod
     def log_translation_status(po_file_path, original_texts, translations):
@@ -146,83 +282,11 @@ class POFileHandler:
 
             # Add AI-generated comment if enabled
             if mark_ai_generated:
-                ai_comment = "AI-generated"
-                if not entry.comment or ai_comment not in entry.comment:
-                    if entry.comment:
-                        entry.comment = f"{entry.comment}\n{ai_comment}"
-                    else:
-                        entry.comment = ai_comment
+                add_ai_generated_comment(entry)
 
             logging.debug("Updated translation for '%s' to '%s'", original_text, translated_text)
         else:
             logging.warning("Original text '%s' not found in the .po file.", original_text)
-
-    @staticmethod
-    def read_po_file(po_file_path):
-        """Reads a .po file and returns the PO file object.
-
-        Args:
-            po_file_path (str): Path to the .po file
-
-        Returns:
-            polib.POFile: The loaded PO file object
-        """
-        try:
-            return polib.pofile(po_file_path)
-        except Exception as e:
-            logging.error("Error reading .po file %s: %s", po_file_path, e)
-            return None
-
-    @staticmethod
-    def save_po_file(po_file, po_file_path):
-        """Saves changes to a .po file.
-
-        Args:
-            po_file (polib.POFile): The PO file object to save
-            po_file_path (str): Path where the file should be saved
-
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            po_file.save(po_file_path)
-            logging.info("Successfully saved translations to %s", po_file_path)
-            return True
-        except Exception as e:
-            logging.error("Error saving .po file %s: %s", po_file_path, e)
-            return False
-
-    @staticmethod
-    def get_untranslated_entries(po_file):
-        """Gets all untranslated entries from a PO file.
-
-        Args:
-            po_file (polib.POFile): The PO file object
-
-        Returns:
-            List[polib.POEntry]: List of untranslated entries
-        """
-        return [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]
-
-    @staticmethod
-    def extract_metadata(po_file):
-        """Extracts and returns metadata from a PO file.
-
-        Args:
-            po_file (polib.POFile): The PO file object
-
-        Returns:
-            dict: Dictionary containing metadata
-        """
-        metadata = {}
-        if po_file.metadata:
-            metadata = {
-                'language': po_file.metadata.get('Language', ''),
-                'project': po_file.metadata.get('Project-Id-Version', ''),
-                'last_translator': po_file.metadata.get('Last-Translator', ''),
-                'language_team': po_file.metadata.get('Language-Team', '')
-            }
-        return metadata
 
     @staticmethod
     def get_ai_generated_entries(po_file):

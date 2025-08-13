@@ -325,7 +325,7 @@ msgstr ""
             f.write(po_content)
 
         # Mock methods to avoid actual API calls
-        translation_service_openai.translate_bulk = MagicMock(return_value=["Bonjour", "Monde"])
+        translation_service_openai.perform_translation = MagicMock(return_value=["Bonjour", "Monde"])
 
         # Create a real POFileHandler for this test
         original_handler = translation_service_openai.po_file_handler
@@ -340,7 +340,7 @@ msgstr ""
                 f.read()
 
             # Should detect fr directory and process the file
-            assert translation_service_openai.translate_bulk.call_count >= 1
+            assert translation_service_openai.perform_translation.call_count >= 1
 
         finally:
             # Restore original handler
@@ -377,8 +377,8 @@ msgstr ""
     # Mock get_file_language to return French
     translation_service_openai.po_file_handler.get_file_language = MagicMock(return_value="fr")
 
-    # Create a custom mock for translate_bulk that captures both args and kwargs
-    original_translate_bulk = translation_service_openai.translate_bulk
+    # Create a custom mock for perform_translation that captures both args and kwargs
+    original_perform_translation = translation_service_openai.perform_translation
 
     # Create entries for the mock PO file
     with patch('polib.pofile') as mock_pofile:
@@ -387,6 +387,8 @@ msgstr ""
             entry = MagicMock()
             entry.msgid = text
             entry.msgstr = ""
+            # Add msgstr_plural attribute to indicate this is NOT a plural entry
+            entry.msgstr_plural = None
             mock_entries.append(entry)
 
         mock_po = MagicMock()
@@ -397,16 +399,16 @@ msgstr ""
         # Mock get_translations to directly call translate_bulk (our real focus)
         translation_service_openai.get_translations
 
-        # Create a function that will track the calls to translate_bulk
+        # Create a function that will track the calls to perform_translation
         detail_language_was_passed = [False]  # Use a list to make it mutable in the nested function
 
-        def mock_translate_bulk(texts, target_language, po_file_path, detail_language=None):
+        def mock_perform_translation(texts, target_language, is_bulk=False, detail_language=None):
             if detail_language == "French":
                 detail_language_was_passed[0] = True
             return ["Bonjour", "Merci"]
 
         # Replace the method
-        translation_service_openai.translate_bulk = mock_translate_bulk
+        translation_service_openai.perform_translation = mock_perform_translation
 
         try:
             # Create detail language mapping
@@ -416,11 +418,11 @@ msgstr ""
             translation_service_openai.process_po_file(temp_path, ["fr"], detail_langs_dict)
 
             # Check if our flag was set
-            assert detail_language_was_passed[0], "Detail language 'French' was not passed to translate_bulk"
+            assert detail_language_was_passed[0], "Detail language 'French' was not passed to perform_translation"
 
         finally:
             # Restore original methods
-            translation_service_openai.translate_bulk = original_translate_bulk
+            translation_service_openai.perform_translation = original_perform_translation
 
             # Clean up
             os.unlink(temp_path)
@@ -461,8 +463,8 @@ def test_real_po_file_with_multiple_providers(
             (translation_service_anthropic, anthropic_path, ["Oui", "Non"]),
             (translation_service_deepseek, deepseek_path, ["Oui", "Non"])
         ]:
-            # Mock translate_bulk
-            service.translate_bulk = MagicMock(return_value=translation)
+            # Mock perform_translation
+            service.perform_translation = MagicMock(return_value=translation)
 
             # Mock get_file_language
             service.po_file_handler.get_file_language = MagicMock(return_value="fr")
@@ -475,6 +477,8 @@ def test_real_po_file_with_multiple_providers(
                     entry = MagicMock()
                     entry.msgid = text
                     entry.msgstr = trans
+                    # Add msgstr_plural attribute to indicate this is NOT a plural entry
+                    entry.msgstr_plural = None
                     mock_entries.append(entry)
 
                 mock_po = MagicMock()
@@ -486,7 +490,7 @@ def test_real_po_file_with_multiple_providers(
                 service.process_po_file(path, ["fr"])
 
                 # Check translations were processed
-                assert service.translate_bulk.called
+                assert service.perform_translation.called
 
 
 @pytest.mark.integration

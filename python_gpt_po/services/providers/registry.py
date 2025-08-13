@@ -13,6 +13,7 @@ class ProviderRegistry:
 
     _providers: Dict[ModelProvider, Type[ModelProviderInterface]] = {}
     _instances: Dict[ModelProvider, ModelProviderInterface] = {}
+    _initialized: bool = False
 
     @classmethod
     def register(cls, provider: ModelProvider, provider_class: Type[ModelProviderInterface]) -> None:
@@ -26,6 +27,15 @@ class ProviderRegistry:
         logging.debug("Registered provider: %s", provider.value)
 
     @classmethod
+    def _ensure_initialized(cls):
+        """Ensure providers are initialized."""
+        if not cls._initialized:
+            # Import here to avoid circular imports
+            from .provider_init import initialize_providers
+            initialize_providers()
+            cls._initialized = True
+
+    @classmethod
     def get_provider(cls, provider: ModelProvider) -> Optional[ModelProviderInterface]:
         """Get a provider instance.
 
@@ -35,6 +45,7 @@ class ProviderRegistry:
         Returns:
             Provider instance or None if not registered
         """
+        cls._ensure_initialized()
         if provider not in cls._instances:
             provider_class = cls._providers.get(provider)
             if provider_class:
