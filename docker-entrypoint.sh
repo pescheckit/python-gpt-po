@@ -14,6 +14,12 @@ if [ $# -eq 0 ]; then
   echo "  Format: -v /host/path:/container/path"
   echo "  The '/container/path' is what you'll use with the --folder parameter."
   echo
+  echo "Configuration:"
+  echo "  The tool automatically loads configuration from pyproject.toml files found in:"
+  echo "  • Mounted volume directories"
+  echo "  • The target translation folder and its parent directories"
+  echo "  See examples/docker-pyproject.toml for Docker-optimized configuration."
+  echo
   echo "Examples:"
   echo "  # Translate files in the current directory to German"
   echo "  docker run -v $(pwd):/data -e OPENAI_API_KEY=<your_key> ghcr.io/pescheckit/python-gpt-po --folder /data --lang de"

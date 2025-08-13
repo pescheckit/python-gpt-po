@@ -32,6 +32,7 @@ dependencies = [
     "requests==2.32.3",
     "responses==0.25.6",
     "isort==6.0.1",
+    "tomli>=1.2.0; python_version<'3.11'",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -57,8 +58,86 @@ classifiers = [
 [project.scripts]
 gpt-po-translator = "python_gpt_po.main:main"
 
-[tool.flake8]
-max-line-length = 120
-
 [tool.isort]
 line_length = 120
+
+[tool.gpt-po-translator]
+# Configuration for gpt-po-translator
+
+# ===== FILE SCANNING =====
+# Whether to respect .gitignore files (enabled by default)
+respect_gitignore = true
+
+# Additional patterns to ignore (beyond .gitignore)
+ignore_patterns = [
+    "*.pyc",
+    "__pycache__/",
+    "*.egg-info/",
+    ".pytest_cache/",
+    ".coverage",
+    ".tox/",
+    ".mypy_cache/",
+    "htmlcov/",
+]
+
+# Default patterns that are always ignored (can be overridden by setting to empty list)
+default_ignore_patterns = [
+    ".git/",
+    ".venv/",
+    "venv/",
+    "env/",
+    ".env/",
+    "node_modules/",
+    ".cache/",
+    "build/",
+    "dist/",
+    "*.egg-info/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".tox/",
+    ".mypy_cache/",
+]
+
+# ===== TRANSLATION BEHAVIOR =====
+# Default verbosity level (0=WARNING, 1=INFO, 2=DEBUG)
+default_verbosity = 1
+
+# Default batch size for bulk mode
+default_batch_size = 50
+
+# Enable bulk mode by default
+default_bulk_mode = false
+
+# Whether to mark AI-generated translations with comments by default
+mark_ai_generated = true
+
+# Whether to use folder-based language detection by default
+folder_language_detection = false
+
+# Whether to fix fuzzy entries by default
+fix_fuzzy_entries = false
+
+# ===== PROVIDER DEFAULTS =====
+# Default provider to use if multiple API keys are available
+# Options: "openai", "anthropic", "groq", "together", "xai"
+# default_provider = "openai"
+
+# Default models for each provider (will be used if no model is specified)
+default_models = { openai = "gpt-4o-mini", anthropic = "claude-3-5-sonnet-20241022" }
+
+# ===== PERFORMANCE =====
+# Maximum retries for failed translations
+max_retries = 3
+
+# Timeout for API requests (seconds)
+request_timeout = 120
+
+# ===== OUTPUT =====
+# Skip files that are already fully translated
+skip_translated_files = true
+
+# Show progress indicators during translation
+show_progress = true
+
+# Show detailed summary at the end
+show_summary = true

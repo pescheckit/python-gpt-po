@@ -104,7 +104,7 @@ Below is a detailed explanation of all command-line arguments:
   *Behind the scenes:* The tool recursively scans this folder and processes every file ending with `.po`.
 
 - **`--lang <language_codes>`**  
-  *Description:* A comma-separated list of ISO 639-1 language codes (e.g., `de,fr`).  
+  *Description:* A comma-separated list of ISO 639-1 language codes (e.g., `de,fr`) or locale codes (e.g., `fr_CA,pt_BR`).  
   *Behind the scenes:* The tool filters PO files by comparing these codes with the file metadata and folder names (if `--folder-language` is enabled).
 
 ### Optional Options
@@ -173,12 +173,205 @@ Below is a detailed explanation of all command-line arguments:
 
 - **`--folder-language`**  
   *Description:* Enables inferring the target language from the folder structure.  
-  *Behind the scenes:* The tool inspects the path components (directory names) of each PO file and matches them against the provided language codes.
+  *Behind the scenes:* The tool inspects the path components (directory names) of each PO file and matches them against the provided language codes. Supports locale codes (e.g., folder `fr_CA` matches `-l fr_CA` for Canadian French, or falls back to `-l fr` for standard French).
 
 - **`--no-ai-comment`**  
   *Description:* Disables the automatic addition of 'AI-generated' comments to translated entries.  
   *Behind the scenes:* **By default (without this flag), every translation made by the AI is marked with a `#. AI-generated` comment in the PO file.** This flag prevents that marking, making AI translations indistinguishable from human translations in the file.  
   *Note:* AI tagging is enabled by default for tracking, compliance, and quality assurance purposes.
+
+- **`-v, --verbose`**  
+  *Description:* Increases output verbosity. Can be used multiple times for more detail.  
+  *Behind the scenes:* Controls the logging level:
+    - No flag: Shows only warnings and errors (default)
+    - `-v`: Shows info messages including progress tracking  
+    - `-vv`: Shows debug messages for troubleshooting
+  *Note:* Progress tracking shows translation progress for both single and bulk modes.
+
+- **`-q, --quiet`**  
+  *Description:* Reduces output to only show errors.  
+  *Behind the scenes:* Sets logging level to ERROR, suppressing all info and warning messages.
+
+- **`--version`**  
+  *Description:* Shows the program version and exits.  
+  *Behind the scenes:* Displays the current version from package metadata.
+
+---
+
+## Locale and Regional Variant Handling
+
+### Overview
+
+The tool now fully supports locale codes (e.g., `fr_CA`, `pt_BR`, `en_US`) in addition to simple language codes. This allows you to translate content for specific regional variants of a language.
+
+### How Locale Matching Works
+
+The tool uses a smart matching system that:
+1. **First tries exact match**: `fr_CA` matches `fr_CA`
+2. **Then tries format conversion**: `fr_CA` matches `fr-CA` (underscore ↔ hyphen)
+3. **Finally tries base language fallback**: `fr_CA` matches `fr`
+
+### Language Detection Priority
+
+When a PO file is processed, the language is determined in this order:
+1. **File metadata**: The `Language` field in the PO file header
+2. **Folder structure** (with `--folder-language`): Directory names in the file path
+
+### Examples
+
+**Working with Canadian French:**
+```bash
+# Translate specifically to Canadian French
+gpt-po-translator --folder ./locales --lang fr_CA
+
+# With detailed language name for better AI context
+gpt-po-translator --folder ./locales --lang fr_CA --detail-lang "Canadian French"
+
+# Process files in fr_CA folders
+gpt-po-translator --folder ./locales --lang fr_CA --folder-language
+```
+
+**Working with Brazilian Portuguese:**
+```bash
+# Translate to Brazilian Portuguese (different vocabulary from European Portuguese)
+gpt-po-translator --folder ./locales --lang pt_BR --detail-lang "Brazilian Portuguese"
+
+# Fall back to European Portuguese
+gpt-po-translator --folder ./locales --lang pt
+```
+
+### What the AI Sees
+
+The language code or detail name is passed directly to the AI in the translation prompt:
+
+| Command | AI Sees in Prompt |
+|---------|-------------------|
+| `-l fr` | "Translate to fr" |
+| `-l fr_CA` | "Translate to fr_CA" |
+| `-l fr_CA --detail-lang "Canadian French"` | "Translate to Canadian French" |
+| `-l pt_BR --detail-lang "Brazilian Portuguese"` | "Translate to Brazilian Portuguese" |
+
+### Folder Language Behavior
+
+With `--folder-language`, the tool matches folder names against your `-l` parameter:
+
+| Folder | `-l` Parameter | Result |
+|--------|----------------|--------|
+| `locales/fr_CA/` | `fr_CA` | Translates to Canadian French |
+| `locales/fr_CA/` | `fr` | Translates to standard French (fallback) |
+| `locales/pt_BR/` | `pt_BR` | Translates to Brazilian Portuguese |
+| `locales/pt_BR/` | `pt` | Translates to European Portuguese (fallback) |
+
+### Best Practices
+
+1. **For regional variants**, always use the full locale code:
+   ```bash
+   gpt-po-translator --folder ./locales --lang fr_CA,pt_BR,en_US
+   ```
+
+2. **Add detail names** for better AI understanding:
+   ```bash
+   gpt-po-translator --folder ./locales --lang fr_CA,pt_BR \
+                     --detail-lang "Canadian French,Brazilian Portuguese"
+   ```
+
+3. **Use folder detection** for projects with locale-based directory structure:
+   ```bash
+   # Processes files in locales/fr_CA/, locales/pt_BR/, etc.
+   gpt-po-translator --folder ./locales --lang fr_CA,pt_BR --folder-language
+   ```
+
+---
+
+## Performance and Progress Tracking
+
+### Overview
+
+The tool provides intelligent performance warnings and progress tracking to help you manage large translation tasks efficiently.
+
+### Performance Modes
+
+1. **Single Mode (Default)**: Makes one API call per translation
+   - Better for small files (< 30 entries)
+   - More accurate for context-sensitive translations
+   - Shows progress for each entry with `-v` flag
+
+2. **Bulk Mode (`--bulk`)**: Batches multiple translations per API call
+   - Recommended for large files (> 30 entries)
+   - Significantly faster (up to 10x for large files)
+   - Shows progress per batch with `-v` flag
+
+### Automatic Performance Warnings
+
+When processing files with more than 30 entries in single mode, the tool will:
+1. Display a performance warning with time estimates
+2. Recommend switching to bulk mode
+3. For very large files (>100 entries), provide a 10-second countdown to cancel
+
+Example warning:
+```
+2024-01-15 10:30:45 - WARNING - PERFORMANCE WARNING
+2024-01-15 10:30:45 - WARNING -   Current mode: SINGLE (1 API call per translation)
+2024-01-15 10:30:45 - WARNING -   This will make 548 separate API calls
+2024-01-15 10:30:45 - WARNING -   Estimated time: ~14 minutes
+2024-01-15 10:30:45 - WARNING -   
+2024-01-15 10:30:45 - WARNING -   Recommendation: Use BULK mode for faster processing
+2024-01-15 10:30:45 - WARNING -     Command: add --bulk --bulksize 50
+2024-01-15 10:30:45 - WARNING -     Estimated time with bulk: ~2 minutes
+2024-01-15 10:30:45 - WARNING -     Speed improvement: 7x faster
+```
+
+### Progress Tracking
+
+Enable progress tracking with the `-v` flag:
+
+```bash
+# See progress for each file and translation
+gpt-po-translator --folder ./locales --lang fr -v
+
+# Output includes:
+# - File processing status
+# - Translation progress (X/Y entries)
+# - Percentage completion
+# - Batch progress (in bulk mode)
+```
+
+Example progress output:
+```
+2024-01-15 10:31:00 - INFO - Processing: ./locales/fr/messages.po (45 entries)
+2024-01-15 10:31:01 - INFO - [SINGLE 1/45] Translating entry...
+2024-01-15 10:31:02 - INFO - [SINGLE 2/45] Translating entry...
+2024-01-15 10:31:10 - INFO - Progress: 10/45 entries completed (22.2%)
+```
+
+### Verbosity Levels
+
+Control output detail with verbosity flags:
+
+| Flag | Level | Shows |
+|------|-------|-------|
+| (default) | WARNING | Performance warnings, errors |
+| `-v` | INFO | Progress tracking, status updates |
+| `-vv` | DEBUG | Detailed API calls, responses |
+| `-q` | ERROR | Only critical errors |
+
+### Best Practices for Large Files
+
+1. **Always use bulk mode for files > 100 entries**:
+   ```bash
+   gpt-po-translator --folder ./locales --lang fr --bulk --bulksize 50 -v
+   ```
+
+2. **Adjust batch size based on content**:
+   - Short entries (1-5 words): `--bulksize 100`
+   - Medium entries (sentences): `--bulksize 50` (default)
+   - Long entries (paragraphs): `--bulksize 20`
+
+3. **Monitor progress for long-running tasks**:
+   ```bash
+   # Run with progress tracking
+   gpt-po-translator --folder ./large-project --lang de,fr,es --bulk -v
+   ```
 
 ---
 

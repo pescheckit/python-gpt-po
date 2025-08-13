@@ -14,6 +14,7 @@ def mock_provider_clients() -> ProviderClients:
     clients.anthropic_client.api_key = "sk-ant-mock-key"
     return clients
 
+
 def test_translate(mock_provider_clients: ProviderClients) -> None:
     """Test bulk translation with Anthropic."""
     # Setup mock response
