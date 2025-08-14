@@ -103,11 +103,11 @@ Below is a detailed explanation of all command-line arguments:
   *Description:* Specifies the input folder containing one or more `.po` files to be processed.  
   *Behind the scenes:* The tool recursively scans this folder and processes every file ending with `.po`.
 
-- **`--lang <language_codes>`**  
-  *Description:* A comma-separated list of ISO 639-1 language codes (e.g., `de,fr`) or locale codes (e.g., `fr_CA,pt_BR`).  
-  *Behind the scenes:* The tool filters PO files by comparing these codes with the file metadata and folder names (if `--folder-language` is enabled).
-
 ### Optional Options
+
+- **`--lang <language_codes>`** *(Optional)*  
+  *Description:* A comma-separated list of ISO 639-1 language codes (e.g., `de,fr`) or locale codes (e.g., `fr_CA,pt_BR`). **If not provided, the tool will auto-detect languages from PO file metadata or folder structure.**  
+  *Behind the scenes:* The tool filters PO files by comparing these codes with the file metadata and folder names (if `--folder-language` is enabled). When omitted, it scans all PO files to extract language information automatically.
 
 - **`--detail-lang <language_names>`**  
   *Description:* A comma-separated list of full language names (e.g., `"German,French"`) that correspond to the codes provided with `--lang`.  

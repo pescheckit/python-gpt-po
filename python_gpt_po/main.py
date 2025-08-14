@@ -19,7 +19,7 @@ from .services.language_detector import LanguageDetector
 from .services.model_manager import ModelManager
 from .services.translation_service import TranslationService
 from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args, parse_args,
-                        parse_languages, show_help_and_exit, validate_provider_key)
+                        show_help_and_exit, validate_provider_key)
 
 
 def setup_logging(verbose: int = 0, quiet: bool = False):
@@ -195,18 +195,13 @@ def main():
 
         # Get languages - either from args or auto-detect from PO files
         try:
-            if args.lang:
-                languages = parse_languages(args.lang)
-                logging.info("Using specified languages: %s", ', '.join(languages))
-            else:
-                respect_gitignore = not args.no_gitignore  # Invert the flag
-                languages = LanguageDetector.detect_languages_from_folder(
-                    args.folder,
-                    use_folder_structure=args.folder_language,
-                    respect_gitignore=respect_gitignore
-                )
-                detection_method = "folder structure" if args.folder_language else "metadata"
-                logging.info("Auto-detected languages from %s: %s", detection_method, ', '.join(languages))
+            respect_gitignore = not args.no_gitignore  # Invert the flag
+            languages = LanguageDetector.validate_or_detect_languages(
+                folder=args.folder,
+                lang_arg=args.lang,
+                use_folder_structure=args.folder_language,
+                respect_gitignore=respect_gitignore
+            )
         except ValueError as e:
             logging.error(str(e))
             sys.exit(1)
