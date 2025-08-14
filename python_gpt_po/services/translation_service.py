@@ -428,7 +428,10 @@ class TranslationService:
         """Show final results summary after processing."""
         logging.info("")
         logging.info("=" * 70)
-        logging.info("TRANSLATION RESULTS")
+        if self.config.flags.fix_fuzzy:
+            logging.info("FUZZY FIX RESULTS")
+        else:
+            logging.info("TRANSLATION RESULTS")
         logging.info("=" * 70)
 
         logging.info("PROCESSING SUMMARY:")
@@ -437,8 +440,12 @@ class TranslationService:
         logging.info("  Total files handled: %d", stats.files.processed + stats.files.skipped)
 
         logging.info("")
-        logging.info("TRANSLATION RESULTS:")
-        logging.info("  Entries successfully translated: %d", stats.entries.translated)
+        if self.config.flags.fix_fuzzy:
+            logging.info("FUZZY FIX RESULTS:")
+            logging.info("  Fuzzy entries fixed: %d", stats.entries.translated)
+        else:
+            logging.info("TRANSLATION RESULTS:")
+            logging.info("  Entries successfully translated: %d", stats.entries.translated)
         if stats.entries.failed > 0:
             logging.info("  Entries failed/skipped: %d", stats.entries.failed)
 
@@ -563,7 +570,11 @@ class TranslationService:
         stats.translated_in_file = stats.total_in_file - stats.untranslated
         # Also count fuzzy entries when fix_fuzzy is enabled
         if self.config.flags.fix_fuzzy:
+            # Count all fuzzy entries
             stats.fuzzy = len([e for e in po_file if 'fuzzy' in e.flags])
+            # Also count header if it's fuzzy
+            if hasattr(po_file, 'metadata_is_fuzzy') and po_file.metadata_is_fuzzy:
+                stats.fuzzy += 1
         else:
             stats.fuzzy = 0
         return stats
@@ -588,13 +599,19 @@ class TranslationService:
                     results.total_translated_in_all_files += stats.translated_in_file
 
                     # Include files with fuzzy entries when fix_fuzzy is enabled
-                    needs_processing = stats.untranslated > 0 or (self.config.flags.fix_fuzzy and stats.fuzzy > 0)
+                    if self.config.flags.fix_fuzzy:
+                        # In fix-fuzzy mode, only process files with fuzzy entries
+                        needs_processing = stats.fuzzy > 0
+                        entries_to_process = stats.fuzzy
+                    else:
+                        # In normal mode, process files with untranslated entries
+                        needs_processing = stats.untranslated > 0
+                        entries_to_process = stats.untranslated
 
                     if needs_processing:
-                        entries_to_process = stats.untranslated if not self.config.flags.fix_fuzzy else stats.fuzzy
                         results.files_to_process.append((po_file_path, po_file_result, entries_to_process))
                         results.total_entries += entries_to_process
-                        if self.config.flags.fix_fuzzy and stats.fuzzy > 0:
+                        if self.config.flags.fix_fuzzy:
                             logging.debug("File %s: %d fuzzy entries to fix", po_file_path, stats.fuzzy)
                         else:
                             logging.debug("File %s: %d/%d entries need translation",
@@ -611,7 +628,15 @@ class TranslationService:
         """Track translation progress for a single file."""
         try:
             po_file = polib.pofile(po_file_path)
-            remaining = len([e for e in po_file if is_entry_untranslated(e)])
+            if self.config.flags.fix_fuzzy:
+                # In fix-fuzzy mode, count remaining fuzzy entries
+                remaining = len([e for e in po_file if 'fuzzy' in e.flags])
+                # Also check if header is still fuzzy
+                if hasattr(po_file, 'metadata_is_fuzzy') and po_file.metadata_is_fuzzy:
+                    remaining += 1
+            else:
+                # In normal mode, count untranslated entries
+                remaining = len([e for e in po_file if is_entry_untranslated(e)])
             return initial_count - remaining, remaining
         except Exception:
             return initial_count, 0
@@ -944,25 +969,32 @@ class TranslationService:
         detail_language: Optional[str] = None,
     ):
         """Find and fix fuzzy entries in a PO file using AI translation."""
-        fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
+        # Check if the metadata/header is fuzzy
+        header_was_fuzzy = False
+        if hasattr(po_file, 'metadata_is_fuzzy') and po_file.metadata_is_fuzzy:
+            header_was_fuzzy = True
+            po_file.metadata_is_fuzzy = False
+            logging.info("Removed fuzzy flag from file header in %s", po_file_path)
 
-        if not fuzzy_entries:
+        # Find all fuzzy entries
+        fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
+        if not fuzzy_entries and not header_was_fuzzy:
             logging.info("No fuzzy entries found in %s", po_file_path)
             return
+        if fuzzy_entries:
+            logging.info("Found %d fuzzy entries to fix in %s", len(fuzzy_entries), po_file_path)
 
-        logging.info("Found %d fuzzy entries to fix in %s", len(fuzzy_entries), po_file_path)
+            texts_to_translate = [entry.msgid for entry in fuzzy_entries]
+            translations = self.get_translations(texts_to_translate, target_language, po_file_path, detail_language)
 
-        texts_to_translate = [entry.msgid for entry in fuzzy_entries]
-        translations = self.get_translations(texts_to_translate, target_language, po_file_path, detail_language)
+            self._update_fuzzy_po_entries(po_file, translations, entries_to_update=fuzzy_entries)
 
-        self._update_fuzzy_po_entries(po_file, translations, entries_to_update=fuzzy_entries)
-
-        po_file.save(po_file_path)
-
-        self.po_file_handler.log_translation_status(
-            po_file_path,
-            texts_to_translate,
-            [entry.msgstr for entry in fuzzy_entries]
-        )
-
-        logging.info("Fuzzy fix completed for %s", po_file_path)
+            self.po_file_handler.log_translation_status(
+                po_file_path,
+                texts_to_translate,
+                [entry.msgstr for entry in fuzzy_entries]
+            )
+        # Save the file if any changes were made (header fuzzy removal or entry translations)
+        if header_was_fuzzy or fuzzy_entries:
+            po_file.save(po_file_path)
+            logging.info("Fuzzy fix completed for %s", po_file_path)
