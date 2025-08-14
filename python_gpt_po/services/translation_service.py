@@ -89,6 +89,7 @@ class FileStats:
     total_in_file: int = 0
     untranslated: int = 0
     translated_in_file: int = 0
+    fuzzy: int = 0
 
 
 class TranslationService:
@@ -515,7 +516,10 @@ class TranslationService:
     def _show_translation_summary(self, scan_results, languages):
         """Show summary of files to translate."""
         logging.info("=" * 70)
-        logging.info("TRANSLATION OVERVIEW")
+        if self.config.flags.fix_fuzzy:
+            logging.info("FUZZY FIX OVERVIEW")
+        else:
+            logging.info("TRANSLATION OVERVIEW")
         logging.info("=" * 70)
         logging.info("SCAN RESULTS:")
         logging.info("  Total PO files found: %d", scan_results['files_scanned'])
@@ -523,14 +527,23 @@ class TranslationService:
         logging.info("  Files matching languages: %d", files_matched)
         logging.info("  Files with language mismatch: %d", scan_results['language_mismatch_files'])
         logging.info("")
-        logging.info("TRANSLATION STATUS:")
-        logging.info("  Files needing translation: %d", len(scan_results['files_to_process']))
-        logging.info("  Files already fully translated: %d", len(scan_results['skipped_files']))
-        logging.info("")
-        logging.info("ENTRY STATISTICS:")
-        logging.info("  Total entries in all files: %d", scan_results['total_entries_in_all_files'])
-        logging.info("  Already translated entries: %d", scan_results['total_translated_in_all_files'])
-        logging.info("  Entries to translate: %d", scan_results['total_entries'])
+        if self.config.flags.fix_fuzzy:
+            logging.info("FUZZY STATUS:")
+            logging.info("  Files with fuzzy entries: %d", len(scan_results['files_to_process']))
+            logging.info("  Files without fuzzy entries: %d", len(scan_results['skipped_files']))
+            logging.info("")
+            logging.info("ENTRY STATISTICS:")
+            logging.info("  Total entries in all files: %d", scan_results['total_entries_in_all_files'])
+            logging.info("  Fuzzy entries to fix: %d", scan_results['total_entries'])
+        else:
+            logging.info("TRANSLATION STATUS:")
+            logging.info("  Files needing translation: %d", len(scan_results['files_to_process']))
+            logging.info("  Files already fully translated: %d", len(scan_results['skipped_files']))
+            logging.info("")
+            logging.info("ENTRY STATISTICS:")
+            logging.info("  Total entries in all files: %d", scan_results['total_entries_in_all_files'])
+            logging.info("  Already translated entries: %d", scan_results['total_translated_in_all_files'])
+            logging.info("  Entries to translate: %d", scan_results['total_entries'])
 
         if scan_results['total_entries_in_all_files'] > 0:
             completion_percent = (
@@ -548,6 +561,11 @@ class TranslationService:
         stats.total_in_file = len([e for e in po_file if e.msgid])
         stats.untranslated = len([e for e in po_file if is_entry_untranslated(e)])
         stats.translated_in_file = stats.total_in_file - stats.untranslated
+        # Also count fuzzy entries when fix_fuzzy is enabled
+        if self.config.flags.fix_fuzzy:
+            stats.fuzzy = len([e for e in po_file if 'fuzzy' in e.flags])
+        else:
+            stats.fuzzy = 0
         return stats
 
     def _scan_po_files(self, input_folder: str, languages: List[str], gitignore_parser):
@@ -569,11 +587,18 @@ class TranslationService:
                     results.total_entries_in_all_files += stats.total_in_file
                     results.total_translated_in_all_files += stats.translated_in_file
 
-                    if stats.untranslated > 0:
-                        results.files_to_process.append((po_file_path, po_file_result, stats.untranslated))
-                        results.total_entries += stats.untranslated
-                        logging.debug("File %s: %d/%d entries need translation",
-                                      po_file_path, stats.untranslated, stats.total_in_file)
+                    # Include files with fuzzy entries when fix_fuzzy is enabled
+                    needs_processing = stats.untranslated > 0 or (self.config.flags.fix_fuzzy and stats.fuzzy > 0)
+
+                    if needs_processing:
+                        entries_to_process = stats.untranslated if not self.config.flags.fix_fuzzy else stats.fuzzy
+                        results.files_to_process.append((po_file_path, po_file_result, entries_to_process))
+                        results.total_entries += entries_to_process
+                        if self.config.flags.fix_fuzzy and stats.fuzzy > 0:
+                            logging.debug("File %s: %d fuzzy entries to fix", po_file_path, stats.fuzzy)
+                        else:
+                            logging.debug("File %s: %d/%d entries need translation",
+                                          po_file_path, stats.untranslated, stats.total_in_file)
                     else:
                         results.skipped_files.append(po_file_path)
                         logging.debug("Skipping fully translated file: %s", po_file_path)
