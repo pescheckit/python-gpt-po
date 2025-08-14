@@ -15,8 +15,8 @@ pip install gpt-po-translator
 # Set API key
 export OPENAI_API_KEY='your_api_key_here'
 
-# Translate to German and French
-gpt-po-translator --folder ./locales --lang de,fr --bulk
+# Auto-detect and translate all languages
+gpt-po-translator --folder ./locales --bulk
 ```
 
 ## ✨ Key Features
@@ -73,26 +73,26 @@ export AZURE_OPENAI_API_VERSION='2024-02-01'
 
 ### Basic Translation
 ```bash
-# Translate to German (default: shows warnings/errors only)
-gpt-po-translator --folder ./locales --lang de
+# Auto-detect languages from PO files (recommended)
+gpt-po-translator --folder ./locales --bulk -v
 
-# With progress information
+# Or specify languages explicitly
+gpt-po-translator --folder ./locales --lang de,fr,es --bulk -v
+
+# Single language with progress information
 gpt-po-translator --folder ./locales --lang de -v
-
-# Multiple languages with verbose output
-gpt-po-translator --folder ./locales --lang de,fr,es -v --bulk
 ```
 
 ### Different AI Providers
 ```bash
-# Use Claude (Anthropic)
-gpt-po-translator --provider anthropic --folder ./locales --lang de
+# Use Claude (Anthropic) - auto-detect languages
+gpt-po-translator --provider anthropic --folder ./locales --bulk
 
-# Use DeepSeek
+# Use DeepSeek with specific languages
 gpt-po-translator --provider deepseek --folder ./locales --lang de
 
-# Use Azure OpenAI
-gpt-po-translator --provider azure_openai --folder ./locales --lang de
+# Use Azure OpenAI with auto-detection
+gpt-po-translator --provider azure_openai --folder ./locales --bulk
 ```
 
 ### Docker Usage
@@ -101,7 +101,7 @@ gpt-po-translator --provider azure_openai --folder ./locales --lang de
 docker run -v $(pwd):/data \
   -e OPENAI_API_KEY="your_key" \
   ghcr.io/pescheckit/python-gpt-po:latest \
-  --folder /data --lang de,fr --bulk
+  --folder /data --bulk
 
 # With Azure OpenAI
 docker run -v $(pwd):/data \

@@ -46,7 +46,10 @@ def parse_args() -> Namespace:
         description="Translate .po files using AI language models",
         epilog="""
 Examples:
-  # Basic usage with OpenAI
+  # Auto-detect languages from PO files (recommended)
+  gpt-po-translator --folder ./locales --bulk
+
+  # Specify languages explicitly
   gpt-po-translator --folder ./locales --lang fr,es,de
 
   # Use Anthropic with detailed language names
@@ -54,9 +57,6 @@ Examples:
 
   # List available models for a provider (no need for --folder or --lang)
   gpt-po-translator --provider deepseek --list-models
-
-  # Process multiple translations in bulk with a specific model
-  gpt-po-translator --folder ./locales --lang ja,ko --bulk --model gpt-4
 """,
         formatter_class=lambda prog: RawDescriptionHelpFormatter(prog, max_help_position=35, width=100)
     )
@@ -76,15 +76,14 @@ Examples:
         metavar="FOLDER",
         help="Input folder containing .po files"
     )
-    required_group.add_argument(
+
+    # Language options
+    language_group.add_argument(
         "-l", "--lang",
-        required=False,  # Now optional - will auto-detect from PO files if not provided
         metavar="LANG",
         help=("Comma-separated language codes to translate (e.g., fr,es,de or locale codes like fr_CA,pt_BR,en-US). "
               "If not provided, will auto-detect from PO files")
     )
-
-    # Language options
     language_group.add_argument(
         "--detail-lang",
         metavar="NAMES",
