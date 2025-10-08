@@ -290,6 +290,77 @@ class TranslationService:
             return ""
         return provider_instance.translate(self.config.provider_clients, self.config.model, content)
 
+    @staticmethod
+    def _fix_json_quotes(json_text: str) -> str:
+        """Fix non-standard quotes in JSON response.
+
+        Args:
+            json_text: JSON text with potentially non-standard quotes
+
+        Returns:
+            JSON text with normalized quotes
+        """
+        quote_fixes = [
+            ('"', '"'),   # Left double quotation mark
+            ('"', '"'),   # Right double quotation mark
+            ('„', '"'),   # Double low-9 quotation mark (Lithuanian, German)
+            ('"', '"'),   # Left double quotation mark (alternative)
+            (''', "'"),   # Left single quotation mark
+            (''', "'"),   # Right single quotation mark
+            ('‚', "'"),   # Single low-9 quotation mark
+            ('«', '"'),   # Left-pointing double angle quotation mark
+            ('»', '"'),   # Right-pointing double angle quotation mark
+            ('‹', "'"),   # Left-pointing single angle quotation mark
+            ('›', "'"),   # Right-pointing single angle quotation mark
+        ]
+
+        fixed_text = json_text
+        for old_quote, new_quote in quote_fixes:
+            fixed_text = fixed_text.replace(old_quote, new_quote)
+
+        # Apply regex fix to handle quotes inside strings
+        fixed_text = re.sub(
+            r'"([^"\\]*(\\.[^"\\]*)*)"',
+            lambda m: f'"{m.group(1).replace(chr(92) + chr(34), chr(34))}"',
+            fixed_text
+        )
+        return fixed_text
+
+    def _extract_translations_from_malformed_json(
+            self,
+            json_text: str,
+            expected_count: int) -> List[str]:
+        """Extract translations from malformed JSON as a fallback.
+
+        Args:
+            json_text: Malformed JSON text
+            expected_count: Expected number of translations
+
+        Returns:
+            List of extracted translations
+
+        Raises:
+            ValueError: If extraction fails or count mismatch
+        """
+        if '[' not in json_text or ']' not in json_text:
+            raise ValueError("No array structure found in malformed JSON")
+
+        # Extract content between first [ and last ]
+        start_idx = json_text.find('[')
+        end_idx = json_text.rfind(']') + 1
+        array_content = json_text[start_idx:end_idx]
+
+        # Try to extract quoted strings
+        matches = re.findall(r'"([^"]*(?:\\.[^"]*)*)"', array_content)
+        if not matches or len(matches) != expected_count:
+            raise ValueError(
+                f"Could not extract expected number of translations "
+                f"(expected {expected_count}, got {len(matches) if matches else 0})"
+            )
+
+        # Unescape the extracted strings
+        return [match.replace('\\"', '"').replace("\\'", "'") for match in matches]
+
     def _process_bulk_response(
             self,
             response_text: str,
@@ -307,7 +378,6 @@ class TranslationService:
         # Note: _stripped_texts parameter kept for future validation features
         # Current validation happens per-entry using original_texts
         try:
-            # Clean the response text for formatting issues
             clean_response = self._clean_json_response(response_text)
             logging.debug("Cleaned JSON response: %s...", clean_response[:100])
 
@@ -315,56 +385,17 @@ class TranslationService:
             try:
                 translated_texts = json.loads(clean_response)
             except json.JSONDecodeError:
-                # Second attempt: fix various quote types that break JSON
-                # First, normalize all quote types to standard quotes
-                # Handle different languages' quotation marks
-                quote_fixes = [
-                    ('"', '"'),   # Left double quotation mark
-                    ('"', '"'),   # Right double quotation mark
-                    ('„', '"'),   # Double low-9 quotation mark (Lithuanian, German)
-                    ('"', '"'),   # Left double quotation mark (alternative)
-                    (''', "'"),   # Left single quotation mark
-                    (''', "'"),   # Right single quotation mark
-                    ('‚', "'"),   # Single low-9 quotation mark
-                    ('«', '"'),   # Left-pointing double angle quotation mark
-                    ('»', '"'),   # Right-pointing double angle quotation mark
-                    ('‹', "'"),   # Left-pointing single angle quotation mark
-                    ('›', "'"),   # Right-pointing single angle quotation mark
-                ]
-
-                fixed_response = clean_response
-                for old_quote, new_quote in quote_fixes:
-                    fixed_response = fixed_response.replace(old_quote, new_quote)
-
-                # Apply fix to all JSON strings (but not the JSON structure quotes)
+                # Second attempt: fix non-standard quotes
+                fixed_response = self._fix_json_quotes(clean_response)
                 try:
-                    # More sophisticated regex to handle quotes inside strings
-                    fixed_response = re.sub(
-                        r'"([^"\\]*(\\.[^"\\]*)*)"',
-                        lambda m: f'"{m.group(1).replace(chr(92) + chr(34), chr(34))}"',
-                        fixed_response)
                     translated_texts = json.loads(fixed_response)
-                except json.JSONDecodeError as e:
-                    # Final attempt: try to extract array elements manually
-                    # This is a fallback for severely malformed JSON
-                    logging.warning("API returned malformed JSON, attempting to extract translations manually")
-
-                    # Try to find array-like structure and extract elements
-                    if '[' in fixed_response and ']' in fixed_response:
-                        # Extract content between first [ and last ]
-                        start_idx = fixed_response.find('[')
-                        end_idx = fixed_response.rfind(']') + 1
-                        array_content = fixed_response[start_idx:end_idx]
-
-                        # Try to extract quoted strings
-                        matches = re.findall(r'"([^"]*(?:\\.[^"]*)*)"', array_content)
-                        if matches and len(matches) == len(original_texts):
-                            # Unescape the extracted strings
-                            translated_texts = [match.replace('\\"', '"').replace("\\'", "'") for match in matches]
-                        else:
-                            raise ValueError("Could not extract expected number of translations") from e
-                    else:
-                        raise
+                except json.JSONDecodeError:
+                    # Final attempt: extract from malformed JSON
+                    logging.warning("API returned malformed JSON, extracting translations manually")
+                    translated_texts = self._extract_translations_from_malformed_json(
+                        fixed_response,
+                        len(original_texts)
+                    )
 
             # Validate the format
             if not isinstance(translated_texts, list) or len(translated_texts) != len(original_texts):
