@@ -206,6 +206,11 @@ class TranslationService:
             target_language: str,
             detail_language: Optional[str] = None) -> str:
         """Performs translation without validation for single words or short phrases."""
+        # Extract leading/trailing whitespace from original
+        leading_ws = text[:len(text) - len(text.lstrip())]
+        trailing_ws = text[len(text.rstrip()):]
+        text_stripped = text.strip()
+
         # Use the detailed language name if provided, otherwise use the short code
         target_lang_text = detail_language if detail_language else target_language
 
@@ -216,7 +221,7 @@ class TranslationService:
         )
 
         return self.validate_translation(text, self.perform_translation(
-            prompt + text, target_language, is_bulk=False, detail_language=detail_language
+            prompt + text_stripped, target_language, is_bulk=False, detail_language=detail_language
         ), target_language)
 
     @staticmethod
@@ -231,6 +236,7 @@ class TranslationService:
                 "Provide only the translations in a JSON array format, maintaining the original order. "
                 "Each translation should be concise and direct, without explanations or additional context. "
                 "Keep special characters, placeholders, and formatting intact. "
+                "Do NOT add or remove any leading/trailing whitespace - translate only the text content. "
                 "If a term should not be translated (like 'URL' or technical terms), keep it as is. "
                 "Example format: [\"Translation 1\", \"Translation 2\", ...]\n\n"
                 "Texts to translate:\n"
@@ -253,7 +259,13 @@ class TranslationService:
         """Performs the actual translation using the selected provider's API."""
         logging.debug("Translating to '%s' via %s API", target_language, self.config.provider.value)
         prompt = self.get_translation_prompt(target_language, is_bulk, detail_language)
-        content = prompt + (json.dumps(texts) if is_bulk else texts)
+
+        # For bulk mode, strip whitespace before sending to AI
+        if is_bulk:
+            stripped_texts = [text.strip() for text in texts]
+            content = prompt + json.dumps(stripped_texts)
+        else:
+            content = prompt + texts
 
         try:
             # Get the response text from the provider
@@ -261,7 +273,7 @@ class TranslationService:
 
             # Process the response according to bulk mode
             if is_bulk:
-                return self._process_bulk_response(response_text, texts, target_language)
+                return self._process_bulk_response(response_text, texts, target_language, stripped_texts)
             return self.validate_translation(texts, response_text, target_language)
 
         except Exception as e:
@@ -280,8 +292,20 @@ class TranslationService:
             return ""
         return provider_instance.translate(self.config.provider_clients, self.config.model, content)
 
-    def _process_bulk_response(self, response_text: str, original_texts: List[str], target_language: str) -> List[str]:
-        """Process a bulk translation response."""
+    def _process_bulk_response(
+            self,
+            response_text: str,
+            original_texts: List[str],
+            target_language: str,
+            stripped_texts: Optional[List[str]] = None) -> List[str]:
+        """Process a bulk translation response.
+
+        Args:
+            response_text: The raw response from the AI provider
+            original_texts: The original texts WITH whitespace
+            target_language: Target language code
+            stripped_texts: The stripped texts that were sent to AI (for validation)
+        """
         try:
             # Clean the response text for formatting issues
             clean_response = self._clean_json_response(response_text)
@@ -386,9 +410,19 @@ class TranslationService:
 
     def validate_translation(self, original: str, translated: str, target_language: str) -> str:
         """Validates the translation and retries if necessary."""
+        # Extract leading/trailing whitespace from original
+        original_stripped = original.strip()
+        if not original_stripped:
+            # If original is all whitespace, preserve it as-is
+            return original
+
+        leading_ws = original[:len(original) - len(original.lstrip())]
+        trailing_ws = original[len(original.rstrip()):]
+
+        # Strip the translation for validation
         translated = translated.strip()
 
-        if len(translated.split()) > 2 * len(original.split()) + 1:
+        if len(translated.split()) > 2 * len(original_stripped.split()) + 1:
             logging.debug("Translation too verbose (%d words), retrying", len(translated.split()))
             return self.retry_long_translation(original, target_language)
 
@@ -397,10 +431,16 @@ class TranslationService:
             logging.debug("Translation contains explanation, retrying")
             return self.retry_long_translation(original, target_language)
 
-        return translated
+        # Restore original whitespace
+        return leading_ws + translated + trailing_ws
 
     def retry_long_translation(self, text: str, target_language: str) -> str:
         """Retries translation for long or explanatory responses."""
+        # Extract leading/trailing whitespace from original
+        leading_ws = text[:len(text) - len(text.lstrip())]
+        trailing_ws = text[len(text.rstrip()):]
+        text_stripped = text.strip()
+
         prompt = (
             f"Translate this text concisely from English to {target_language}. "
             "Provide only the direct translation without any explanation or additional context. "
@@ -410,15 +450,16 @@ class TranslationService:
         )
 
         try:
-            content = prompt + text
-            retried_translation = self._get_provider_response(content)
+            content = prompt + text_stripped
+            retried_translation = self._get_provider_response(content).strip()
 
-            if len(retried_translation.split()) > 2 * len(text.split()) + 1:
+            if len(retried_translation.split()) > 2 * len(text_stripped.split()) + 1:
                 logging.debug("Retry still too verbose, skipping")
                 return ""  # Return empty string instead of English text
 
             logging.debug("Retry successful")
-            return retried_translation
+            # Restore original whitespace
+            return leading_ws + retried_translation + trailing_ws
 
         except Exception as e:
             logging.debug("Retry failed: %s", str(e)[:100])
@@ -731,6 +772,22 @@ class TranslationService:
         entries = [entry for entry in po_file if is_entry_untranslated(entry)]
         texts = [entry.msgid for entry in entries]
         detail_lang = detail_languages.get(file_lang) if detail_languages else None
+
+        # Check for and warn about whitespace in msgid
+        whitespace_entries = [
+            text for text in texts
+            if text and (text != text.strip())
+        ]
+        if whitespace_entries:
+            logging.warning(
+                "Found %d entries with leading/trailing whitespace in %s. "
+                "Whitespace will be preserved in translations, but ideally should be handled in your UI framework.",
+                len(whitespace_entries),
+                po_file_path
+            )
+            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                for text in whitespace_entries[:3]:  # Show first 3 examples
+                    logging.debug("  Example: %s", repr(text))
 
         return TranslationRequest(
             po_file=po_file,
