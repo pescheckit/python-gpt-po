@@ -751,6 +751,55 @@ Both modes use the same preservation logic, ensuring consistent behavior.
 
 ---
 
+## Context-Aware Translations with msgctxt
+
+### Overview
+
+The tool automatically uses `msgctxt` (message context) from PO entries to provide context to the AI, improving translation accuracy for ambiguous terms.
+
+### How It Works
+
+When a PO entry includes `msgctxt`, it's automatically passed to the AI:
+
+```po
+msgctxt "button"
+msgid "Save"
+msgstr ""
+```
+
+The AI receives:
+```
+CONTEXT: button
+IMPORTANT: Choose the translation that matches this specific context and usage.
+
+Translate to German: Save
+```
+
+Result: **"Speichern"** (button action) instead of **"Sparen"** (to save money)
+
+### Best Practices
+
+**✓ Good - Detailed, Explicit Context:**
+```po
+msgctxt "status: not Halten (verb), but Angehalten/Wartend (state)"
+msgid "Hold"
+msgstr ""  → "Angehalten" ✓
+```
+
+**⚠️ Limited - Simple Context:**
+```po
+msgctxt "status"
+msgid "Hold"
+msgstr ""  → "Halten" (may still be wrong)
+```
+
+**Key Points:**
+- **Be explicit** - Describe what you want AND what you don't want
+- **Provide examples** - Include similar terms or expected word forms
+- **Human review still needed** - msgctxt improves results but doesn't guarantee perfection
+
+---
+
 ## Behind the Scenes: API Calls and Post-Processing
 
 - **Provider-Specific API Calls:**  
