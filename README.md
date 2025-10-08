@@ -73,20 +73,22 @@ export AZURE_OPENAI_API_VERSION='2024-02-01'
 ### Or Use Ollama (Local, No API Key Needed)
 
 ```bash
-# Install Ollama
+# 1. Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull a model (qwen2.5 recommended for multilingual)
-ollama pull qwen2.5
+# 2. Pull a model
+ollama pull qwen2.5    # Best for multilingual (Arabic, Chinese, etc.)
+# OR
+ollama pull llama3.2   # Fast for European languages
 
-# Use it (no API key required!)
+# 3. Translate (no API key required!)
 gpt-po-translator --provider ollama --folder ./locales
 
-# For non-Latin scripts (Arabic, Chinese, etc.), omit --bulk for better quality
+# For non-Latin scripts, use qwen2.5 WITHOUT --bulk
 gpt-po-translator --provider ollama --model qwen2.5 --folder ./locales --lang ar
 ```
 
-> **💡 Tip:** For Ollama with non-Latin languages, **don't use `--bulk`** mode. Single-item translation produces better results since the model doesn't need to handle JSON formatting.
+> **💡 Important:** For Ollama with **non-Latin languages** (Arabic, Chinese, Japanese, etc.), **omit the `--bulk` flag**. Single-item translation is more reliable because the model doesn't have to format responses as JSON.
 
 ## 💡 Usage Examples
 

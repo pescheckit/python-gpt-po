@@ -426,8 +426,6 @@ gpt-po-translator --folder ./locales --lang de --no-ai-comment
 
 ---
 
-<<<<<<< Updated upstream
-=======
 ## Using Ollama (Local AI Provider)
 
 ### Overview
@@ -806,7 +804,6 @@ Both modes use the same preservation logic, ensuring consistent behavior.
 
 ---
 
->>>>>>> Stashed changes
 ## Behind the Scenes: API Calls and Post-Processing
 
 - **Provider-Specific API Calls:**  
