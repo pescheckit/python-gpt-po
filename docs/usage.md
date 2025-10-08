@@ -448,13 +448,15 @@ Ollama allows you to run AI models locally on your machine, providing:
 
 2. **Pull a model**
    ```bash
-   # Recommended for translation
+   # For multilingual (Arabic, Chinese, etc.)
+   ollama pull qwen2.5
+
+   # For European languages only
    ollama pull llama3.2
 
-   # Other good options
-   ollama pull llama3.1
-   ollama pull mistral
-   ollama pull gemma2
+   # Other options
+   ollama pull llama3.1   # Better quality, slower
+   ollama pull mistral    # Good for European languages
    ```
 
 3. **Start Ollama** (if not already running)
@@ -465,15 +467,20 @@ Ollama allows you to run AI models locally on your machine, providing:
 ### Basic Usage
 
 ```bash
-# Use Ollama with default settings (localhost:11434)
+# Latin scripts (English, French, Spanish, etc.) - can use bulk mode
 gpt-po-translator --provider ollama --folder ./locales --bulk
 
+# Non-Latin scripts (Arabic, Chinese, Japanese, etc.) - omit --bulk for better quality
+gpt-po-translator --provider ollama --model qwen2.5 --folder ./locales --lang ar
+
 # Specify a model
-gpt-po-translator --provider ollama --model llama3.1 --folder ./locales --bulk
+gpt-po-translator --provider ollama --model llama3.1 --folder ./locales
 
 # List available models
 gpt-po-translator --provider ollama --list-models
 ```
+
+> **⚠️ Important:** For **non-Latin languages**, **omit the `--bulk` flag**. Local models struggle with JSON formatting for Arabic/Chinese/etc., resulting in poor translation quality or errors. Single-item mode is more reliable.
 
 ### Configuration
 
