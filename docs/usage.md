@@ -426,6 +426,86 @@ gpt-po-translator --folder ./locales --lang de --no-ai-comment
 
 ---
 
+## Whitespace Handling in Translations
+
+### Overview
+
+The tool automatically preserves leading and trailing whitespace from `msgid` entries in translations. While **best practice** is to handle whitespace in your UI framework rather than in translation strings, the tool ensures that any existing whitespace patterns are maintained exactly.
+
+### How Whitespace Preservation Works
+
+The tool uses a three-step process to reliably preserve whitespace:
+
+1. **Detection and Warning**
+   When processing PO files, the tool scans for entries with leading or trailing whitespace and logs a warning:
+   ```
+   WARNING: Found 3 entries with leading/trailing whitespace in messages.po
+   Whitespace will be preserved in translations, but ideally should be handled in your UI framework.
+   ```
+
+2. **Before Sending to AI** (Bulk Mode)
+   To prevent the AI from being confused by or accidentally modifying whitespace, the tool:
+   - Strips all leading/trailing whitespace from texts
+   - Stores the original whitespace pattern
+   - Sends only the clean text content to the AI
+
+   For example, if `msgid` is `" Incorrect"` (with leading space), the AI receives only `"Incorrect"`.
+
+3. **After Receiving Translation**
+   Once the AI returns the translation, the tool:
+   - Extracts the original whitespace pattern from the source `msgid`
+   - Applies that exact pattern to the translated `msgstr`
+   - Ensures the output matches the input whitespace structure
+
+   So `" Incorrect"` → AI translates `"Incorrect"` → Result: `" Incorreto"` (leading space preserved)
+
+### Examples
+
+| Original msgid | AI Receives | AI Returns | Final msgstr |
+|----------------|-------------|------------|--------------|
+| `" Hello"` | `"Hello"` | `"Bonjour"` | `" Bonjour"` |
+| `"World "` | `"World"` | `"Monde"` | `"Monde "` |
+| `"  Hi  "` | `"Hi"` | `"Salut"` | `"  Salut  "` |
+| `"\tTab"` | `"Tab"` | `"Onglet"` | `"\tOnglet"` |
+
+### Why This Approach Is Reliable
+
+This implementation is **bulletproof** because:
+- **The AI never sees the problematic whitespace**, so it can't strip or modify it
+- **Whitespace is managed entirely in code**, not reliant on AI behavior
+- **Works consistently across all providers** (OpenAI, Anthropic, Azure, DeepSeek)
+- **Handles edge cases**: empty strings, whitespace-only strings, mixed whitespace types (spaces, tabs, newlines)
+
+### Single vs. Bulk Mode
+
+- **Single Mode**: Each text is stripped before sending to AI, then whitespace is restored after receiving the translation
+- **Bulk Mode**: Entire batches are stripped before sending to AI (JSON array of clean texts), then whitespace is restored to each translation individually
+
+Both modes use the same preservation logic, ensuring consistent behavior.
+
+### Best Practices
+
+1. **Avoid whitespace in msgid when possible**
+   Whitespace in translation strings can cause formatting issues. Instead, handle spacing in your UI layer:
+   ```python
+   # Bad - whitespace in msgid
+   msgid " Settings"
+
+   # Good - whitespace in code
+   print(f"  {_('Settings')}")
+   ```
+
+2. **If whitespace is unavoidable**
+   The tool will preserve it automatically. Use verbose mode to see which entries contain whitespace:
+   ```bash
+   gpt-po-translator --folder ./locales --lang fr -vv
+   ```
+
+3. **Review whitespace warnings**
+   When the tool warns about whitespace entries, consider refactoring your code to move the whitespace out of the translation strings.
+
+---
+
 ## Behind the Scenes: API Calls and Post-Processing
 
 - **Provider-Specific API Calls:**  
