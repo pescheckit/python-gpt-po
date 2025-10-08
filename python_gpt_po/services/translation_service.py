@@ -272,7 +272,8 @@ class TranslationService:
             context_prefix = (
                 f"CONTEXT: {context}\n"
                 f"IMPORTANT: Choose the translation that matches this specific context and usage. "
-                f"Do not use a literal dictionary translation if the context requires a different word form or meaning.\n\n"
+                f"Do not use a literal dictionary translation if the context requires "
+                f"a different word form or meaning.\n\n"
             )
 
         if is_bulk:
