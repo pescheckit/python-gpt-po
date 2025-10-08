@@ -206,9 +206,7 @@ class TranslationService:
             target_language: str,
             detail_language: Optional[str] = None) -> str:
         """Performs translation without validation for single words or short phrases."""
-        # Extract leading/trailing whitespace from original
-        leading_ws = text[:len(text) - len(text.lstrip())]
-        trailing_ws = text[len(text.rstrip()):]
+        # Strip text before sending to AI (whitespace will be restored in validate_translation)
         text_stripped = text.strip()
 
         # Use the detailed language name if provided, otherwise use the short code
@@ -297,15 +295,17 @@ class TranslationService:
             response_text: str,
             original_texts: List[str],
             target_language: str,
-            stripped_texts: Optional[List[str]] = None) -> List[str]:
+            _stripped_texts: Optional[List[str]] = None) -> List[str]:
         """Process a bulk translation response.
 
         Args:
             response_text: The raw response from the AI provider
             original_texts: The original texts WITH whitespace
             target_language: Target language code
-            stripped_texts: The stripped texts that were sent to AI (for validation)
+            _stripped_texts: The stripped texts sent to AI (unused, for future use)
         """
+        # Note: _stripped_texts parameter kept for future validation features
+        # Current validation happens per-entry using original_texts
         try:
             # Clean the response text for formatting issues
             clean_response = self._clean_json_response(response_text)
