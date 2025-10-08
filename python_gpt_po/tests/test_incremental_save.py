@@ -168,7 +168,7 @@ class TestIncrementalSave(unittest.TestCase):
         # Mock translations, but raise KeyboardInterrupt after 7 translations
         translations_done = []
 
-        def translate_with_interrupt(text, lang, detail=None):
+        def translate_with_interrupt(text, lang, detail_language=None, context=None):
             if len(translations_done) >= 7:
                 raise KeyboardInterrupt("User pressed Ctrl+C")
             result = f"Translation {len(translations_done) + 1}"
@@ -213,7 +213,7 @@ class TestIncrementalSave(unittest.TestCase):
         po_path, po_file = self.create_test_po_file(30)
 
         # Mock translations - interrupt during batch 2 (after batch 1 completes)
-        def translate_with_interrupt(texts, lang, is_bulk=False, detail_language=None):
+        def translate_with_interrupt(texts, lang, is_bulk=False, detail_language=None, context=None):
             if mock_translate.call_count == 1:
                 # First batch completes successfully
                 return [f"Translation {i+1}" for i in range(1, 11)]
@@ -283,7 +283,7 @@ class TestIncrementalSave(unittest.TestCase):
         po_path, po_file = self.create_test_po_file(10)
 
         # Mock translations with one failure
-        def translate_with_error(text, lang, detail=None):
+        def translate_with_error(text, lang, detail_language=None, context=None):
             if "string 5" in text:
                 raise Exception("API error for string 5")
             return f"Translation for {text}"
@@ -325,7 +325,7 @@ class TestIncrementalSave(unittest.TestCase):
         po_path, po_file = self.create_test_po_file(15)
 
         # Mock translations with batch 2 failing
-        def translate_with_error(texts, lang, is_bulk=False, detail_language=None):
+        def translate_with_error(texts, lang, is_bulk=False, detail_language=None, context=None):
             if mock_translate.call_count == 2:
                 raise Exception("API error for batch 2")
             return [f"Translation {i+1}" for i in range(len(texts))]

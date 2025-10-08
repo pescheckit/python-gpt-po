@@ -63,6 +63,7 @@ class TranslationRequest:
     target_language: str
     po_file_path: str
     detail_language: Optional[str] = None
+    contexts: Optional[List[Optional[str]]] = None  # msgctxt for each entry
 
 
 @dataclass
@@ -128,11 +129,11 @@ class TranslationService:
 
     def _translate_chunk(self, chunk_data):
         """Translate a single chunk of texts."""
-        chunk, target_language, detail_language, chunk_num, total_chunks = chunk_data
+        chunk, target_language, detail_language, chunk_num, total_chunks, context = chunk_data
         logging.info("Batch %d/%d: Translating %d entries...", chunk_num, total_chunks, len(chunk))
         try:
             translations = self.perform_translation(
-                chunk, target_language, is_bulk=True, detail_language=detail_language
+                chunk, target_language, is_bulk=True, detail_language=detail_language, context=context
             )
             logging.info("Batch %d/%d: Successfully translated %d entries",
                          chunk_num, total_chunks, len(translations))
@@ -145,7 +146,7 @@ class TranslationService:
                 try:
                     logging.info("  Translating entry %d/%d...", j, len(chunk))
                     translation = self.perform_translation(
-                        text, target_language, is_bulk=False, detail_language=detail_language
+                        text, target_language, is_bulk=False, detail_language=detail_language, context=context
                     )
                     results.append(translation)
                 except Exception as inner_e:
@@ -158,15 +159,36 @@ class TranslationService:
             texts: List[str],
             target_language: str,
             po_file_path: str,
-            detail_language: Optional[str] = None) -> List[str]:
-        """Translates a list of texts in bulk, processing in smaller chunks."""
+            detail_language: Optional[str] = None,
+            contexts: Optional[List[Optional[str]]] = None) -> List[str]:
+        """Translates a list of texts in bulk, processing in smaller chunks.
+
+        Args:
+            texts: List of texts to translate
+            target_language: Target language code
+            po_file_path: Path to PO file
+            detail_language: Detailed language name (optional)
+            contexts: List of msgctxt values for each text (optional)
+        """
         translated_texts = []
         total_chunks = (len(texts) - 1) // self.batch_size + 1
 
         for i in range(0, len(texts), self.batch_size):
             chunk_num = i // self.batch_size + 1
+            chunk_texts = texts[i:i + self.batch_size]
+
+            # Get most common context in this chunk (if contexts provided)
+            chunk_context = None
+            if contexts:
+                chunk_contexts = contexts[i:i + self.batch_size]
+                # Use most common non-None context, or None if all are None
+                non_none_contexts = [c for c in chunk_contexts if c]
+                if non_none_contexts:
+                    from collections import Counter
+                    chunk_context = Counter(non_none_contexts).most_common(1)[0][0]
+
             chunk_data = (
-                texts[i:i + self.batch_size], target_language, detail_language, chunk_num, total_chunks
+                chunk_texts, target_language, detail_language, chunk_num, total_chunks, chunk_context
             )
             translations = self._translate_chunk(chunk_data)
             translated_texts.extend(translations)
@@ -183,11 +205,19 @@ class TranslationService:
 
         return translated_texts
 
-    def translate_single(self, text: str, target_language: str, detail_language: Optional[str] = None) -> str:
-        """Translates a single text."""
+    def translate_single(self, text: str, target_language: str, detail_language: Optional[str] = None,
+                         context: Optional[str] = None) -> str:
+        """Translates a single text.
+
+        Args:
+            text: Text to translate
+            target_language: Target language code
+            detail_language: Detailed language name (optional)
+            context: Message context from msgctxt (optional, e.g., "button", "menu item")
+        """
         try:
             translation = self.perform_translation(
-                text, target_language, is_bulk=False, detail_language=detail_language
+                text, target_language, is_bulk=False, detail_language=detail_language, context=context
             )
             if not translation.strip():
                 display_text = text[:50] if len(text) > 50 else text
@@ -223,16 +253,34 @@ class TranslationService:
         ), target_language)
 
     @staticmethod
-    def get_translation_prompt(target_language: str, is_bulk: bool, detail_language: Optional[str] = None) -> str:
-        """Returns the appropriate translation prompt based on the translation mode."""
+    def get_translation_prompt(target_language: str, is_bulk: bool, detail_language: Optional[str] = None,
+                               context: Optional[str] = None) -> str:
+        """Returns the appropriate translation prompt based on the translation mode.
+
+        Args:
+            target_language: Target language code
+            is_bulk: Whether translating in bulk mode
+            detail_language: Detailed language name (optional)
+            context: Message context from msgctxt (optional, e.g., "button", "menu item")
+        """
         # Use detailed language if provided, otherwise use the short target language code
         target_lang_text = detail_language if detail_language else target_language
 
+        # Build context prefix if provided (goes at the very beginning)
+        context_prefix = ""
+        if context:
+            context_prefix = (
+                f"CONTEXT: {context}\n"
+                f"IMPORTANT: Choose the translation that matches this specific context and usage. "
+                f"Do not use a literal dictionary translation if the context requires a different word form or meaning.\n\n"
+            )
+
         if is_bulk:
             return (
+                f"{context_prefix}"
                 f"Translate the following list of texts from English to {target_lang_text}. "
                 "Provide only the translations in a JSON array format, maintaining the original order. "
-                "Each translation should be concise and direct, without explanations or additional context. "
+                "Each translation should be concise and direct, without explanations. "
                 "Keep special characters, placeholders, and formatting intact. "
                 "Do NOT add or remove any leading/trailing whitespace - translate only the text content. "
                 "If a term should not be translated (like 'URL' or technical terms), keep it as is. "
@@ -240,8 +288,9 @@ class TranslationService:
                 "Texts to translate:\n"
             )
         return (
+            f"{context_prefix}"
             f"Translate the following text from English to {target_lang_text}. "
-            "Return only the direct, word-for-word translation without any explanation or additional context. "
+            "Return only the direct translation without any explanation. "
             "Keep special characters, placeholders, and formatting intact. "
             "If a term should not be translated (like 'URL' or technical terms), keep it as is. "
             "Here is the text to translate:\n"
@@ -253,10 +302,13 @@ class TranslationService:
             texts: Any,
             target_language: str,
             is_bulk: bool = False,
-            detail_language: Optional[str] = None) -> Any:
+            detail_language: Optional[str] = None,
+            context: Optional[str] = None) -> Any:
         """Performs the actual translation using the selected provider's API."""
         logging.debug("Translating to '%s' via %s API", target_language, self.config.provider.value)
-        prompt = self.get_translation_prompt(target_language, is_bulk, detail_language)
+        if context:
+            logging.debug("Using context: %s", context)
+        prompt = self.get_translation_prompt(target_language, is_bulk, detail_language, context)
 
         # For bulk mode, strip whitespace before sending to AI
         if is_bulk:
@@ -802,7 +854,13 @@ class TranslationService:
         """Prepare a translation request from PO file data."""
         entries = [entry for entry in po_file if is_entry_untranslated(entry)]
         texts = [entry.msgid for entry in entries]
+        contexts = [entry.msgctxt if hasattr(entry, 'msgctxt') else None for entry in entries]
         detail_lang = detail_languages.get(file_lang) if detail_languages else None
+
+        # Log context usage
+        context_count = sum(1 for c in contexts if c)
+        if context_count > 0:
+            logging.debug("Found %d entries with msgctxt in %s", context_count, po_file_path)
 
         # Check for and warn about whitespace in msgid
         whitespace_entries = [
@@ -826,7 +884,8 @@ class TranslationService:
             texts=texts,
             target_language=file_lang,
             po_file_path=po_file_path,
-            detail_language=detail_lang
+            detail_language=detail_lang,
+            contexts=contexts
         )
 
     def process_po_file(
@@ -887,14 +946,22 @@ class TranslationService:
 
     def _process_batch(self, batch_info, po_file, po_file_path, detail_language=None):
         """Process a single batch of translations."""
-        batch_texts, batch_entries, current_batch, total_batches, target_language = batch_info
+        batch_texts, batch_entries, current_batch, total_batches, target_language, batch_contexts = batch_info
         translated_count = 0
+
+        # Determine most common context for this batch
+        batch_context = None
+        if batch_contexts:
+            non_none_contexts = [c for c in batch_contexts if c]
+            if non_none_contexts:
+                from collections import Counter
+                batch_context = Counter(non_none_contexts).most_common(1)[0][0]
 
         logging.info("[BULK %d/%d] Translating %d entries...", current_batch, total_batches, len(batch_texts))
 
         # Get translations for this batch
         translations = self.perform_translation(
-            batch_texts, target_language, is_bulk=True, detail_language=detail_language
+            batch_texts, target_language, is_bulk=True, detail_language=detail_language, context=batch_context
         )
 
         # Update entries with translations
@@ -918,12 +985,14 @@ class TranslationService:
         # Process in batches
         for i in range(0, total_entries, self.batch_size):
             batch_num = i // self.batch_size + 1
+            batch_contexts = request.contexts[i:i + self.batch_size] if request.contexts else None
             batch_info = (
                 request.texts[i:i + self.batch_size],
                 request.entries[i:i + self.batch_size],
                 batch_num,
                 total_batches,
-                request.target_language
+                request.target_language,
+                batch_contexts
             )
 
             try:
@@ -949,9 +1018,10 @@ class TranslationService:
 
         for i, (text, entry) in enumerate(zip(request.texts, request.entries), 1):
             try:
+                context = request.contexts[i - 1] if request.contexts else None
                 logging.info("[SINGLE %d/%d] Translating entry...", i, total_entries)
 
-                translation = self.translate_single(text, request.target_language, request.detail_language)
+                translation = self.translate_single(text, request.target_language, request.detail_language, context)
 
                 if translation.strip():
                     entry.msgstr = translation
@@ -997,19 +1067,28 @@ class TranslationService:
             texts: List[str],
             target_language: str,
             po_file_path: str,
-            detail_language: Optional[str] = None) -> List[str]:
+            detail_language: Optional[str] = None,
+            contexts: Optional[List[Optional[str]]] = None) -> List[str]:
         """
         Retrieves translations for the given texts using either bulk or individual translation.
+
+        Args:
+            texts: List of texts to translate
+            target_language: Target language code
+            po_file_path: Path to PO file
+            detail_language: Detailed language name (optional)
+            contexts: List of msgctxt values for each text (optional)
         """
         if self.config.flags.bulk_mode:
-            return self.translate_bulk(texts, target_language, po_file_path, detail_language)
+            return self.translate_bulk(texts, target_language, po_file_path, detail_language, contexts)
 
         # Single mode with progress tracking
         translations = []
         total = len(texts)
         for i, text in enumerate(texts, 1):
+            context = contexts[i - 1] if contexts else None
             logging.info("[SINGLE %d/%d] Translating entry...", i, total)
-            translation = self.translate_single(text, target_language, detail_language)
+            translation = self.translate_single(text, target_language, detail_language, context)
             translations.append(translation)
             if i % 10 == 0 or i == total:  # Progress update every 10 items or at the end
                 logging.info("Progress: %d/%d entries completed (%.1f%%)", i, total, 100.0 * i / total)
@@ -1073,7 +1152,10 @@ class TranslationService:
             logging.info("Found %d fuzzy entries to fix in %s", len(fuzzy_entries), po_file_path)
 
             texts_to_translate = [entry.msgid for entry in fuzzy_entries]
-            translations = self.get_translations(texts_to_translate, target_language, po_file_path, detail_language)
+            fuzzy_contexts = [entry.msgctxt if hasattr(entry, 'msgctxt') else None for entry in fuzzy_entries]
+            translations = self.get_translations(
+                texts_to_translate, target_language, po_file_path, detail_language, fuzzy_contexts
+            )
 
             self._update_fuzzy_po_entries(po_file, translations, entries_to_update=fuzzy_entries)
 
