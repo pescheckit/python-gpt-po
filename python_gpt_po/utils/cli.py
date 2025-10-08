@@ -221,17 +221,7 @@ Examples:
         parser.print_help()
         sys.exit(0)
 
-    args = parser.parse_args()
-
-    # Apply config file defaults for Ollama if not provided via CLI
-    if not args.ollama_base_url:
-        from .config_loader import ConfigLoader
-        args.ollama_base_url = ConfigLoader.get_ollama_base_url(args.folder if hasattr(args, 'folder') else None)
-    if not args.ollama_timeout:
-        from .config_loader import ConfigLoader
-        args.ollama_timeout = ConfigLoader.get_ollama_timeout(args.folder if hasattr(args, 'folder') else None)
-
-    return args
+    return parser.parse_args()
 
 
 def show_help_and_exit():
