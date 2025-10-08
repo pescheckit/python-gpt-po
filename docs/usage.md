@@ -596,9 +596,9 @@ docker run --rm \
 - Offline capability
 
 **Cons:**
-- Slower than cloud APIs (depends on your hardware)
 - Quality varies by model (may not match GPT-4)
 - Requires local resources (RAM, GPU recommended)
+- Initial setup needed (install Ollama, pull models)
 
 **Performance Tips:**
 1. **Use GPU**: Install Ollama with GPU support for 10-100x speedup
