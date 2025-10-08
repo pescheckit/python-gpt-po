@@ -21,6 +21,8 @@ class ProviderClients:
         self.anthropic_client = None
         self.deepseek_api_key = None
         self.deepseek_base_url = "https://api.deepseek.com/v1"
+        self.ollama_base_url = "http://localhost:11434"
+        self.ollama_timeout = 120
 
     def initialize_clients(self, args: Namespace) -> Dict[str, str]:
         """Initialize API clients for all providers with available keys.
@@ -58,9 +60,16 @@ class ProviderClients:
         if deepseek_key:
             self.deepseek_api_key = deepseek_key
 
+        # Ollama configuration (no API key needed)
+        if hasattr(args, 'ollama_base_url') and args.ollama_base_url:
+            self.ollama_base_url = args.ollama_base_url
+        if hasattr(args, 'ollama_timeout') and args.ollama_timeout:
+            self.ollama_timeout = args.ollama_timeout
+
         return {
             ModelProvider.OPENAI.value: openai_key,
             ModelProvider.ANTHROPIC.value: antropic_key,
             ModelProvider.DEEPSEEK.value: deepseek_key,
             ModelProvider.AZURE_OPENAI.value: azure_openai_key,
+            ModelProvider.OLLAMA.value: "local",  # Ollama doesn't need API key
         }

@@ -426,6 +426,387 @@ gpt-po-translator --folder ./locales --lang de --no-ai-comment
 
 ---
 
+<<<<<<< Updated upstream
+=======
+## Using Ollama (Local AI Provider)
+
+### Overview
+
+Ollama allows you to run AI models locally on your machine, providing:
+- **Privacy**: All translations happen locally, no data sent to cloud services
+- **Cost**: No API fees - completely free
+- **Offline**: Works without internet connection
+- **Control**: Full control over model and infrastructure
+
+### Prerequisites
+
+1. **Install Ollama**
+   ```bash
+   # macOS/Linux
+   curl -fsSL https://ollama.com/install.sh | sh
+
+   # Or download from https://ollama.com
+   ```
+
+2. **Pull a model**
+   ```bash
+   # Recommended for translation
+   ollama pull llama3.2
+
+   # Other good options
+   ollama pull llama3.1
+   ollama pull mistral
+   ollama pull gemma2
+   ```
+
+3. **Start Ollama** (if not already running)
+   ```bash
+   ollama serve
+   ```
+
+### Basic Usage
+
+```bash
+# Use Ollama with default settings (localhost:11434)
+gpt-po-translator --provider ollama --folder ./locales --bulk
+
+# Specify a model
+gpt-po-translator --provider ollama --model llama3.1 --folder ./locales --bulk
+
+# List available models
+gpt-po-translator --provider ollama --list-models
+```
+
+### Configuration
+
+#### Option 1: Environment Variable
+
+```bash
+export OLLAMA_BASE_URL="http://localhost:11434"
+gpt-po-translator --provider ollama --folder ./locales --bulk
+```
+
+#### Option 2: CLI Arguments
+
+```bash
+# Custom port
+gpt-po-translator --provider ollama \
+  --ollama-base-url http://localhost:8080 \
+  --folder ./locales --bulk
+
+# Increase timeout for slow models
+gpt-po-translator --provider ollama \
+  --ollama-timeout 300 \
+  --folder ./locales --bulk
+```
+
+#### Option 3: Config File
+
+Add to your `pyproject.toml`:
+
+```toml
+[tool.gpt-po-translator.provider.ollama]
+base_url = "http://localhost:11434"
+model = "llama3.2"
+timeout = 120
+
+[tool.gpt-po-translator]
+bulk_mode = true
+bulk_size = 50
+```
+
+Then simply run:
+```bash
+gpt-po-translator --provider ollama --folder ./locales
+```
+
+### Advanced Scenarios
+
+#### Remote Ollama Server
+
+Run Ollama on a different machine:
+
+```bash
+# On the Ollama server (192.168.1.100)
+ollama serve --host 0.0.0.0
+
+# On your machine
+gpt-po-translator --provider ollama \
+  --ollama-base-url http://192.168.1.100:11434 \
+  --folder ./locales --bulk
+```
+
+Or set in `pyproject.toml`:
+```toml
+[tool.gpt-po-translator.provider.ollama]
+base_url = "http://192.168.1.100:11434"
+```
+
+#### Docker with Ollama
+
+**Option 1: Ollama on Host Machine (Recommended)**
+
+If Ollama is running on your host machine:
+
+```bash
+# Linux/macOS
+docker run --rm \
+  -v $(pwd):/data \
+  --network host \
+  python-gpt-po:latest \
+  --provider ollama \
+  --folder /data --bulk
+
+# The --network host allows container to access host's localhost:11434
+```
+
+**For macOS/Windows Docker Desktop:**
+```bash
+# Use host.docker.internal to reach host machine
+docker run --rm \
+  -v $(pwd):/data \
+  python-gpt-po:latest \
+  --provider ollama \
+  --ollama-base-url http://host.docker.internal:11434 \
+  --folder /data --bulk
+```
+
+**Option 2: Both in Docker Compose**
+
+```yaml
+version: '3.8'
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # Optional: GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  translator:
+    image: python-gpt-po:latest
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./locales:/data
+    command: --provider ollama --folder /data --bulk
+    # Or use pyproject.toml config
+    # volumes:
+    #   - ./locales:/data
+    #   - ./pyproject.toml:/data/pyproject.toml
+
+volumes:
+  ollama_data:
+```
+
+**To use:**
+```bash
+# Pull Ollama model (one-time setup)
+docker compose run ollama ollama pull llama3.2
+
+# Run translation
+docker compose run translator
+
+# Or run both services
+docker compose up
+```
+
+**Option 3: Config File Approach**
+
+Add to your `pyproject.toml`:
+```toml
+[tool.gpt-po-translator.provider.ollama]
+base_url = "http://ollama:11434"  # Service name in docker-compose
+model = "llama3.2"
+timeout = 180
+```
+
+Then mount it:
+```bash
+docker run --rm \
+  -v $(pwd):/data \
+  -v $(pwd)/pyproject.toml:/data/pyproject.toml \
+  --network host \
+  python-gpt-po:latest \
+  --provider ollama \
+  --folder /data
+```
+
+### Performance Considerations
+
+**Pros:**
+- No API costs
+- Privacy and data control
+- No rate limits
+- Offline capability
+
+**Cons:**
+- Slower than cloud APIs (depends on your hardware)
+- Quality varies by model (may not match GPT-4)
+- Requires local resources (RAM, GPU recommended)
+
+**Performance Tips:**
+1. **Use GPU**: Install Ollama with GPU support for 10-100x speedup
+2. **Choose appropriate models**:
+   - Small projects: `llama3.2` (fast, good quality)
+   - Better quality: `llama3.1` (slower, better accuracy)
+   - Multilingual: `qwen2.5` (excellent for non-Latin scripts like Arabic, Chinese, etc.)
+   - Specialized: `mistral`, `gemma2`
+3. **Increase timeout** for large models: `--ollama-timeout 300`
+4. **Bulk mode vs Single mode**:
+   - **Bulk mode (`--bulk`)**: Faster but requires model to return valid JSON - recommended for cloud providers
+   - **Single mode (no `--bulk`)**: Slower but more reliable for local models, especially with non-Latin scripts
+   - For Ollama with languages like Arabic/Chinese/Japanese, **omit `--bulk`** for better quality
+
+### Recommended Models for Translation
+
+| Model | Size | Speed | Quality | Best For |
+|-------|------|-------|---------|----------|
+| `llama3.2` | 3B | ⚡⚡⚡ Fast | ⭐⭐⭐ Good | General use, Latin scripts only |
+| `llama3.1` | 8B | ⚡⚡ Medium | ⭐⭐⭐⭐ Better | Better quality, medium projects |
+| `qwen2.5` | 7B | ⚡⚡ Medium | ⭐⭐⭐⭐ Excellent | **Multilingual** (Arabic, Chinese, etc.) |
+| `mistral` | 7B | ⚡⚡ Medium | ⭐⭐⭐ Good | European languages |
+| `gemma2` | 9B | ⚡ Slower | ⭐⭐⭐⭐ Better | High quality translations |
+
+**Note:** For non-Latin scripts (Arabic, Chinese, Japanese, etc.), use `qwen2.5` or larger models **without `--bulk` flag** for best results.
+
+### Troubleshooting
+
+**"Cannot connect to Ollama"**
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# Start Ollama
+ollama serve
+
+# Check if running on different port
+ollama serve --help
+```
+
+**Slow translations**
+- Use GPU-enabled Ollama installation
+- Choose a smaller model (`llama3.2` instead of `llama3.1`)
+- Increase `--bulksize` to batch more entries together
+- Close other applications to free up RAM
+
+**Model not found**
+```bash
+# List installed models
+ollama list
+
+# Pull the model
+ollama pull llama3.2
+```
+
+**Timeout errors**
+```bash
+# Increase timeout
+gpt-po-translator --provider ollama --ollama-timeout 300 --folder ./locales
+```
+
+### Configuration Priority
+
+Ollama settings are loaded in this order (highest to lowest):
+
+1. **CLI arguments**: `--ollama-base-url`, `--ollama-timeout`
+2. **Environment variables**: `OLLAMA_BASE_URL`
+3. **Config file**: `pyproject.toml` under `[tool.gpt-po-translator.provider.ollama]`
+4. **Defaults**: `http://localhost:11434`, timeout `120s`
+
+---
+
+## Whitespace Handling in Translations
+
+### Overview
+
+The tool automatically preserves leading and trailing whitespace from `msgid` entries in translations. While **best practice** is to handle whitespace in your UI framework rather than in translation strings, the tool ensures that any existing whitespace patterns are maintained exactly.
+
+### How Whitespace Preservation Works
+
+The tool uses a three-step process to reliably preserve whitespace:
+
+1. **Detection and Warning**
+   When processing PO files, the tool scans for entries with leading or trailing whitespace and logs a warning:
+   ```
+   WARNING: Found 3 entries with leading/trailing whitespace in messages.po
+   Whitespace will be preserved in translations, but ideally should be handled in your UI framework.
+   ```
+
+2. **Before Sending to AI** (Bulk Mode)
+   To prevent the AI from being confused by or accidentally modifying whitespace, the tool:
+   - Strips all leading/trailing whitespace from texts
+   - Stores the original whitespace pattern
+   - Sends only the clean text content to the AI
+
+   For example, if `msgid` is `" Incorrect"` (with leading space), the AI receives only `"Incorrect"`.
+
+3. **After Receiving Translation**
+   Once the AI returns the translation, the tool:
+   - Extracts the original whitespace pattern from the source `msgid`
+   - Applies that exact pattern to the translated `msgstr`
+   - Ensures the output matches the input whitespace structure
+
+   So `" Incorrect"` → AI translates `"Incorrect"` → Result: `" Incorreto"` (leading space preserved)
+
+### Examples
+
+| Original msgid | AI Receives | AI Returns | Final msgstr |
+|----------------|-------------|------------|--------------|
+| `" Hello"` | `"Hello"` | `"Bonjour"` | `" Bonjour"` |
+| `"World "` | `"World"` | `"Monde"` | `"Monde "` |
+| `"  Hi  "` | `"Hi"` | `"Salut"` | `"  Salut  "` |
+| `"\tTab"` | `"Tab"` | `"Onglet"` | `"\tOnglet"` |
+
+### Why This Approach Is Reliable
+
+This implementation is **bulletproof** because:
+- **The AI never sees the problematic whitespace**, so it can't strip or modify it
+- **Whitespace is managed entirely in code**, not reliant on AI behavior
+- **Works consistently across all providers** (OpenAI, Anthropic, Azure, DeepSeek)
+- **Handles edge cases**: empty strings, whitespace-only strings, mixed whitespace types (spaces, tabs, newlines)
+
+### Single vs. Bulk Mode
+
+- **Single Mode**: Each text is stripped before sending to AI, then whitespace is restored after receiving the translation
+- **Bulk Mode**: Entire batches are stripped before sending to AI (JSON array of clean texts), then whitespace is restored to each translation individually
+
+Both modes use the same preservation logic, ensuring consistent behavior.
+
+### Best Practices
+
+1. **Avoid whitespace in msgid when possible**
+   Whitespace in translation strings can cause formatting issues. Instead, handle spacing in your UI layer:
+   ```python
+   # Bad - whitespace in msgid
+   msgid " Settings"
+
+   # Good - whitespace in code
+   print(f"  {_('Settings')}")
+   ```
+
+2. **If whitespace is unavoidable**
+   The tool will preserve it automatically. Use verbose mode to see which entries contain whitespace:
+   ```bash
+   gpt-po-translator --folder ./locales --lang fr -vv
+   ```
+
+3. **Review whitespace warnings**
+   When the tool warns about whitespace entries, consider refactoring your code to move the whitespace out of the translation strings.
+
+---
+
+>>>>>>> Stashed changes
 ## Behind the Scenes: API Calls and Post-Processing
 
 - **Provider-Specific API Calls:**  

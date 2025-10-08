@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek with automatic AI translation tagging.
+**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, and Ollama (local) with automatic AI translation tagging.
 
 ## 🚀 Quick Start
 
@@ -21,7 +21,8 @@ gpt-po-translator --folder ./locales --bulk
 
 ## ✨ Key Features
 
-- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek
+- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, and Ollama (local)
+- **Privacy option** - Use Ollama for local, offline translations with no cloud API
 - **AI translation tracking** - Auto-tags AI-generated translations with `#. AI-generated` comments
 - **Bulk processing** - Efficient batch translation for large files
 - **Smart language detection** - Auto-detects target languages from folder structure
@@ -49,7 +50,7 @@ pip install -e .
 
 ## 🔧 Setup
 
-### API Keys
+### API Keys (Cloud Providers)
 
 Choose your AI provider and set the corresponding API key:
 
@@ -68,6 +69,24 @@ export AZURE_OPENAI_API_KEY='your_key'
 export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'
 export AZURE_OPENAI_API_VERSION='2024-02-01'
 ```
+
+### Or Use Ollama (Local, No API Key Needed)
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a model (qwen2.5 recommended for multilingual)
+ollama pull qwen2.5
+
+# Use it (no API key required!)
+gpt-po-translator --provider ollama --folder ./locales
+
+# For non-Latin scripts (Arabic, Chinese, etc.), omit --bulk for better quality
+gpt-po-translator --provider ollama --model qwen2.5 --folder ./locales --lang ar
+```
+
+> **💡 Tip:** For Ollama with non-Latin languages, **don't use `--bulk`** mode. Single-item translation produces better results since the model doesn't need to handle JSON formatting.
 
 ## 💡 Usage Examples
 
@@ -93,15 +112,27 @@ gpt-po-translator --provider deepseek --folder ./locales --lang de
 
 # Use Azure OpenAI with auto-detection
 gpt-po-translator --provider azure_openai --folder ./locales --bulk
+
+# Use Ollama (local, private, free) - omit --bulk for non-Latin scripts
+gpt-po-translator --provider ollama --folder ./locales
 ```
 
 ### Docker Usage
 ```bash
-# Basic usage
+# Basic usage with OpenAI
 docker run -v $(pwd):/data \
   -e OPENAI_API_KEY="your_key" \
   ghcr.io/pescheckit/python-gpt-po:latest \
   --folder /data --bulk
+
+# With Ollama (local, no API key needed)
+# Note: Omit --bulk for better quality with non-Latin scripts
+docker run --rm \
+  -v $(pwd):/data \
+  --network host \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --provider ollama \
+  --folder /data
 
 # With Azure OpenAI
 docker run -v $(pwd):/data \
@@ -135,7 +166,7 @@ This helps you:
 |--------|-------------|
 | `--folder` | Path to .po files |
 | `--lang` | Target languages (e.g., `de,fr,es`, `fr_CA`, `pt_BR`) |
-| `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, `deepseek` |
+| `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, `deepseek`, `ollama` |
 | `--bulk` | Enable batch translation (recommended for large files) |
 | `--bulksize` | Entries per batch (default: 50) |
 | `--model` | Specific model to use |
@@ -143,6 +174,8 @@ This helps you:
 | `--fix-fuzzy` | Translate fuzzy entries |
 | `--folder-language` | Auto-detect languages from folders |
 | `--no-ai-comment` | Disable AI tagging |
+| `--ollama-base-url` | Ollama server URL (default: `http://localhost:11434`) |
+| `--ollama-timeout` | Ollama timeout in seconds (default: 120) |
 | `-v, --verbose` | Show progress information (use `-vv` for debug) |
 | `-q, --quiet` | Only show errors |
 | `--version` | Show version and exit |

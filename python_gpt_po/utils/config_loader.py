@@ -200,11 +200,85 @@ class ConfigLoader:
         """
         Get default model for a specific provider.
         Args:
-            provider: Provider name (e.g., 'openai', 'anthropic')
+            provider: Provider name (e.g., 'openai', 'anthropic', 'ollama')
             start_path: Directory to start searching from
         Returns:
             Default model string or None
         """
         config = cls.load_config(start_path)
+        # First check provider-specific config
+        provider_config = config.get('provider', {}).get(provider, {})
+        if 'model' in provider_config:
+            return provider_config['model']
+        # Fall back to default_models (legacy)
         default_models = config.get('default_models', {})
         return default_models.get(provider)
+
+    @classmethod
+    def get_ollama_base_url(cls, start_path: Optional[str] = None) -> str:
+        """
+        Get Ollama base URL from config, env var, or default.
+
+        Priority:
+        1. Environment variable OLLAMA_BASE_URL
+        2. Config file provider.ollama.base_url
+        3. Default: http://localhost:11434
+
+        Args:
+            start_path: Directory to start searching from
+
+        Returns:
+            Ollama base URL
+        """
+        # Priority 1: Environment variable
+        env_url = os.getenv('OLLAMA_BASE_URL')
+        if env_url:
+            return env_url
+
+        # Priority 2: Config file, Priority 3: Default
+        return cls.get_provider_setting('ollama', 'base_url', 'http://localhost:11434', start_path)
+
+    @classmethod
+    def get_ollama_model(cls, start_path: Optional[str] = None) -> str:
+        """
+        Get default Ollama model from config or default.
+
+        Args:
+            start_path: Directory to start searching from
+
+        Returns:
+            Ollama model name
+        """
+        return cls.get_provider_setting('ollama', 'model', 'llama3.2', start_path)
+
+    @classmethod
+    def get_ollama_timeout(cls, start_path: Optional[str] = None) -> int:
+        """
+        Get Ollama request timeout from config or default.
+
+        Args:
+            start_path: Directory to start searching from
+
+        Returns:
+            Timeout in seconds
+        """
+        return cls.get_provider_setting('ollama', 'timeout', 120, start_path)
+
+    @classmethod
+    def get_provider_setting(cls, provider: str, setting: str, default: Any = None,
+                             start_path: Optional[str] = None) -> Any:
+        """
+        Get a specific setting for any provider from config.
+
+        Args:
+            provider: Provider name (e.g., 'openai', 'anthropic', 'ollama')
+            setting: Setting name (e.g., 'base_url', 'timeout', 'model')
+            default: Default value if not found
+            start_path: Directory to start searching from
+
+        Returns:
+            Setting value or default
+        """
+        config = cls.load_config(start_path)
+        provider_config = config.get('provider', {}).get(provider, {})
+        return provider_config.get(setting, default)
