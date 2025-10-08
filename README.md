@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, and Ollama (local) with automatic AI translation tagging.
+**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek with automatic AI translation tagging and context-aware translations.
 
 ## 🚀 Quick Start
 
@@ -21,8 +21,8 @@ gpt-po-translator --folder ./locales --bulk
 
 ## ✨ Key Features
 
-- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, and Ollama (local)
-- **Privacy option** - Use Ollama for local, offline translations with no cloud API
+- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, Ollama
+- **Context-aware translations** - Automatically uses `msgctxt` for better accuracy with ambiguous terms
 - **AI translation tracking** - Auto-tags AI-generated translations with `#. AI-generated` comments
 - **Bulk processing** - Efficient batch translation for large files
 - **Smart language detection** - Auto-detects target languages from folder structure
@@ -70,26 +70,6 @@ export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'
 export AZURE_OPENAI_API_VERSION='2024-02-01'
 ```
 
-### Or Use Ollama (Local, No API Key Needed)
-
-```bash
-# 1. Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# 2. Pull a model
-ollama pull qwen2.5    # Best for multilingual (Arabic, Chinese, etc.)
-# OR
-ollama pull llama3.2   # Fast for European languages
-
-# 3. Translate (no API key required!)
-gpt-po-translator --provider ollama --folder ./locales
-
-# For non-Latin scripts, use qwen2.5 WITHOUT --bulk
-gpt-po-translator --provider ollama --model qwen2.5 --folder ./locales --lang ar
-```
-
-> **💡 Important:** For Ollama with **non-Latin languages** (Arabic, Chinese, Japanese, etc.), **omit the `--bulk` flag**. Single-item translation is more reliable because the model doesn't have to format responses as JSON.
-
 ## 💡 Usage Examples
 
 ### Basic Translation
@@ -115,7 +95,7 @@ gpt-po-translator --provider deepseek --folder ./locales --lang de
 # Use Azure OpenAI with auto-detection
 gpt-po-translator --provider azure_openai --folder ./locales --bulk
 
-# Use Ollama (local, private, free) - omit --bulk for non-Latin scripts
+# Use Ollama (local, see docs/usage.md for setup)
 gpt-po-translator --provider ollama --folder ./locales
 ```
 
@@ -127,8 +107,7 @@ docker run -v $(pwd):/data \
   ghcr.io/pescheckit/python-gpt-po:latest \
   --folder /data --bulk
 
-# With Ollama (local, no API key needed)
-# Note: Omit --bulk for better quality with non-Latin scripts
+# With Ollama (see docs/usage.md for full setup guide)
 docker run --rm \
   -v $(pwd):/data \
   --network host \
@@ -144,6 +123,24 @@ docker run -v $(pwd):/data \
   ghcr.io/pescheckit/python-gpt-po:latest \
   --provider azure_openai --folder /data --lang de
 ```
+
+## 🎯 Context-Aware Translations
+
+**Automatically uses `msgctxt` for better accuracy:**
+
+```po
+msgctxt "button"
+msgid "Save"
+msgstr ""  → "Speichern" (button action)
+
+msgctxt "money"
+msgid "Save"
+msgstr ""  → "Sparen" (save money)
+```
+
+The tool extracts context from your PO files and passes it to the AI for more accurate translations of ambiguous terms.
+
+**Tip:** Use detailed context for best results: `msgctxt "status label (not verb)"` works better than just `msgctxt "status"`.
 
 ## 🏷️ AI Translation Tracking
 

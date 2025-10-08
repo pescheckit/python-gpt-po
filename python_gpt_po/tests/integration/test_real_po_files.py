@@ -402,7 +402,7 @@ msgstr ""
         # Create a function that will track the calls to perform_translation
         detail_language_was_passed = [False]  # Use a list to make it mutable in the nested function
 
-        def mock_perform_translation(texts, target_language, is_bulk=False, detail_language=None):
+        def mock_perform_translation(texts, target_language, is_bulk=False, detail_language=None, context=None):
             if detail_language == "French":
                 detail_language_was_passed[0] = True
             return ["Bonjour", "Merci"]
