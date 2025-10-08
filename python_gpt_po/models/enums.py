@@ -11,6 +11,7 @@ class ModelProvider(Enum):
     ANTHROPIC = "anthropic"
     DEEPSEEK = "deepseek"
     AZURE_OPENAI = "azure_openai"
+    OLLAMA = "ollama"
 
 
 ModelProviderList = [provider.value for provider in ModelProvider]

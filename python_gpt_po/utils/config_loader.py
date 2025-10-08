@@ -200,11 +200,35 @@ class ConfigLoader:
         """
         Get default model for a specific provider.
         Args:
-            provider: Provider name (e.g., 'openai', 'anthropic')
+            provider: Provider name (e.g., 'openai', 'anthropic', 'ollama')
             start_path: Directory to start searching from
         Returns:
             Default model string or None
         """
         config = cls.load_config(start_path)
+        # First check provider-specific config
+        provider_config = config.get('provider', {}).get(provider, {})
+        if 'model' in provider_config:
+            return provider_config['model']
+        # Fall back to default_models (legacy)
         default_models = config.get('default_models', {})
         return default_models.get(provider)
+
+    @classmethod
+    def get_provider_setting(cls, provider: str, setting: str, default: Any = None,
+                             start_path: Optional[str] = None) -> Any:
+        """
+        Get a specific setting for any provider from config.
+
+        Args:
+            provider: Provider name (e.g., 'openai', 'anthropic', 'ollama')
+            setting: Setting name (e.g., 'base_url', 'timeout', 'model')
+            default: Default value if not found
+            start_path: Directory to start searching from
+
+        Returns:
+            Setting value or default
+        """
+        config = cls.load_config(start_path)
+        provider_config = config.get('provider', {}).get(provider, {})
+        return provider_config.get(setting, default)

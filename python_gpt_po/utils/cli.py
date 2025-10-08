@@ -151,6 +151,19 @@ Examples:
         help="Azure OpenAI API version (can also use AZURE_OPENAI_API_VERSION env var)"
     )
 
+    # Ollama options
+    advanced_group.add_argument(
+        "--ollama-base-url",
+        metavar="URL",
+        help="Ollama API base URL (default: http://localhost:11434 or OLLAMA_BASE_URL env var)"
+    )
+    advanced_group.add_argument(
+        "--ollama-timeout",
+        type=int,
+        metavar="SECONDS",
+        help="Ollama request timeout in seconds (default: 120)"
+    )
+
     # Advanced options
     advanced_group.add_argument(
         "--bulk",

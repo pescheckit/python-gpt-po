@@ -426,6 +426,251 @@ gpt-po-translator --folder ./locales --lang de --no-ai-comment
 
 ---
 
+## Using Ollama (Local AI Provider)
+
+### Overview
+
+Ollama allows you to run AI models locally on your machine, providing:
+- **Privacy**: All translations happen locally, no data sent to cloud services
+- **Cost**: No API fees - completely free
+- **Offline**: Works without internet connection
+- **Control**: Full control over model and infrastructure
+
+### Prerequisites
+
+1. **Install Ollama**
+   ```bash
+   # macOS/Linux
+   curl -fsSL https://ollama.com/install.sh | sh
+
+   # Or download from https://ollama.com
+   ```
+
+2. **Pull a model**
+   ```bash
+   # For multilingual (Arabic, Chinese, etc.)
+   ollama pull qwen2.5
+
+   # For European languages only
+   ollama pull llama3.2
+
+   # Other options
+   ollama pull llama3.1   # Better quality, slower
+   ollama pull mistral    # Good for European languages
+   ```
+
+3. **Start Ollama** (if not already running)
+   ```bash
+   ollama serve
+   ```
+
+### Basic Usage
+
+```bash
+# Latin scripts (English, French, Spanish, etc.) - can use bulk mode
+gpt-po-translator --provider ollama --folder ./locales --bulk
+
+# Non-Latin scripts (Arabic, Chinese, Japanese, etc.) - omit --bulk for better quality
+gpt-po-translator --provider ollama --model qwen2.5 --folder ./locales --lang ar
+
+# Specify a model
+gpt-po-translator --provider ollama --model llama3.1 --folder ./locales
+
+# List available models
+gpt-po-translator --provider ollama --list-models
+```
+
+> **⚠️ Important:** For **non-Latin languages**, **omit the `--bulk` flag**. Local models struggle with JSON formatting for Arabic/Chinese/etc., resulting in poor translation quality or errors. Single-item mode is more reliable.
+
+### Configuration
+
+#### Option 1: Environment Variable
+
+```bash
+export OLLAMA_BASE_URL="http://localhost:11434"
+gpt-po-translator --provider ollama --folder ./locales --bulk
+```
+
+#### Option 2: CLI Arguments
+
+```bash
+# Custom port
+gpt-po-translator --provider ollama \
+  --ollama-base-url http://localhost:8080 \
+  --folder ./locales --bulk
+
+# Increase timeout for slow models
+gpt-po-translator --provider ollama \
+  --ollama-timeout 300 \
+  --folder ./locales --bulk
+```
+
+#### Option 3: Config File
+
+Add to your `pyproject.toml`:
+
+```toml
+[tool.gpt-po-translator.provider.ollama]
+base_url = "http://localhost:11434"
+model = "llama3.2"
+timeout = 120
+
+[tool.gpt-po-translator]
+bulk_mode = true
+bulk_size = 50
+```
+
+Then simply run:
+```bash
+gpt-po-translator --provider ollama --folder ./locales
+```
+
+### Advanced Scenarios
+
+#### Remote Ollama Server
+
+Run Ollama on a different machine:
+
+```bash
+# On the Ollama server (192.168.1.100)
+ollama serve --host 0.0.0.0
+
+# On your machine
+gpt-po-translator --provider ollama \
+  --ollama-base-url http://192.168.1.100:11434 \
+  --folder ./locales --bulk
+```
+
+Or set in `pyproject.toml`:
+```toml
+[tool.gpt-po-translator.provider.ollama]
+base_url = "http://192.168.1.100:11434"
+```
+
+#### Docker with Ollama
+
+Run Ollama on your host machine, then use Docker with `--network host`:
+
+```bash
+# 1. Start Ollama on host
+ollama serve
+
+# 2. Pull a model on host
+ollama pull qwen2.5
+
+# 3. Run translator in Docker (Linux/macOS)
+docker run --rm \
+  -v $(pwd):/data \
+  --network host \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --provider ollama \
+  --folder /data
+
+# macOS/Windows Docker Desktop: use host.docker.internal
+docker run --rm \
+  -v $(pwd):/data \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --provider ollama \
+  --ollama-base-url http://host.docker.internal:11434 \
+  --folder /data
+```
+
+**With config file:**
+```bash
+# Add Ollama config to pyproject.toml in your project
+docker run --rm \
+  -v $(pwd):/data \
+  -v $(pwd)/pyproject.toml:/data/pyproject.toml \
+  --network host \
+  ghcr.io/pescheckit/python-gpt-po:latest \
+  --provider ollama \
+  --folder /data
+```
+
+### Performance Considerations
+
+**Pros:**
+- No API costs
+- Privacy and data control
+- No rate limits
+- Offline capability
+
+**Cons:**
+- Quality varies by model (may not match GPT-4)
+- Requires local resources (RAM, GPU recommended)
+- Initial setup needed (install Ollama, pull models)
+
+**Performance Tips:**
+1. **Use GPU**: Install Ollama with GPU support for 10-100x speedup
+2. **Choose appropriate models**:
+   - Small projects: `llama3.2` (fast, good quality)
+   - Better quality: `llama3.1` (slower, better accuracy)
+   - Multilingual: `qwen2.5` (excellent for non-Latin scripts like Arabic, Chinese, etc.)
+   - Specialized: `mistral`, `gemma2`
+3. **Increase timeout** for large models: `--ollama-timeout 300`
+4. **Bulk mode vs Single mode**:
+   - **Bulk mode (`--bulk`)**: Faster but requires model to return valid JSON - recommended for cloud providers
+   - **Single mode (no `--bulk`)**: Slower but more reliable for local models, especially with non-Latin scripts
+   - For Ollama with languages like Arabic/Chinese/Japanese, **omit `--bulk`** for better quality
+
+### Recommended Models for Translation
+
+| Model | Size | Speed | Quality | Best For |
+|-------|------|-------|---------|----------|
+| `llama3.2` | 3B | ⚡⚡⚡ Fast | ⭐⭐⭐ Good | General use, Latin scripts only |
+| `llama3.1` | 8B | ⚡⚡ Medium | ⭐⭐⭐⭐ Better | Better quality, medium projects |
+| `qwen2.5` | 7B | ⚡⚡ Medium | ⭐⭐⭐⭐ Excellent | **Multilingual** (Arabic, Chinese, etc.) |
+| `mistral` | 7B | ⚡⚡ Medium | ⭐⭐⭐ Good | European languages |
+| `gemma2` | 9B | ⚡ Slower | ⭐⭐⭐⭐ Better | High quality translations |
+
+**Note:** For non-Latin scripts (Arabic, Chinese, Japanese, etc.), use `qwen2.5` or larger models **without `--bulk` flag** for best results.
+
+### Troubleshooting
+
+**"Cannot connect to Ollama"**
+```bash
+# Check if Ollama is running
+curl http://localhost:11434/api/tags
+
+# Start Ollama
+ollama serve
+
+# Check if running on different port
+ollama serve --help
+```
+
+**Slow translations**
+- Use GPU-enabled Ollama installation
+- Choose a smaller model (`llama3.2` instead of `llama3.1`)
+- Increase `--bulksize` to batch more entries together
+- Close other applications to free up RAM
+
+**Model not found**
+```bash
+# List installed models
+ollama list
+
+# Pull the model
+ollama pull llama3.2
+```
+
+**Timeout errors**
+```bash
+# Increase timeout
+gpt-po-translator --provider ollama --ollama-timeout 300 --folder ./locales
+```
+
+### Configuration Priority
+
+Ollama settings are loaded in this order (highest to lowest):
+
+1. **CLI arguments**: `--ollama-base-url`, `--ollama-timeout`
+2. **Environment variables**: `OLLAMA_BASE_URL`
+3. **Config file**: `pyproject.toml` under `[tool.gpt-po-translator.provider.ollama]`
+4. **Defaults**: `http://localhost:11434`, timeout `120s`
+
+---
+
 ## Whitespace Handling in Translations
 
 ### Overview
