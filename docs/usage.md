@@ -549,100 +549,40 @@ base_url = "http://192.168.1.100:11434"
 
 #### Docker with Ollama
 
-**Option 1: Ollama on Host Machine (Recommended)**
-
-If Ollama is running on your host machine:
+Run Ollama on your host machine, then use Docker with `--network host`:
 
 ```bash
-# Linux/macOS
+# 1. Start Ollama on host
+ollama serve
+
+# 2. Pull a model on host
+ollama pull qwen2.5
+
+# 3. Run translator in Docker (Linux/macOS)
 docker run --rm \
   -v $(pwd):/data \
   --network host \
-  python-gpt-po:latest \
+  ghcr.io/pescheckit/python-gpt-po:latest \
   --provider ollama \
-  --folder /data --bulk
+  --folder /data
 
-# The --network host allows container to access host's localhost:11434
-```
-
-**For macOS/Windows Docker Desktop:**
-```bash
-# Use host.docker.internal to reach host machine
+# macOS/Windows Docker Desktop: use host.docker.internal
 docker run --rm \
   -v $(pwd):/data \
-  python-gpt-po:latest \
+  ghcr.io/pescheckit/python-gpt-po:latest \
   --provider ollama \
   --ollama-base-url http://host.docker.internal:11434 \
-  --folder /data --bulk
+  --folder /data
 ```
 
-**Option 2: Both in Docker Compose**
-
-```yaml
-version: '3.8'
-services:
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    # Optional: GPU support
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
-  translator:
-    image: python-gpt-po:latest
-    depends_on:
-      - ollama
-    environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-    volumes:
-      - ./locales:/data
-    command: --provider ollama --folder /data --bulk
-    # Or use pyproject.toml config
-    # volumes:
-    #   - ./locales:/data
-    #   - ./pyproject.toml:/data/pyproject.toml
-
-volumes:
-  ollama_data:
-```
-
-**To use:**
+**With config file:**
 ```bash
-# Pull Ollama model (one-time setup)
-docker compose run ollama ollama pull llama3.2
-
-# Run translation
-docker compose run translator
-
-# Or run both services
-docker compose up
-```
-
-**Option 3: Config File Approach**
-
-Add to your `pyproject.toml`:
-```toml
-[tool.gpt-po-translator.provider.ollama]
-base_url = "http://ollama:11434"  # Service name in docker-compose
-model = "llama3.2"
-timeout = 180
-```
-
-Then mount it:
-```bash
+# Add Ollama config to pyproject.toml in your project
 docker run --rm \
   -v $(pwd):/data \
   -v $(pwd)/pyproject.toml:/data/pyproject.toml \
   --network host \
-  python-gpt-po:latest \
+  ghcr.io/pescheckit/python-gpt-po:latest \
   --provider ollama \
   --folder /data
 ```
