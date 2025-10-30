@@ -257,7 +257,6 @@ class TestDefaultContext:
 
             # Should use default context if most entries don't have context
             assert mock_translate.called
-            call_args = mock_translate.call_args
             # When all contexts are None, it should not pass context
             # (or pass the most common one which is None)
             assert len(translations) == 2
