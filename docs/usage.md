@@ -171,13 +171,20 @@ Below is a detailed explanation of all command-line arguments:
   *Description:* Provides the DeepSeek API key directly.  
   *Behind the scenes:* This key is required to make API calls to DeepSeek’s translation service.
 
-- **`--folder-language`**  
-  *Description:* Enables inferring the target language from the folder structure.  
+- **`--folder-language`**
+  *Description:* Enables inferring the target language from the folder structure.
   *Behind the scenes:* The tool inspects the path components (directory names) of each PO file and matches them against the provided language codes. Supports locale codes (e.g., folder `fr_CA` matches `-l fr_CA` for Canadian French, or falls back to `-l fr` for standard French).
 
-- **`--no-ai-comment`**  
-  *Description:* Disables the automatic addition of 'AI-generated' comments to translated entries.  
-  *Behind the scenes:* **By default (without this flag), every translation made by the AI is marked with a `#. AI-generated` comment in the PO file.** This flag prevents that marking, making AI translations indistinguishable from human translations in the file.  
+- **`--default-context CONTEXT`**
+  *Description:* Sets a default translation context for entries without `msgctxt`.
+  *Behind the scenes:* When the tool encounters PO entries without explicit `msgctxt` context, it applies this default context to provide additional information to the AI. Entries with explicit `msgctxt` always take precedence. Can also be set via the `GPT_TRANSLATOR_CONTEXT` environment variable or `default_context` in `pyproject.toml`.
+  *Priority:* CLI argument > Environment variable > Config file
+  *Example:* `--default-context "web application UI"` helps the AI understand the context for all translations without specific msgctxt.
+  *Note:* Use descriptive context (e.g., "e-commerce product page" rather than just "web") for best results.
+
+- **`--no-ai-comment`**
+  *Description:* Disables the automatic addition of 'AI-generated' comments to translated entries.
+  *Behind the scenes:* **By default (without this flag), every translation made by the AI is marked with a `#. AI-generated` comment in the PO file.** This flag prevents that marking, making AI translations indistinguishable from human translations in the file.
   *Note:* AI tagging is enabled by default for tracking, compliance, and quality assurance purposes.
 
 - **`-v, --verbose`**  
@@ -777,6 +784,54 @@ Translate to German: Save
 
 Result: **"Speichern"** (button action) instead of **"Sparen"** (to save money)
 
+### Default Context
+
+For entries without explicit `msgctxt`, you can provide a default context that applies to all translations:
+
+#### Configuration Methods
+
+**1. Command-Line Argument (highest priority):**
+```bash
+gpt-po-translator --folder ./locales --default-context "web application" --bulk
+```
+
+**2. Environment Variable:**
+```bash
+export GPT_TRANSLATOR_CONTEXT="mobile app for iOS"
+gpt-po-translator --folder ./locales --bulk
+```
+
+**3. Configuration File (pyproject.toml):**
+```toml
+[tool.gpt-po-translator]
+default_context = "e-commerce checkout flow"
+```
+
+#### Priority Order
+CLI argument > Environment variable > Config file
+
+#### Behavior
+- Entries **with** `msgctxt` → Uses the explicit `msgctxt` (always takes precedence)
+- Entries **without** `msgctxt` → Uses the default context
+- No default context configured → No context provided (original behavior)
+
+#### Example
+```bash
+gpt-po-translator --folder ./locales --default-context "medical device interface" --lang de
+```
+
+With this setup:
+```po
+# Entry WITH msgctxt - uses "button"
+msgctxt "button"
+msgid "Start"
+msgstr ""  → "Starten" (button action)
+
+# Entry WITHOUT msgctxt - uses default "medical device interface"
+msgid "Start"
+msgstr ""  → "Start" (medical procedure start, preserving technical term)
+```
+
 ### Best Practices
 
 **✓ Good - Detailed, Explicit Context:**
@@ -796,7 +851,9 @@ msgstr ""  → "Halten" (may still be wrong)
 **Key Points:**
 - **Be explicit** - Describe what you want AND what you don't want
 - **Provide examples** - Include similar terms or expected word forms
-- **Human review still needed** - msgctxt improves results but doesn't guarantee perfection
+- **Use default context for project-wide context** - Helps all translations understand domain (e.g., "legal contract", "gaming UI", "medical records")
+- **Use msgctxt for specific terms** - Override default with specific context when needed
+- **Human review still needed** - Context improves results but doesn't guarantee perfection
 
 ---
 

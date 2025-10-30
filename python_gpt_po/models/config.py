@@ -5,7 +5,7 @@ Configuration classes for the PO translator application.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from .enums import ModelProvider
 
@@ -30,3 +30,4 @@ class TranslationConfig:
     provider: ModelProvider
     model: str
     flags: TranslationFlags
+    default_context: Optional[str] = None
