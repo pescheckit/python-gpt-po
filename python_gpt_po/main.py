@@ -6,6 +6,7 @@ Main entry point for the translator application.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import traceback
 from argparse import Namespace
@@ -20,6 +21,7 @@ from .services.model_manager import ModelManager
 from .services.translation_service import TranslationService
 from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args, parse_args,
                         show_help_and_exit, validate_provider_key)
+from .utils.config_loader import ConfigLoader
 
 
 def setup_logging(verbose: int = 0, quiet: bool = False):
@@ -218,6 +220,20 @@ def main():
             logging.warning(
                 "Note: --fuzzy flag is deprecated. Use --fix-fuzzy for safer fuzzy entry handling."
             )
+
+        # Get default context: Priority is CLI arg > Env var > Config file
+        default_context = None
+        if hasattr(args, 'default_context') and args.default_context:
+            default_context = args.default_context
+        elif os.getenv('GPT_TRANSLATOR_CONTEXT'):
+            default_context = os.getenv('GPT_TRANSLATOR_CONTEXT')
+        else:
+            # Try to get from config file
+            default_context = ConfigLoader.get_default_context(args.folder)
+
+        if default_context:
+            logging.info("Using default translation context: %s", default_context)
+
         # Create translation configuration
         flags = TranslationFlags(
             bulk_mode=args.bulk,
@@ -230,7 +246,8 @@ def main():
             provider_clients=provider_clients,
             provider=provider,
             model=model,
-            flags=flags
+            flags=flags,
+            default_context=default_context
         )
 
         # Process translations

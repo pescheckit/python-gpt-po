@@ -54,6 +54,7 @@ class ConfigLoader:
         'mark_ai_generated': True,
         'folder_language_detection': False,
         'fix_fuzzy_entries': False,
+        'default_context': None,
         # Provider defaults
         'default_models': {
             'openai': 'gpt-4o-mini',
@@ -232,3 +233,17 @@ class ConfigLoader:
         config = cls.load_config(start_path)
         provider_config = config.get('provider', {}).get(provider, {})
         return provider_config.get(setting, default)
+
+    @classmethod
+    def get_default_context(cls, start_path: Optional[str] = None) -> Optional[str]:
+        """
+        Get default translation context from configuration.
+
+        Args:
+            start_path: Directory to start searching from
+
+        Returns:
+            Default context string or None
+        """
+        config = cls.load_config(start_path)
+        return config.get('default_context')

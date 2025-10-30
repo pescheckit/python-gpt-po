@@ -142,6 +142,28 @@ The tool extracts context from your PO files and passes it to the AI for more ac
 
 **Tip:** Use detailed context for best results: `msgctxt "status label (not verb)"` works better than just `msgctxt "status"`.
 
+### Default Context
+
+Provide a default context for entries without `msgctxt`:
+
+```bash
+# Via command-line
+gpt-po-translator --folder ./locales --default-context "web application" --bulk
+
+# Via environment variable
+export GPT_TRANSLATOR_CONTEXT="mobile app for iOS"
+gpt-po-translator --folder ./locales --bulk
+
+# Via pyproject.toml
+# Add to your pyproject.toml:
+[tool.gpt-po-translator]
+default_context = "e-commerce checkout flow"
+```
+
+**Priority:** CLI argument > Environment variable > Config file
+
+The default context is applied to entries without explicit `msgctxt`, while entries with `msgctxt` always take precedence.
+
 ## 🏷️ AI Translation Tracking
 
 **All AI translations are automatically tagged** for transparency and compliance:
@@ -172,6 +194,7 @@ This helps you:
 | `--list-models` | Show available models |
 | `--fix-fuzzy` | Translate fuzzy entries |
 | `--folder-language` | Auto-detect languages from folders |
+| `--default-context` | Default translation context for entries without msgctxt |
 | `--no-ai-comment` | Disable AI tagging |
 | `--ollama-base-url` | Ollama server URL (default: `http://localhost:11434`) |
 | `--ollama-timeout` | Ollama timeout in seconds (default: 120) |

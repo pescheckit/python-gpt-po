@@ -166,6 +166,12 @@ Examples:
 
     # Advanced options
     advanced_group.add_argument(
+        "--default-context",
+        metavar="CONTEXT",
+        help="Default translation context to use when entries lack msgctxt "
+             "(can also use GPT_TRANSLATOR_CONTEXT env var)"
+    )
+    advanced_group.add_argument(
         "--bulk",
         action="store_true",
         help="Use bulk translation mode (faster, but may be less accurate)"

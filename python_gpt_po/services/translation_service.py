@@ -855,13 +855,26 @@ class TranslationService:
         """Prepare a translation request from PO file data."""
         entries = [entry for entry in po_file if is_entry_untranslated(entry)]
         texts = [entry.msgid for entry in entries]
-        contexts = [entry.msgctxt if hasattr(entry, 'msgctxt') else None for entry in entries]
+
+        # Extract contexts from entries, falling back to default_context if not present
+        contexts = []
+        for entry in entries:
+            if hasattr(entry, 'msgctxt') and entry.msgctxt:
+                contexts.append(entry.msgctxt)
+            elif self.config.default_context:
+                contexts.append(self.config.default_context)
+            else:
+                contexts.append(None)
+
         detail_lang = detail_languages.get(file_lang) if detail_languages else None
 
         # Log context usage
         context_count = sum(1 for c in contexts if c)
+        default_context_count = sum(1 for c in contexts if c == self.config.default_context)
         if context_count > 0:
-            logging.debug("Found %d entries with msgctxt in %s", context_count, po_file_path)
+            logging.debug("Found %d entries with context in %s", context_count, po_file_path)
+            if default_context_count > 0:
+                logging.debug("Using default context for %d entries", default_context_count)
 
         # Check for and warn about whitespace in msgid
         whitespace_entries = [
