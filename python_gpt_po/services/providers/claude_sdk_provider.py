@@ -2,8 +2,6 @@
 Claude SDK provider implementation.
 Uses claude-agent-sdk with Claude Code CLI for authentication.
 """
-import logging
-import sys
 from typing import List
 
 from ...models.provider_clients import ProviderClients

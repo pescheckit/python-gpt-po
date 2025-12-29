@@ -1,8 +1,6 @@
 """
 Initialize and register all providers.
 """
-import logging
-
 from ...models.enums import ModelProvider
 from .registry import ProviderRegistry
 
