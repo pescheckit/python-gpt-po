@@ -8,6 +8,7 @@ import unittest
 
 import polib
 
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.utils.po_entry_helpers import get_all_untranslated_entries, is_entry_untranslated
 
 
@@ -159,7 +160,7 @@ msgstr[2] ""
 
         try:
             # Load the PO file
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
 
             # Get the plural entry
             entries = list(po_file)
@@ -196,7 +197,7 @@ msgstr[2] "%(num)d година"
 
         try:
             # Load the PO file
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
 
             # Get the plural entry
             entries = list(po_file)

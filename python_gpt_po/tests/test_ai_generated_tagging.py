@@ -131,7 +131,7 @@ class TestAIGeneratedTagging:
             po.save(tmp_path)
 
             # Load the file back
-            loaded_po = polib.pofile(tmp_path)
+            loaded_po = POFileHandler.load_po_file(tmp_path)
             loaded_entry = loaded_po.find("Hello")
 
             # Verify the comment persisted

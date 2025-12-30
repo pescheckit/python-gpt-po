@@ -529,7 +529,7 @@ def test_handling_diverse_po_formats():
     for name, file_path in po_files:
         try:
             # Try to load the real PO file using polib
-            po_file = polib.pofile(file_path)
+            po_file = POFileHandler.load_po_file(file_path)
 
             # Mock get_file_language to return French
             service.po_file_handler.get_file_language = MagicMock(return_value="fr")
