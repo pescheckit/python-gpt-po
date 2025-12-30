@@ -58,14 +58,8 @@ class ClaudeSdkProvider(ModelProviderInterface):
             raise ValueError("Claude SDK client not initialized")
 
         import anyio
-        from claude_agent_sdk import (
-            AssistantMessage,
-            CLINotFoundError,
-            ClaudeAgentOptions,
-            ProcessError,
-            TextBlock,
-            query,
-        )
+        from claude_agent_sdk import (AssistantMessage, ClaudeAgentOptions, CLINotFoundError, ProcessError, TextBlock,
+                                      query)
 
         async def get_translation():
             """Async function to get translation from Claude SDK."""
