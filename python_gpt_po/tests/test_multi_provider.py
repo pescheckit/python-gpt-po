@@ -384,7 +384,7 @@ def test_clean_json_response(translation_service_deepseek: TranslationService):
     assert cleaned == "[\"Bonjour\", \"Monde\"]"
 
 
-@patch('polib.pofile')
+@patch.object(POFileHandler, 'load_po_file')
 def test_process_po_file_all_providers(mock_pofile: MagicMock,
                                        translation_service_openai: TranslationService,
                                        translation_service_anthropic: TranslationService,
@@ -465,7 +465,7 @@ def test_fuzzy_flag_handling(
     translation_service_openai.config.flags.fuzzy = True
 
     # Mock the PO file handling
-    with patch('polib.pofile') as mock_pofile:
+    with patch.object(POFileHandler, 'load_po_file') as mock_pofile:
         mock_po = MagicMock()
         mock_po.metadata = {"Language": "fr"}
         mock_pofile.return_value = mock_po
@@ -516,7 +516,7 @@ def test_validation_model_connection_all_providers(
 
 
 @patch('os.walk')
-@patch('polib.pofile')
+@patch.object(POFileHandler, 'load_po_file')
 def test_scan_and_process_po_files(
     mock_pofile: MagicMock,
     mock_walk: MagicMock,
