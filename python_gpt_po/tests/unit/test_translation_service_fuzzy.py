@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import polib
-
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients

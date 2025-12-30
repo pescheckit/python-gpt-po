@@ -442,7 +442,6 @@ msgstr ""
                     po_file = POFileHandler.load_po_file(po_path)
 
                     # Test exact match
-                    from python_gpt_po.services.po_file_handler import POFileHandler
                     result = POFileHandler.get_file_language(
                         po_path, po_file, [locale_code], False
                     )

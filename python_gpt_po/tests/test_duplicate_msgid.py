@@ -9,8 +9,6 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-import polib
-
 from python_gpt_po.models.config import TranslationConfig
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.services.po_file_handler import POFileHandler
