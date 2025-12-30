@@ -12,6 +12,7 @@ import polib
 
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 from python_gpt_po.utils.po_entry_helpers import get_all_untranslated_entries, is_entry_untranslated
 
@@ -125,7 +126,7 @@ msgstr ""
             po_path = f.name
 
         try:
-            po_file = polib.pofile(po_path)
+            po_file = POFileHandler.load_po_file(po_path)
             untranslated = get_all_untranslated_entries(po_file)
             untranslated_msgids = [e.msgid for e in untranslated]
 
@@ -191,7 +192,7 @@ msgstr ""
             po_path = f.name
 
         try:
-            po_file = polib.pofile(po_path)
+            po_file = POFileHandler.load_po_file(po_path)
 
             # Get entries to translate
             entries_to_translate = [e for e in po_file if is_entry_untranslated(e)]
@@ -204,7 +205,7 @@ msgstr ""
             po_file.save(po_path)
 
             # Reload and check
-            po_file = polib.pofile(po_path)
+            po_file = POFileHandler.load_po_file(po_path)
             save_entries = [e for e in po_file if e.msgid == "Save"]
 
             # One should be translated, one should not
@@ -291,7 +292,7 @@ msgstr ""
                         service.process_po_file(po_path, ["fr"], None)
 
                         # Verify all were translated regardless of mode
-                        result = polib.pofile(po_path)
+                        result = POFileHandler.load_po_file(po_path)
                         for entry in result:
                             if entry.msgid:  # Skip header
                                 self.assertNotEqual(entry.msgstr, "")
@@ -438,10 +439,9 @@ msgstr ""
                     po_path = f.name
 
                 try:
-                    po_file = polib.pofile(po_path)
+                    po_file = POFileHandler.load_po_file(po_path)
 
                     # Test exact match
-                    from python_gpt_po.services.po_file_handler import POFileHandler
                     result = POFileHandler.get_file_language(
                         po_path, po_file, [locale_code], False
                     )

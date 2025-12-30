@@ -130,7 +130,7 @@ msgstr ""
             assert ai_comments_after == 0, "Django makemessages removes translator comments"
 
             # Load with polib to verify structure
-            merged_po = polib.pofile(str(original_po))
+            merged_po = POFileHandler.load_po_file(str(original_po))
             hello_entry = merged_po.find("Hello")
             assert hello_entry.msgstr == "Hola"  # Translation preserved
             assert not hello_entry.comment  # Comment removed
@@ -169,7 +169,7 @@ msgstr ""
             tmp.flush()
 
             # Load with polib and add AI translations
-            po = polib.pofile(tmp.name)
+            po = POFileHandler.load_po_file(tmp.name)
 
             # Update entries with AI translations
             for entry in po:

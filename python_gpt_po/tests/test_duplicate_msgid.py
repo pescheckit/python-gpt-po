@@ -9,10 +9,9 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-import polib
-
 from python_gpt_po.models.config import TranslationConfig
 from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 
 
@@ -56,7 +55,7 @@ msgstr ""
 
         try:
             # Load the PO file
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
 
             # Verify we have duplicate msgid entries
             latest_news_entries = [e for e in po_file if e.msgid == "Latest News"]
@@ -70,7 +69,7 @@ msgstr ""
                 self.service.process_po_file(po_file_path, ["fr"], {"fr": "French"})
 
             # Reload and verify both "Latest News" entries were translated
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
             latest_news_entries = [e for e in po_file if e.msgid == "Latest News"]
 
             # Both entries should be translated
@@ -118,7 +117,7 @@ msgstr ""
 
         try:
             # Load the PO file
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
 
             # Verify we have duplicate msgid entries
             home_entries = [e for e in po_file if e.msgid == "Home"]
@@ -133,7 +132,7 @@ msgstr ""
                 self.service.process_po_file(po_file_path, ["fr"], {"fr": "French"})
 
             # Reload and verify all "Home" entries were translated
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
             home_entries = [e for e in po_file if e.msgid == "Home"]
 
             # All three entries should be translated
@@ -178,7 +177,7 @@ msgstr ""
 
         try:
             # Load the PO file
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
 
             # Mock translations - simulate interrupt after first "Save" translation
             translation_count = 0
@@ -200,7 +199,7 @@ msgstr ""
                     self.service.process_po_file(po_file_path, ["fr"], {"fr": "French"})
 
             # Reload and verify only the first entry was translated
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
             save_entries = [e for e in po_file if e.msgid == "Save"]
 
             # Only the first Save should be translated
@@ -238,7 +237,7 @@ msgstr ""
             po_file_path = f.name
 
         try:
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
 
             # Get entries to translate
             entries_to_translate = [entry for entry in po_file if not entry.msgstr.strip() and entry.msgid]

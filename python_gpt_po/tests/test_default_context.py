@@ -10,6 +10,7 @@ import polib
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 
 
@@ -48,7 +49,7 @@ class TestDefaultContext:
             po.save(str(po_file_path))
 
             # Load and prepare translation request
-            po_loaded = polib.pofile(str(po_file_path))
+            po_loaded = POFileHandler.load_po_file(str(po_file_path))
             request = self.service._prepare_translation_request(
                 po_loaded, str(po_file_path), 'fr', {}
             )
@@ -79,7 +80,7 @@ class TestDefaultContext:
             po.save(str(po_file_path))
 
             # Load and prepare translation request
-            po_loaded = polib.pofile(str(po_file_path))
+            po_loaded = POFileHandler.load_po_file(str(po_file_path))
             request = self.service._prepare_translation_request(
                 po_loaded, str(po_file_path), 'fr', {}
             )
@@ -126,7 +127,7 @@ class TestDefaultContext:
             po.save(str(po_file_path))
 
             # Load and prepare translation request
-            po_loaded = polib.pofile(str(po_file_path))
+            po_loaded = POFileHandler.load_po_file(str(po_file_path))
             request = self.service._prepare_translation_request(
                 po_loaded, str(po_file_path), 'de', {}
             )
@@ -167,7 +168,7 @@ class TestDefaultContext:
             po.save(str(po_file_path))
 
             # Load and prepare translation request
-            po_loaded = polib.pofile(str(po_file_path))
+            po_loaded = POFileHandler.load_po_file(str(po_file_path))
             request = service._prepare_translation_request(
                 po_loaded, str(po_file_path), 'es', {}
             )
@@ -205,7 +206,7 @@ class TestDefaultContext:
                 assert call_args[1].get('context') == 'web application'
 
             # Verify translation was saved
-            po_result = polib.pofile(str(po_file_path))
+            po_result = POFileHandler.load_po_file(str(po_file_path))
             assert po_result[0].msgstr == 'Soumettre'
 
     def test_empty_string_default_context(self):
@@ -236,7 +237,7 @@ class TestDefaultContext:
             po.save(str(po_file_path))
 
             # Load and prepare translation request
-            po_loaded = polib.pofile(str(po_file_path))
+            po_loaded = POFileHandler.load_po_file(str(po_file_path))
             request = service._prepare_translation_request(
                 po_loaded, str(po_file_path), 'nl', {}
             )

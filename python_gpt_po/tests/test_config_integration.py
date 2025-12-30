@@ -12,6 +12,7 @@ import polib
 
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 from python_gpt_po.utils.config_loader import ConfigLoader
 from python_gpt_po.utils.gitignore import create_gitignore_parser
@@ -363,7 +364,7 @@ msgstr ""
         # Load and check if files should be skipped
         files_to_process = []
         for po_file_path in [project_dir / "translated.po", project_dir / "untranslated.po"]:
-            po_file = polib.pofile(str(po_file_path))
+            po_file = POFileHandler.load_po_file(str(po_file_path))
 
             # Check if file has untranslated entries
             from python_gpt_po.utils.po_entry_helpers import is_entry_untranslated

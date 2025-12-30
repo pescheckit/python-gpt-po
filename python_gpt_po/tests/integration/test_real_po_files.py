@@ -154,7 +154,7 @@ def test_translation_from_real_po_file(translation_service_openai, modified_po_f
     translation_service_openai.po_file_handler.get_file_language = MagicMock(return_value="fr")
 
     # Perform the translation
-    with patch('polib.pofile') as mock_pofile:
+    with patch.object(POFileHandler, 'load_po_file') as mock_pofile:
         # Create mock entries for the removed translations
         mock_entries = []
         for text, translation in [
@@ -199,7 +199,7 @@ def test_translation_large_real_po_file_with_batching(translation_service_anthro
     translation_service_anthropic.po_file_handler.get_file_language = MagicMock(return_value="fr")
 
     # Setup a simplified mock PO file with multiple entries
-    with patch('polib.pofile') as mock_pofile:
+    with patch.object(POFileHandler, 'load_po_file') as mock_pofile:
         mock_entries = []
         for i in range(15):  # Create 15 entries to test batching (3 batches of 5)
             entry = MagicMock()
@@ -381,7 +381,7 @@ msgstr ""
     original_perform_translation = translation_service_openai.perform_translation
 
     # Create entries for the mock PO file
-    with patch('polib.pofile') as mock_pofile:
+    with patch.object(POFileHandler, 'load_po_file') as mock_pofile:
         mock_entries = []
         for text in ["Hello", "Thank you"]:
             entry = MagicMock()
@@ -470,7 +470,7 @@ def test_real_po_file_with_multiple_providers(
             service.po_file_handler.get_file_language = MagicMock(return_value="fr")
 
             # Setup simplified POFile for consistency
-            with patch('polib.pofile') as mock_pofile:
+            with patch.object(POFileHandler, 'load_po_file') as mock_pofile:
                 # Create mock entries
                 mock_entries = []
                 for text, trans in [("Yes", ""), ("No", "")]:
@@ -529,7 +529,7 @@ def test_handling_diverse_po_formats():
     for name, file_path in po_files:
         try:
             # Try to load the real PO file using polib
-            po_file = polib.pofile(file_path)
+            po_file = POFileHandler.load_po_file(file_path)
 
             # Mock get_file_language to return French
             service.po_file_handler.get_file_language = MagicMock(return_value="fr")

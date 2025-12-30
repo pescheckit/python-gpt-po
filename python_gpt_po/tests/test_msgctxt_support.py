@@ -10,6 +10,7 @@ import polib
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 
 
@@ -64,7 +65,7 @@ class TestMsgctxtSupport:
             po.save(str(po_file_path))
 
             # Load and prepare translation request
-            po_loaded = polib.pofile(str(po_file_path))
+            po_loaded = POFileHandler.load_po_file(str(po_file_path))
             request = self.service._prepare_translation_request(
                 po_loaded, str(po_file_path), 'fr', {}
             )
@@ -168,7 +169,7 @@ class TestMsgctxtSupport:
                 assert call_args[1].get('context') == 'button'
 
             # Verify translation was saved
-            po_result = polib.pofile(str(po_file_path))
+            po_result = POFileHandler.load_po_file(str(po_file_path))
             assert po_result[0].msgstr == 'Löschen'
             assert po_result[0].msgctxt == 'button'  # Context preserved
 
@@ -200,5 +201,5 @@ class TestMsgctxtSupport:
                 assert call_args[1].get('context') is None
 
             # Verify translation worked
-            po_result = polib.pofile(str(po_file_path))
+            po_result = POFileHandler.load_po_file(str(po_file_path))
             assert po_result[0].msgstr == 'Hola'

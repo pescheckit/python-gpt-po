@@ -16,6 +16,24 @@ class POFileHandler:
     """Handles operations related to .po files."""
 
     @staticmethod
+    def load_po_file(po_file_path: str):
+        """Load a PO file with UTF-8 encoding.
+
+        Always sets UTF-8 encoding regardless of what the file's Content-Type header says.
+        This ensures translations with non-ASCII characters (German umlauts, CJK, etc.)
+        can be saved without encoding errors.
+
+        Args:
+            po_file_path (str): Path to the .po file
+
+        Returns:
+            polib.POFile: The loaded PO file with UTF-8 encoding
+        """
+        po_file = polib.pofile(po_file_path)
+        po_file.encoding = 'UTF-8'
+        return po_file
+
+    @staticmethod
     def disable_fuzzy_translations(po_file_path):
         """Disables fuzzy translations in a .po file."""
         try:
@@ -31,7 +49,7 @@ class POFileHandler:
                 file.write(content)
 
             # Load the .po file and remove fuzzy flags from entries
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
             fuzzy_entries = [entry for entry in po_file if 'fuzzy' in entry.flags]
             for entry in fuzzy_entries:
                 entry.flags.remove('fuzzy')

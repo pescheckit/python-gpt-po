@@ -11,6 +11,7 @@ import polib
 
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
 from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 
 
@@ -76,7 +77,7 @@ class TestIncrementalSave(unittest.TestCase):
         mock_translate.side_effect = [f"Translation {i+1}" for i in range(25)]
 
         # Reload the file to simulate fresh read
-        po_file = polib.pofile(po_path)
+        po_file = POFileHandler.load_po_file(po_path)
         texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip()]
 
         # Track save calls
@@ -107,7 +108,7 @@ class TestIncrementalSave(unittest.TestCase):
         self.assertEqual(save_calls, [10, 20, 25])
 
         # Verify final file has all translations
-        final_po = polib.pofile(po_path)
+        final_po = POFileHandler.load_po_file(po_path)
         translated_count = len([e for e in final_po if e.msgstr.strip()])
         self.assertEqual(translated_count, 25)
 
@@ -130,7 +131,7 @@ class TestIncrementalSave(unittest.TestCase):
         ]
 
         # Reload the file
-        po_file = polib.pofile(po_path)
+        po_file = POFileHandler.load_po_file(po_path)
         texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip()]
 
         # Track save calls
@@ -178,7 +179,7 @@ class TestIncrementalSave(unittest.TestCase):
         mock_translate.side_effect = translate_with_interrupt
 
         # Reload file
-        po_file = polib.pofile(po_path)
+        po_file = POFileHandler.load_po_file(po_path)
         texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip()]
 
         # Process and expect KeyboardInterrupt
@@ -197,7 +198,7 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Check that file was saved with partial translations
         # (Should have saved at least the first batch before interrupt)
-        saved_po = polib.pofile(po_path)
+        saved_po = POFileHandler.load_po_file(po_path)
         translated_count = len([e for e in saved_po if e.msgstr.strip()])
 
         # Should have at least some translations saved
@@ -225,7 +226,7 @@ class TestIncrementalSave(unittest.TestCase):
         mock_translate.side_effect = translate_with_interrupt
 
         # Reload file
-        po_file = polib.pofile(po_path)
+        po_file = POFileHandler.load_po_file(po_path)
         texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip()]
 
         # Process and expect KeyboardInterrupt
@@ -243,7 +244,7 @@ class TestIncrementalSave(unittest.TestCase):
             self.service._process_with_incremental_save_bulk(request)
 
         # Check that completed batches were saved
-        saved_po = polib.pofile(po_path)
+        saved_po = POFileHandler.load_po_file(po_path)
         translated_count = len([e for e in saved_po if e.msgstr.strip()])
 
         # Should have saved 1 complete batch (10 translations)
@@ -270,7 +271,7 @@ class TestIncrementalSave(unittest.TestCase):
             self.service.process_po_file(po_path, ["fr"], None)
 
         # Verify file was saved with partial translations
-        saved_po = polib.pofile(po_path)
+        saved_po = POFileHandler.load_po_file(po_path)
         translated_count = len([e for e in saved_po if e.msgstr.strip()])
 
         # Should have some translations but not all
@@ -291,7 +292,7 @@ class TestIncrementalSave(unittest.TestCase):
         mock_translate.side_effect = translate_with_error
 
         # Reload file
-        po_file = polib.pofile(po_path)
+        po_file = POFileHandler.load_po_file(po_path)
         texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip()]
 
         # Process - should continue despite error
@@ -308,7 +309,7 @@ class TestIncrementalSave(unittest.TestCase):
         self.service._process_with_incremental_save_single(request)
 
         # Should have 9 translations (all except the failed one)
-        saved_po = polib.pofile(po_path)
+        saved_po = POFileHandler.load_po_file(po_path)
         translated_count = len([e for e in saved_po if e.msgstr.strip()])
         self.assertEqual(translated_count, 9)
 
@@ -333,7 +334,7 @@ class TestIncrementalSave(unittest.TestCase):
         mock_translate.side_effect = translate_with_error
 
         # Reload file
-        po_file = polib.pofile(po_path)
+        po_file = POFileHandler.load_po_file(po_path)
         texts_to_translate = [entry.msgid for entry in po_file if not entry.msgstr.strip()]
 
         # Process - should continue despite batch 2 error
@@ -350,7 +351,7 @@ class TestIncrementalSave(unittest.TestCase):
         self.service._process_with_incremental_save_bulk(request)
 
         # Should have 10 translations (batch 1 and 3, but not batch 2)
-        saved_po = polib.pofile(po_path)
+        saved_po = POFileHandler.load_po_file(po_path)
         translated_count = len([e for e in saved_po if e.msgstr.strip()])
         self.assertEqual(translated_count, 10)
 

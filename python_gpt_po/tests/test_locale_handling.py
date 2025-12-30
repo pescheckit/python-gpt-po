@@ -136,7 +136,7 @@ class TestLocaleHandling:
             po_file.save(f.name)
 
             # Reload to test
-            po_file = polib.pofile(f.name)
+            po_file = POFileHandler.load_po_file(f.name)
 
             # Test exact match
             result = POFileHandler.get_file_language(f.name, po_file, ['fr_CA'], False)
@@ -164,7 +164,7 @@ class TestLocaleHandling:
             # Test file with underscore, request with hyphen
             po_file.metadata = {'Language': 'pt_BR'}
             po_file.save(f.name)
-            po_file = polib.pofile(f.name)
+            po_file = POFileHandler.load_po_file(f.name)
 
             result = POFileHandler.get_file_language(f.name, po_file, ['pt-BR'], False)
             assert result == 'pt-BR', f"Expected pt_BR to match pt-BR, got {result}"
@@ -172,7 +172,7 @@ class TestLocaleHandling:
             # Test file with hyphen, request with underscore
             po_file.metadata = {'Language': 'pt-BR'}
             po_file.save(f.name)
-            po_file = polib.pofile(f.name)
+            po_file = POFileHandler.load_po_file(f.name)
 
             result = POFileHandler.get_file_language(f.name, po_file, ['pt_BR'], False)
             assert result == 'pt_BR', f"Expected pt-BR to match pt_BR, got {result}"
@@ -214,7 +214,7 @@ class TestLocaleHandling:
                 po_file.save(po_file_path)
 
                 # Test with folder language detection
-                po_file = polib.pofile(po_file_path)
+                po_file = POFileHandler.load_po_file(po_file_path)
                 result = POFileHandler.get_file_language(
                     po_file_path, po_file, languages, folder_language=True
                 )
@@ -248,7 +248,7 @@ class TestLocaleHandling:
                 po_file.metadata = {}
                 po_file.save(po_file_path)
 
-                po_file = polib.pofile(po_file_path)
+                po_file = POFileHandler.load_po_file(po_file_path)
                 result = POFileHandler.get_file_language(
                     po_file_path, po_file, languages, folder_language=True
                 )
