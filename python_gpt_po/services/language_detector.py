@@ -6,10 +6,10 @@ import logging
 import os
 from typing import List, Optional, Set
 
-import polib
 import pycountry
 
 from ..utils.gitignore import create_gitignore_parser
+from .po_file_handler import POFileHandler
 
 
 class LanguageDetector:
@@ -227,7 +227,7 @@ class LanguageDetector:
 
                 try:
                     # Load PO file and check metadata
-                    po_file = polib.pofile(po_path)
+                    po_file = POFileHandler.load_po_file(po_path)
 
                     # Try to get language from metadata
                     language = po_file.metadata.get('Language', '').strip()

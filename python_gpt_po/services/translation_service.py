@@ -13,7 +13,6 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-import polib
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 from ..models.config import TranslationConfig
@@ -752,7 +751,7 @@ class TranslationService:
     def _track_file_progress(self, po_file_path, initial_count):
         """Track translation progress for a single file."""
         try:
-            po_file = polib.pofile(po_file_path)
+            po_file = POFileHandler.load_po_file(po_file_path)
             if self.config.flags.fix_fuzzy:
                 # In fix-fuzzy mode, count remaining fuzzy entries
                 remaining = len([e for e in po_file if 'fuzzy' in e.flags])
@@ -1064,7 +1063,7 @@ class TranslationService:
                 "Consider running with '--fix-fuzzy' to clean and update the fuzzy translations properly.",
             )
             self.po_file_handler.disable_fuzzy_translations(po_file_path)
-        po_file = polib.pofile(po_file_path)
+        po_file = POFileHandler.load_po_file(po_file_path)
         file_lang = self.po_file_handler.get_file_language(
             po_file_path,
             po_file,
