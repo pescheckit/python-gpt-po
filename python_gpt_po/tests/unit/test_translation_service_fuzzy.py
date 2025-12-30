@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 import polib
 
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
-from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 from python_gpt_po.tests.test_multi_provider import SAMPLE_PO_CONTENT
 

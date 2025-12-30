@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 import polib
 
 from python_gpt_po.models.config import TranslationConfig, TranslationFlags
-from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.models.enums import ModelProvider
+from python_gpt_po.services.po_file_handler import POFileHandler
 from python_gpt_po.services.translation_service import TranslationService
 from python_gpt_po.utils.po_entry_helpers import get_all_untranslated_entries, is_entry_untranslated
 
