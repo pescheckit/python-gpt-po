@@ -135,4 +135,5 @@ class ProviderClients:
             ModelProvider.DEEPSEEK.value: deepseek_key,
             ModelProvider.AZURE_OPENAI.value: azure_openai_key,
             ModelProvider.OLLAMA.value: "local",  # Ollama doesn't need API key
+            ModelProvider.CLAUDE_SDK.value: "local",
         }

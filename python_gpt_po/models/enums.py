@@ -12,6 +12,7 @@ class ModelProvider(Enum):
     DEEPSEEK = "deepseek"
     AZURE_OPENAI = "azure_openai"
     OLLAMA = "ollama"
+    CLAUDE_SDK = "claude_sdk"
 
 
 ModelProviderList = [provider.value for provider in ModelProvider]

@@ -10,6 +10,7 @@ def initialize_providers():
     # Import providers here to avoid circular imports
     from .anthropic_provider import AnthropicProvider
     from .azure_openai_provider import AzureOpenAIProvider
+    from .claude_sdk_provider import ClaudeSdkProvider
     from .deepseek_provider import DeepSeekProvider
     from .ollama_provider import OllamaProvider
     from .openai_provider import OpenAIProvider
@@ -18,6 +19,7 @@ def initialize_providers():
     ProviderRegistry.register(ModelProvider.DEEPSEEK, DeepSeekProvider)
     ProviderRegistry.register(ModelProvider.AZURE_OPENAI, AzureOpenAIProvider)
     ProviderRegistry.register(ModelProvider.OLLAMA, OllamaProvider)
+    ProviderRegistry.register(ModelProvider.CLAUDE_SDK, ClaudeSdkProvider)
 
 
 # Providers will be initialized lazily when first accessed

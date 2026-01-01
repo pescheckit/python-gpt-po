@@ -55,6 +55,9 @@ Examples:
   # Use Anthropic with detailed language names
   gpt-po-translator --folder ./i18n --lang nl,de --detail-lang "Dutch,German" --provider anthropic
 
+  # Use Claude SDK (requires Claude Code CLI installed, no API key needed)
+  gpt-po-translator --folder ./locales --provider claude_sdk --bulk
+
   # List available models for a provider (no need for --folder or --lang)
   gpt-po-translator --provider deepseek --list-models
 """,
