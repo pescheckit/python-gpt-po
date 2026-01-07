@@ -254,8 +254,8 @@ def main():
 
         # 4. Initialize providers (Online Execution Path Starts Here)
         # Localize imports to ensure strictly offline estimation phase
-        from .utils.cli import create_language_mapping
         from .models.config import TranslationConfig, TranslationFlags
+        from .utils.cli import create_language_mapping
 
         provider_clients, provider, final_model_id = get_offline_provider_info(args)
         provider_clients, provider, model = initialize_provider(args, provider_clients, provider, final_model_id)
