@@ -11,16 +11,8 @@ import sys
 import traceback
 from argparse import Namespace
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-from .models.config import TranslationConfig, TranslationFlags
-from .models.enums import ModelProvider
-from .models.provider_clients import ProviderClients
-from .services.language_detector import LanguageDetector
-from .services.model_manager import ModelManager
-from .services.translation_service import TranslationService
-from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args, parse_args,
-                        show_help_and_exit, validate_provider_key)
 from .utils.config_loader import ConfigLoader
 
 
@@ -53,20 +45,15 @@ def setup_logging(verbose: int = 0, quiet: bool = False):
     logging.getLogger().setLevel(level)
 
 
-def initialize_provider(args: Namespace) -> tuple[ProviderClients, ModelProvider, str]:
+def get_offline_provider_info(args: Namespace) -> Tuple[Any, Any, str]:
     """
-    Initialize the provider client and determine the appropriate model.
-
-    Args:
-        args: Command line arguments from argparse
-
-    Returns:
-        tuple: (provider_clients, provider, model)
-
-    Raises:
-        SystemExit: If no valid provider can be found or initialized
+    Get provider and model information without making network calls.
     """
-    # Initialize provider clients
+    from .models.provider_clients import ProviderClients
+    from .services.model_manager import ModelManager
+    from .utils.cli import auto_select_provider, get_provider_from_args, validate_provider_key
+
+    # Initialize provider clients (reads environment variables and args)
     provider_clients = ProviderClients()
     api_keys = provider_clients.initialize_clients(args)
 
@@ -82,40 +69,45 @@ def initialize_provider(args: Namespace) -> tuple[ProviderClients, ModelProvider
     if not validate_provider_key(provider, api_keys):
         sys.exit(1)
 
-    # Create model manager for model operations
-    model_manager = ModelManager()
-
-    # List models if requested and exit
-    if args.list_models:
-        models = model_manager.get_available_models(provider_clients, provider)
-        print(f"Available models for {provider.value}:")
-        for model in models:
-            print(f"  - {model}")
-        sys.exit(0)
-
-    # Determine appropriate model
-    model = get_appropriate_model(provider, provider_clients, model_manager, args.model)
+    # Determine model - use CLI arg or default
+    model = args.model
+    if not model:
+        model = ModelManager.get_default_model(provider)
 
     return provider_clients, provider, model
 
 
+def initialize_provider(args: Namespace, provider_clients: Any, provider: Any, model: str) -> Tuple[Any, Any, str]:
+    """
+    Finalize provider initialization with network validation if needed.
+    """
+    from .services.model_manager import ModelManager
+
+    # Create model manager for model operations
+    model_manager = ModelManager()
+
+    # List models if requested and exit (this makes network calls)
+    if args.list_models:
+        models = model_manager.get_available_models(provider_clients, provider)
+        print(f"Available models for {provider.value}:")
+        for m in models:
+            print(f"  - {m}")
+        sys.exit(0)
+
+    # Validate model (this makes network calls)
+    final_model = get_appropriate_model(provider, provider_clients, model_manager, model)
+
+    return provider_clients, provider, final_model
+
+
 def get_appropriate_model(
-    provider: ModelProvider,
-    provider_clients: ProviderClients,
-    model_manager: ModelManager,
+    provider: Any,
+    provider_clients: Any,
+    model_manager: Any,
     requested_model: Optional[str]
 ) -> str:
     """
     Get the appropriate model for the provider.
-
-    Args:
-        provider (ModelProvider): The selected provider
-        provider_clients (ProviderClients): The initialized provider clients
-        model_manager (ModelManager): The model manager instance
-        requested_model (Optional[str]): Model requested by the user
-
-    Returns:
-        str: The appropriate model ID
     """
     # If a specific model was requested, validate it
     if requested_model:
@@ -143,7 +135,7 @@ def get_appropriate_model(
 @dataclass
 class TranslationTask:
     """Parameters for translation processing."""
-    config: TranslationConfig
+    config: Any
     folder: str
     languages: List[str]
     detail_languages: Dict[str, str]
@@ -154,10 +146,9 @@ class TranslationTask:
 def process_translations(task: TranslationTask):
     """
     Process translations for the given task parameters.
-
-    Args:
-        task: TranslationTask containing all processing parameters
     """
+    from .services.translation_service import TranslationService
+
     # Initialize translation service
     translation_service = TranslationService(task.config, task.batch_size)
 
@@ -181,6 +172,8 @@ def main():
     """
     Main function to parse arguments and initiate processing.
     """
+    from .utils.cli import parse_args, show_help_and_exit
+    
     # Show help if no arguments
     if len(sys.argv) == 1:
         show_help_and_exit()
@@ -192,12 +185,12 @@ def main():
     setup_logging(verbose=args.verbose, quiet=args.quiet)
 
     try:
-        # Initialize provider
-        provider_clients, provider, model = initialize_provider(args)
+        from .services.language_detector import LanguageDetector
+        from .utils.cost_estimator import CostEstimator
 
-        # Get languages - either from args or auto-detect from PO files
+        # 1. Get languages (Pure logic)
         try:
-            respect_gitignore = not args.no_gitignore  # Invert the flag
+            respect_gitignore = not args.no_gitignore
             languages = LanguageDetector.validate_or_detect_languages(
                 folder=args.folder,
                 lang_arg=args.lang,
@@ -208,7 +201,64 @@ def main():
             logging.error(str(e))
             sys.exit(1)
 
-        # Create mapping between language codes and detailed names
+        # 2. Extract model name for offline estimation (Purely offline)
+        # Defaults to gpt-4o-mini if not specified. Avoids ModelManager to prevent early side-effects.
+        estimated_model = args.model or "gpt-4o-mini"
+
+        # 3. Estimate cost if requested (Strictly Offline Terminal Flow)
+        if args.estimate_cost:
+            estimation = CostEstimator.estimate_cost(
+                args.folder,
+                languages,
+                estimated_model,
+                fix_fuzzy=args.fix_fuzzy,
+                respect_gitignore=respect_gitignore
+            )
+            
+            print(f"\n{'='*40}")
+            print(f"   OFFLINE TOKEN ESTIMATION REPORT")
+            print(f"{'='*40}")
+            print(f"Model:          {estimation['model']}")
+            print(f"Rate:           {estimation['rate_info']}")
+            print(f"Unique msgids:  {estimation['unique_texts']:,}")
+            print(f"Total Tokens:   {estimation['total_tokens']:,} (estimated expansion included)")
+            
+            if estimation['estimated_cost'] is not None:
+                print(f"Estimated Cost: ${estimation['estimated_cost']:.4f}")
+            
+            print(f"\nPer-language Breakdown:")
+            for lang, data in estimation['breakdown'].items():
+                cost_str = f"${data['cost']:.4f}" if data['cost'] is not None else "unavailable"
+                print(f"  - {lang:5}: {data['tokens']:8,} tokens | {cost_str}")
+            
+            print(f"{'='*40}\n")
+            
+            if estimation['total_tokens'] == 0:
+                logging.info("No entries require translation.")
+                return
+
+            if not args.yes:
+                confirm = input("Run actual translation with these settings? (y/n): ").lower()
+                if confirm != 'y':
+                    logging.info("Cancelled by user.")
+                    return
+            
+            # Issue #57: Hard exit after estimation to ensure zero side effects.
+            # Estimation is a terminal dry-run. This prevents "Registered provider" logs
+            # or connection attempts from leaking into the audit output.
+            print("\n[Audit Successful] To proceed with actual translation, run the command again WITHOUT --estimate-cost.")
+            return
+
+        # 4. Initialize providers (Online Execution Path Starts Here)
+        # Localize imports to ensure strictly offline estimation phase
+        from .utils.cli import create_language_mapping
+        from .models.config import TranslationConfig, TranslationFlags
+        from .services.translation_service import TranslationService
+
+        provider_clients, provider, final_model_id = get_offline_provider_info(args)
+        provider_clients, provider, model = initialize_provider(args, provider_clients, provider, final_model_id)
+
+        # 5. Create mapping between language codes and detailed names
         try:
             detail_languages = create_language_mapping(languages, args.detail_lang)
         except ValueError as e:

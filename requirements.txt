@@ -10,3 +10,4 @@ requests==2.32.3
 responses==0.25.6
 isort==6.0.1
 tomli==2.2.1
+tiktoken==0.12.0
