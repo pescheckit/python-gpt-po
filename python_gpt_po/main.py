@@ -215,9 +215,9 @@ def main():
                 respect_gitignore=respect_gitignore
             )
 
-            print(f"\n{'='*40}")
+            print(f"\n{'=' * 40}")
             print("   OFFLINE TOKEN ESTIMATION REPORT")
-            print(f"{'='*40}")
+            print(f"{'=' * 40}")
             print(f"Model:          {estimation['model']}")
             print(f"Rate:           {estimation['rate_info']}")
             print(f"Unique msgids:  {estimation['unique_texts']:,}")
@@ -231,7 +231,7 @@ def main():
                 cost_str = f"${data['cost']:.4f}" if data['cost'] is not None else "unavailable"
                 print(f"  - {lang:5}: {data['tokens']:8,} tokens | {cost_str}")
 
-            print(f"{'='*40}\n")
+            print(f"{'=' * 40}\n")
             
             if estimation['total_tokens'] == 0:
                 logging.info("No entries require translation.")
