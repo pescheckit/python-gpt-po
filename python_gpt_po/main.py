@@ -173,7 +173,7 @@ def main():
     Main function to parse arguments and initiate processing.
     """
     from .utils.cli import parse_args, show_help_and_exit
-    
+
     # Show help if no arguments
     if len(sys.argv) == 1:
         show_help_and_exit()
@@ -214,23 +214,23 @@ def main():
                 fix_fuzzy=args.fix_fuzzy,
                 respect_gitignore=respect_gitignore
             )
-            
+
             print(f"\n{'='*40}")
-            print(f"   OFFLINE TOKEN ESTIMATION REPORT")
+            print("   OFFLINE TOKEN ESTIMATION REPORT")
             print(f"{'='*40}")
             print(f"Model:          {estimation['model']}")
             print(f"Rate:           {estimation['rate_info']}")
             print(f"Unique msgids:  {estimation['unique_texts']:,}")
             print(f"Total Tokens:   {estimation['total_tokens']:,} (estimated expansion included)")
-            
+
             if estimation['estimated_cost'] is not None:
                 print(f"Estimated Cost: ${estimation['estimated_cost']:.4f}")
             
-            print(f"\nPer-language Breakdown:")
+            print("\nPer-language Breakdown:")
             for lang, data in estimation['breakdown'].items():
                 cost_str = f"${data['cost']:.4f}" if data['cost'] is not None else "unavailable"
                 print(f"  - {lang:5}: {data['tokens']:8,} tokens | {cost_str}")
-            
+
             print(f"{'='*40}\n")
             
             if estimation['total_tokens'] == 0:
@@ -242,18 +242,20 @@ def main():
                 if confirm != 'y':
                     logging.info("Cancelled by user.")
                     return
-            
+
             # Issue #57: Hard exit after estimation to ensure zero side effects.
             # Estimation is a terminal dry-run. This prevents "Registered provider" logs
             # or connection attempts from leaking into the audit output.
-            print("\n[Audit Successful] To proceed with actual translation, run the command again WITHOUT --estimate-cost.")
+            print(
+                "\n[Audit Successful] To proceed with actual translation, "
+                "run the command again WITHOUT --estimate-cost."
+            )
             return
 
         # 4. Initialize providers (Online Execution Path Starts Here)
         # Localize imports to ensure strictly offline estimation phase
         from .utils.cli import create_language_mapping
         from .models.config import TranslationConfig, TranslationFlags
-        from .services.translation_service import TranslationService
 
         provider_clients, provider, final_model_id = get_offline_provider_info(args)
         provider_clients, provider, model = initialize_provider(args, provider_clients, provider, final_model_id)

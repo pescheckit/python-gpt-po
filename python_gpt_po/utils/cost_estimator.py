@@ -9,6 +9,7 @@ try:
 except ImportError:
     tiktoken = None
 
+
 class CostEstimator:
     """Estimates token usage and costs for translation tasks."""
 
@@ -44,7 +45,7 @@ class CostEstimator:
         # 1. Collect all untranslated msgids once (Offline scan)
         unique_msgids = set()
         gitignore_parser = create_gitignore_parser(folder, respect_gitignore)
-        
+
         for root, dirs, files in os.walk(folder):
             dirs[:], files = gitignore_parser.filter_walk_results(root, dirs, files)
             for file in files:
@@ -58,21 +59,21 @@ class CostEstimator:
                                     unique_msgids.add(entry.msgid)
                     except Exception as e:
                         logging.warning("Error reading %s for estimation: %s", file_path, e)
-        
+
         # 2. Tokenize the entire source content once
         combined_text = "".join(unique_msgids)
         source_tokens = cls._get_token_count(combined_text, model)
-        
+
         # 3. Calculate total tokens (including expansion)
         total_input_tokens = source_tokens * len(languages)
         total_output_tokens = int(total_input_tokens * cls.OUTPUT_MULTIPLIER)
         total_tokens = total_input_tokens + total_output_tokens
-        
+
         # 4. Lookup price for model
         pricing_data = cls._get_pricing(model.lower())
         estimated_cost = None
         rate_info = "unavailable"
-        
+
         if pricing_data:
             in_p, out_p = pricing_data
             cost_in = (total_input_tokens / 1000) * in_p

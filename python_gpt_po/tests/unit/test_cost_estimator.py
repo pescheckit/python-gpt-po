@@ -4,6 +4,7 @@ import shutil
 import polib
 from python_gpt_po.utils.cost_estimator import CostEstimator
 
+
 class TestCostEstimatorMinimal(unittest.TestCase):
     def setUp(self):
         self.test_dir = os.path.abspath("test_cost_est_minimal")
@@ -26,7 +27,7 @@ class TestCostEstimatorMinimal(unittest.TestCase):
         # 1 language
         est1 = CostEstimator.estimate_cost(self.test_dir, ["fr"], "gpt-4o-mini")
         t1 = est1['total_tokens']
-        
+
         # 3 languages
         est3 = CostEstimator.estimate_cost(self.test_dir, ["fr", "es", "de"], "gpt-4o-mini")
         t3 = est3['total_tokens']
@@ -43,7 +44,7 @@ class TestCostEstimatorMinimal(unittest.TestCase):
         # Known model
         est_known = CostEstimator.estimate_cost(self.test_dir, ["fr"], "gpt-4o-mini")
         self.assertIsNotNone(est_known['estimated_cost'])
-        
+
         # Unknown model
         est_unknown = CostEstimator.estimate_cost(self.test_dir, ["fr"], "unknown-model")
         self.assertIsNone(est_unknown['estimated_cost'])
@@ -57,6 +58,7 @@ class TestCostEstimatorMinimal(unittest.TestCase):
 
         est = CostEstimator.estimate_cost(self.test_dir, ["fr"], "gpt-4o-mini")
         self.assertEqual(est['total_tokens'], 0)
+
 
 if __name__ == '__main__':
     unittest.main()
