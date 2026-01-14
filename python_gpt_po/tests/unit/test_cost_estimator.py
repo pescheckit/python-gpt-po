@@ -37,7 +37,7 @@ class TestCostEstimatorMinimal(unittest.TestCase):
         self.assertEqual(t3, t1 * 3)
 
     def test_pricing_lookup(self):
-        """Verify static pricing lookup."""
+        """Verify dynamic pricing lookup via genai-prices."""
         po_path = os.path.join(self.test_dir, "test.po")
         po = polib.POFile()
         po.append(polib.POEntry(msgid="Test", msgstr=""))

@@ -231,6 +231,7 @@ def main():
                 cost_str = f"${data['cost']:.4f}" if data['cost'] is not None else "unavailable"
                 print(f"  - {lang:5}: {data['tokens']:8,} tokens | {cost_str}")
 
+            print("\nNote: Cost estimates are approximate and may not reflect current provider pricing.")
             print(f"{'=' * 40}\n")
             
             if estimation['total_tokens'] == 0:
