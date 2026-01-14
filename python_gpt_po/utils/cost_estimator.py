@@ -11,20 +11,8 @@ except ImportError:
 
 
 class CostEstimator:
-    """Estimates token usage and costs for translation tasks."""
-
-    # Pricing per 1,000 tokens (Input price, Output price)
-    # Data sourced from provider websites (Jan 2026)
-    PRICING = {
-        "gpt-4o": (0.0025, 0.010),
-        "gpt-4o-mini": (0.00015, 0.0006),
-        "claude-3-5-sonnet": (0.003, 0.015),
-        "claude-3-5-sonnet-20241022": (0.003, 0.015),
-        "deepseek-chat": (0.00014, 0.00028),
-        "deepseek-v3": (0.00014, 0.00028),
-    }
-
-    OUTPUT_MULTIPLIER = 1.3  # Conservative estimate for translation expansion
+    # Conservative estimate for translation expansion
+    OUTPUT_MULTIPLIER = 1.3
 
     @classmethod
     def estimate_cost(
@@ -124,5 +112,15 @@ class CostEstimator:
 
     @classmethod
     def _get_pricing(cls, model: str) -> Optional[Tuple[float, float]]:
-        """Lookup pricing for the active model name."""
-        return cls.PRICING.get(model)
+        """Lookup pricing for the active model name using genai-prices."""
+        try:
+            import genai_prices
+            from genai_prices.types import Usage
+
+            # Exact match only. genai-prices raises LookupError if not found.
+            # We use a unit usage of 1000 tokens to get the price per 1k tokens.
+            usage = Usage(input_tokens=1000, output_tokens=1000)
+            price_detail = genai_prices.calc_price(usage, model)
+            return float(price_detail.input_price), float(price_detail.output_price)
+        except (ImportError, LookupError, Exception):
+            return None

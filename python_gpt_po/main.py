@@ -13,7 +13,15 @@ from argparse import Namespace
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from .models.config import TranslationConfig, TranslationFlags
+from .models.provider_clients import ProviderClients
+from .services.language_detector import LanguageDetector
+from .services.model_manager import ModelManager
+from .services.translation_service import TranslationService
+from .utils.cli import (auto_select_provider, create_language_mapping, get_provider_from_args, parse_args,
+                        show_help_and_exit, validate_provider_key)
 from .utils.config_loader import ConfigLoader
+from .utils.cost_estimator import CostEstimator
 
 
 def setup_logging(verbose: int = 0, quiet: bool = False):
@@ -49,10 +57,6 @@ def get_offline_provider_info(args: Namespace) -> Tuple[Any, Any, str]:
     """
     Get provider and model information without making network calls.
     """
-    from .models.provider_clients import ProviderClients
-    from .services.model_manager import ModelManager
-    from .utils.cli import auto_select_provider, get_provider_from_args, validate_provider_key
-
     # Initialize provider clients (reads environment variables and args)
     provider_clients = ProviderClients()
     api_keys = provider_clients.initialize_clients(args)
@@ -81,8 +85,6 @@ def initialize_provider(args: Namespace, provider_clients: Any, provider: Any, m
     """
     Finalize provider initialization with network validation if needed.
     """
-    from .services.model_manager import ModelManager
-
     # Create model manager for model operations
     model_manager = ModelManager()
 
@@ -147,8 +149,6 @@ def process_translations(task: TranslationTask):
     """
     Process translations for the given task parameters.
     """
-    from .services.translation_service import TranslationService
-
     # Initialize translation service
     translation_service = TranslationService(task.config, task.batch_size)
 
@@ -172,8 +172,6 @@ def main():
     """
     Main function to parse arguments and initiate processing.
     """
-    from .utils.cli import parse_args, show_help_and_exit
-
     # Show help if no arguments
     if len(sys.argv) == 1:
         show_help_and_exit()
@@ -185,9 +183,6 @@ def main():
     setup_logging(verbose=args.verbose, quiet=args.quiet)
 
     try:
-        from .services.language_detector import LanguageDetector
-        from .utils.cost_estimator import CostEstimator
-
         # 1. Get languages (Pure logic)
         try:
             respect_gitignore = not args.no_gitignore
@@ -225,14 +220,15 @@ def main():
 
             if estimation['estimated_cost'] is not None:
                 print(f"Estimated Cost: ${estimation['estimated_cost']:.4f}")
-            
+
             print("\nPer-language Breakdown:")
             for lang, data in estimation['breakdown'].items():
                 cost_str = f"${data['cost']:.4f}" if data['cost'] is not None else "unavailable"
                 print(f"  - {lang:5}: {data['tokens']:8,} tokens | {cost_str}")
 
+            print("\nNote: Cost estimates are approximate and may not reflect current provider pricing.")
             print(f"{'=' * 40}\n")
-            
+
             if estimation['total_tokens'] == 0:
                 logging.info("No entries require translation.")
                 return
@@ -253,10 +249,6 @@ def main():
             return
 
         # 4. Initialize providers (Online Execution Path Starts Here)
-        # Localize imports to ensure strictly offline estimation phase
-        from .models.config import TranslationConfig, TranslationFlags
-        from .utils.cli import create_language_mapping
-
         provider_clients, provider, final_model_id = get_offline_provider_info(args)
         provider_clients, provider, model = initialize_provider(args, provider_clients, provider, final_model_id)
 
