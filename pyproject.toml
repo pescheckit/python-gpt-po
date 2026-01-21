@@ -34,6 +34,8 @@ dependencies = [
     "isort==5.13.2",
     "tomli==2.2.1",
     "claude-agent-sdk>=0.1.0",
+    "tiktoken==0.12.0",
+    "genai-prices==0.0.51",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

@@ -125,15 +125,20 @@ class POFileHandler:
 
         if folder_language:
             for part in po_file_path.split(os.sep):
-                # Try variants of the folder part
-                variant_match = POFileHandler._try_language_variants(part, languages)
+                # Clean part (strip .po if it's the filename)
+                clean_part = part
+                if part.endswith('.po'):
+                    clean_part = part[:-3]
+
+                # Try variants of the folder/file part
+                variant_match = POFileHandler._try_language_variants(clean_part, languages)
                 if variant_match:
                     logging.info("Inferred language for .po file: %s as %s", po_file_path, variant_match)
                     return variant_match
 
                 # Try base language fallback
-                if not POFileHandler._should_skip_fallback(part):
-                    norm_part = POFileHandler.normalize_language_code(part)
+                if not POFileHandler._should_skip_fallback(clean_part):
+                    norm_part = POFileHandler.normalize_language_code(clean_part)
                     if norm_part and norm_part in languages:
                         logging.info("Inferred language for .po file: %s as %s (base of %s)",
                                      po_file_path, norm_part, part)
