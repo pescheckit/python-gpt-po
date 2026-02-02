@@ -2,12 +2,18 @@ import logging
 import os
 from typing import Dict, List, Optional, Tuple
 
+import genai_prices
 import polib
+from genai_prices.types import Usage
 
 try:
     import tiktoken
 except ImportError:
     tiktoken = None
+
+
+from .gitignore import create_gitignore_parser
+from .po_entry_helpers import is_entry_untranslated
 
 
 class CostEstimator:
@@ -27,8 +33,6 @@ class CostEstimator:
         Estimate token usage and cost for Issue #57.
         Algorithm: tokenize(unique msgids once) * count(target languages) * pricing
         """
-        from .gitignore import create_gitignore_parser
-        from .po_entry_helpers import is_entry_untranslated
 
         # 1. Collect all untranslated msgids once (Offline scan)
         unique_msgids = set()
@@ -114,8 +118,6 @@ class CostEstimator:
     def _get_pricing(cls, model: str) -> Optional[Tuple[float, float]]:
         """Lookup pricing for the active model name using genai-prices."""
         try:
-            import genai_prices
-            from genai_prices.types import Usage
 
             # Exact match only. genai-prices raises LookupError if not found.
             # We use a unit usage of 1000 tokens to get the price per 1k tokens.
