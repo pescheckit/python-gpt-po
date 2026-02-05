@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -201,7 +202,6 @@ class TranslationService:
                 # Use most common non-None context, or None if all are None
                 non_none_contexts = [c for c in chunk_contexts if c]
                 if non_none_contexts:
-                    from collections import Counter
                     chunk_context = Counter(non_none_contexts).most_common(1)[0][0]
 
             # Extract plural metadata for this chunk
@@ -1058,7 +1058,6 @@ class TranslationService:
         if batch_contexts:
             non_none_contexts = [c for c in batch_contexts if c]
             if non_none_contexts:
-                from collections import Counter
                 batch_context = Counter(non_none_contexts).most_common(1)[0][0]
 
         logging.info("[BULK %d/%d] Translating %d entries...", current_batch, total_batches, len(batch_texts))
