@@ -186,6 +186,16 @@ Examples:
         metavar="SIZE",
         help="Number of strings to translate in each batch (default: 50)"
     )
+    advanced_group.add_argument(
+        "--estimate-cost",
+        action="store_true",
+        help="Estimate token usage and cost before translating"
+    )
+    advanced_group.add_argument(
+        "-y", "--yes",
+        action="store_true",
+        help="Skip confirmation prompt when using --estimate-cost"
+    )
     fuzzy_group.add_argument(
         "--fuzzy",
         action="store_true",
