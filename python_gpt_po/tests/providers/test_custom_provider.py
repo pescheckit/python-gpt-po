@@ -5,7 +5,6 @@ import unittest
 from argparse import Namespace
 from unittest.mock import MagicMock, patch
 
-from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
 from python_gpt_po.services.providers.custom_provider import CustomProvider
 
