@@ -11,10 +11,10 @@ def initialize_providers():
     from .anthropic_provider import AnthropicProvider
     from .azure_openai_provider import AzureOpenAIProvider
     from .claude_sdk_provider import ClaudeSdkProvider
+    from .custom_provider import CustomProvider
     from .deepseek_provider import DeepSeekProvider
     from .ollama_provider import OllamaProvider
     from .openai_provider import OpenAIProvider
-    from .custom_provider import CustomProvider
     ProviderRegistry.register(ModelProvider.OPENAI, OpenAIProvider)
     ProviderRegistry.register(ModelProvider.ANTHROPIC, AnthropicProvider)
     ProviderRegistry.register(ModelProvider.DEEPSEEK, DeepSeekProvider)

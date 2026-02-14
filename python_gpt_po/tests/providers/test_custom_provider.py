@@ -2,8 +2,8 @@
 Unit tests for the custom provider.
 """
 import unittest
-from unittest.mock import MagicMock, patch
 from argparse import Namespace
+from unittest.mock import MagicMock, patch
 
 from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
