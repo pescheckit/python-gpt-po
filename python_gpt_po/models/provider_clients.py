@@ -23,6 +23,7 @@ class ProviderClients:
         self.deepseek_base_url = None
         self.ollama_base_url = None
         self.ollama_timeout = None
+        self.custom_client = None
 
     def _get_setting(self, args: Namespace, arg_name: str, env_var: str = None,
                      config_provider: str = None, config_key: str = None, default: any = None) -> any:
@@ -129,6 +130,19 @@ class ProviderClients:
             'ollama', 'timeout', 120
         )
 
+        # Custom (OpenAI-compatible)
+        custom_key = self._get_setting(
+            args, 'custom_key', 'CUSTOM_API_KEY', 'custom', 'api_key', ''
+        )
+        if custom_key:
+            custom_base_url = self._get_setting(
+                args, 'custom_base_url', 'CUSTOM_BASE_URL', 'custom', 'base_url', None
+            )
+            if not custom_base_url:
+                raise ValueError("Missing custom provider base URL.")
+
+            self.custom_client = OpenAI(api_key=custom_key, base_url=custom_base_url)
+
         return {
             ModelProvider.OPENAI.value: openai_key,
             ModelProvider.ANTHROPIC.value: antropic_key,
@@ -136,4 +150,5 @@ class ProviderClients:
             ModelProvider.AZURE_OPENAI.value: azure_openai_key,
             ModelProvider.OLLAMA.value: "local",  # Ollama doesn't need API key
             ModelProvider.CLAUDE_SDK.value: "local",
+            ModelProvider.CUSTOM.value: custom_key,
         }

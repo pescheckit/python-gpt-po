@@ -13,6 +13,7 @@ class ModelProvider(Enum):
     AZURE_OPENAI = "azure_openai"
     OLLAMA = "ollama"
     CLAUDE_SDK = "claude_sdk"
+    CUSTOM = "custom"
 
 
 ModelProviderList = [provider.value for provider in ModelProvider]

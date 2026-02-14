@@ -141,6 +141,11 @@ Examples:
         metavar="KEY",
         help="Fallback API key for OpenAI (deprecated, use --openai-key instead)"
     )
+    api_group.add_argument(
+        "--custom-key",
+        metavar="KEY",
+        help="Custom provider API key (can also use CUSTOM_API_KEY env var)"
+    )
 
     # Azure OpenAI options
     advanced_group.add_argument(
@@ -165,6 +170,11 @@ Examples:
         type=int,
         metavar="SECONDS",
         help="Ollama request timeout in seconds (default: 120)"
+    )
+    advanced_group.add_argument(
+        "--custom-base-url",
+        metavar="URL",
+        help="Custom provider API base URL (can also use CUSTOM_BASE_URL env var)"
     )
 
     # Advanced options

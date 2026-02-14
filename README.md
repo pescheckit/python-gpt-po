@@ -4,7 +4,7 @@
 ![PyPI](https://img.shields.io/pypi/v/gpt-po-translator?label=gpt-po-translator)
 ![Downloads](https://pepy.tech/badge/gpt-po-translator)
 
-**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, and DeepSeek with automatic AI translation tagging and context-aware translations.
+**Translate gettext (.po) files using AI models.** Supports OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, and OpenAI-compatible custom endpoints with automatic AI translation tagging and context-aware translations.
 
 ## 🚀 Quick Start
 
@@ -21,7 +21,7 @@ gpt-po-translator --folder ./locales --bulk
 
 ## ✨ Key Features
 
-- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, Ollama
+- **Multiple AI providers** - OpenAI, Azure OpenAI, Anthropic/Claude, DeepSeek, Ollama, and Custom (OpenAI-compatible)
 - **Context-aware translations** - Automatically uses `msgctxt` for better accuracy with ambiguous terms
 - **AI translation tracking** - Auto-tags AI-generated translations with `#. AI-generated` comments
 - **Bulk processing** - Efficient batch translation for large files
@@ -68,6 +68,10 @@ export DEEPSEEK_API_KEY='your_key'
 export AZURE_OPENAI_API_KEY='your_key'
 export AZURE_OPENAI_ENDPOINT='https://your-resource.openai.azure.com/'
 export AZURE_OPENAI_API_VERSION='2024-02-01'
+
+# Custom (OpenAI-compatible)
+export CUSTOM_API_KEY='your_key'
+export CUSTOM_BASE_URL='https://api.your-provider.com/v1'
 ```
 
 ## 💡 Usage Examples
@@ -97,6 +101,9 @@ gpt-po-translator --provider azure_openai --folder ./locales --bulk
 
 # Use Ollama (local, see docs/usage.md for setup)
 gpt-po-translator --provider ollama --folder ./locales
+
+# Use Custom OpenAI-compatible provider
+gpt-po-translator --provider custom --custom-base-url "https://api.your-provider.com/v1" --folder ./locales --bulk
 ```
 
 ### Docker Usage
@@ -187,7 +194,7 @@ This helps you:
 |--------|-------------|
 | `--folder` | Path to .po files |
 | `--lang` | Target languages (e.g., `de,fr,es`, `fr_CA`, `pt_BR`) |
-| `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, `deepseek`, `ollama` |
+| `--provider` | AI provider: `openai`, `azure_openai`, `anthropic`, `deepseek`, `ollama`, `custom` |
 | `--bulk` | Enable batch translation (recommended for large files) |
 | `--bulksize` | Entries per batch (default: 50) |
 | `--model` | Specific model to use |
@@ -198,6 +205,8 @@ This helps you:
 | `--no-ai-comment` | Disable AI tagging |
 | `--ollama-base-url` | Ollama server URL (default: `http://localhost:11434`) |
 | `--ollama-timeout` | Ollama timeout in seconds (default: 120) |
+| `--custom-key` | Custom provider API key |
+| `--custom-base-url` | Custom provider API base URL |
 | `-v, --verbose` | Show progress information (use `-vv` for debug) |
 | `-q, --quiet` | Only show errors |
 | `--version` | Show version and exit |

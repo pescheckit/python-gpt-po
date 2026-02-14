@@ -182,8 +182,15 @@ def main():
     # Initialize logging with verbosity settings
     setup_logging(verbose=args.verbose, quiet=args.quiet)
 
+    # 1. Handle --list-models early to avoid needing a folder
+    if args.list_models:
+        provider_clients, provider, final_model_id = get_offline_provider_info(args)
+        initialize_provider(args, provider_clients, provider, final_model_id)
+        # initialize_provider will sys.exit(0) if list_models is True
+        return
+
     try:
-        # 1. Get languages (Pure logic)
+        # 2. Get languages (Pure logic)
         try:
             respect_gitignore = not args.no_gitignore
             languages = LanguageDetector.validate_or_detect_languages(
