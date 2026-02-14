@@ -9,6 +9,7 @@ from python_gpt_po.models.enums import ModelProvider
 from python_gpt_po.models.provider_clients import ProviderClients
 from python_gpt_po.services.providers.custom_provider import CustomProvider
 
+
 class TestCustomProvider(unittest.TestCase):
     def setUp(self):
         self.provider = CustomProvider()
