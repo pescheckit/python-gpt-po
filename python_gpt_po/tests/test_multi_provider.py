@@ -117,8 +117,8 @@ def mock_provider_clients() -> ProviderClients:
     clients.openai_client = MagicMock()
     clients.anthropic_client = MagicMock()
     clients.anthropic_client.api_key = "sk-ant-mock-key"
-    clients.deepseek_api_key = "sk-deepseek-mock-key"
-    clients.deepseek_base_url = "https://api.deepseek.com/v1"
+    clients.openai_compatible_api_key = "sk-deepseek-mock-key"
+    clients.openai_compatible_base_url = "https://api.deepseek.com/v1"
     clients.azure_openai_client = MagicMock()
     clients.azure_openai_client.api_key = "sk-aoi-mock-key"
     return clients

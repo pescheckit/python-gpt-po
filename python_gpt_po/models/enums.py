@@ -9,6 +9,7 @@ class ModelProvider(Enum):
     """Enum for supported model providers."""
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    OPENAI_COMPATIBLE = "openai_compatible"
     DEEPSEEK = "deepseek"
     AZURE_OPENAI = "azure_openai"
     OLLAMA = "ollama"
