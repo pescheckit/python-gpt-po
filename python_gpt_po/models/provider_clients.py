@@ -19,8 +19,8 @@ class ProviderClients:
         self.openai_client = None
         self.azure_openai_client = None
         self.anthropic_client = None
-        self.deepseek_api_key = None
-        self.deepseek_base_url = None
+        self.openai_compatible_api_key = None
+        self.openai_compatible_base_url = None
         self.ollama_base_url = None
         self.ollama_timeout = None
 
@@ -107,17 +107,35 @@ class ProviderClients:
         if antropic_key:
             self.anthropic_client = Anthropic(api_key=antropic_key)
 
-        # DeepSeek
-        deepseek_key = self._get_setting(
-            args, 'deepseek_key', 'DEEPSEEK_API_KEY', 'deepseek', 'api_key', ''
+        # OpenAI-Compatible (accepts both --openai-compatible-* and --deepseek-* args)
+        openai_compatible_key = self._get_setting(
+            args, 'openai_compatible_key', 'OPENAI_COMPATIBLE_API_KEY',
+            'openai_compatible', 'api_key', ''
         )
-        if deepseek_key:
-            self.deepseek_api_key = deepseek_key
+        if not openai_compatible_key:
+            # Backward compatibility: accept deepseek args
+            openai_compatible_key = self._get_setting(
+                args, 'deepseek_key', 'DEEPSEEK_API_KEY', 'deepseek', 'api_key', ''
+            )
+        if openai_compatible_key:
+            self.openai_compatible_api_key = openai_compatible_key
 
-        self.deepseek_base_url = self._get_setting(
-            args, 'deepseek_base_url', 'DEEPSEEK_BASE_URL',
-            'deepseek', 'base_url', 'https://api.deepseek.com/v1'
+        # Base URL - default to DeepSeek API if using deepseek provider
+        provider_name = args.provider if hasattr(args, 'provider') else None
+        default_base_url = 'https://api.deepseek.com/v1' if provider_name == 'deepseek' else None
+
+        openai_compatible_base_url = self._get_setting(
+            args, 'openai_compatible_base_url', 'OPENAI_COMPATIBLE_BASE_URL',
+            'openai_compatible', 'base_url', None
         )
+        if not openai_compatible_base_url:
+            # Backward compatibility: accept deepseek args
+            openai_compatible_base_url = self._get_setting(
+                args, 'deepseek_base_url', 'DEEPSEEK_BASE_URL',
+                'deepseek', 'base_url', default_base_url
+            )
+        if openai_compatible_base_url:
+            self.openai_compatible_base_url = openai_compatible_base_url
 
         # Ollama
         self.ollama_base_url = self._get_setting(
@@ -132,7 +150,8 @@ class ProviderClients:
         return {
             ModelProvider.OPENAI.value: openai_key,
             ModelProvider.ANTHROPIC.value: antropic_key,
-            ModelProvider.DEEPSEEK.value: deepseek_key,
+            ModelProvider.OPENAI_COMPATIBLE.value: openai_compatible_key,
+            ModelProvider.DEEPSEEK.value: openai_compatible_key,
             ModelProvider.AZURE_OPENAI.value: azure_openai_key,
             ModelProvider.OLLAMA.value: "local",  # Ollama doesn't need API key
             ModelProvider.CLAUDE_SDK.value: "local",

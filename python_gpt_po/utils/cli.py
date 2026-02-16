@@ -58,6 +58,11 @@ Examples:
   # Use Claude SDK (requires Claude Code CLI installed, no API key needed)
   gpt-po-translator --folder ./locales --provider claude_sdk --bulk
 
+  # Use LM Studio or other OpenAI-compatible APIs
+  gpt-po-translator --folder ./locales --provider openai_compatible \\
+    --openai-compatible-base-url http://localhost:1234/v1 \\
+    --openai-compatible-key dummy --model llama-3.1-8b
+
   # List available models for a provider (no need for --folder or --lang)
   gpt-po-translator --provider deepseek --list-models
 """,
@@ -127,6 +132,11 @@ Examples:
         help="Anthropic API key (can also use ANTHROPIC_API_KEY env var)"
     )
     api_group.add_argument(
+        "--openai-compatible-key",
+        metavar="KEY",
+        help="OpenAI-compatible API key for custom providers (can also use OPENAI_COMPATIBLE_API_KEY env var)"
+    )
+    api_group.add_argument(
         "--deepseek-key",
         metavar="KEY",
         help="DeepSeek API key (can also use DEEPSEEK_API_KEY env var)"
@@ -152,6 +162,20 @@ Examples:
         "--azure-openai-api-version",
         metavar="VERSION",
         help="Azure OpenAI API version (can also use AZURE_OPENAI_API_VERSION env var)"
+    )
+
+    # OpenAI-compatible provider options
+    advanced_group.add_argument(
+        "--openai-compatible-base-url",
+        metavar="URL",
+        help="Base URL for OpenAI-compatible APIs (LM Studio, z.ai, Groq, etc.) "
+             "(can also use OPENAI_COMPATIBLE_BASE_URL env var)"
+    )
+    advanced_group.add_argument(
+        "--deepseek-base-url",
+        metavar="URL",
+        help="DeepSeek base URL (legacy, use --openai-compatible-base-url) "
+             "(default: https://api.deepseek.com/v1 or DEEPSEEK_BASE_URL env var)"
     )
 
     # Ollama options

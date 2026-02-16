@@ -11,12 +11,13 @@ def initialize_providers():
     from .anthropic_provider import AnthropicProvider
     from .azure_openai_provider import AzureOpenAIProvider
     from .claude_sdk_provider import ClaudeSdkProvider
-    from .deepseek_provider import DeepSeekProvider
     from .ollama_provider import OllamaProvider
+    from .openai_compatible_provider import OpenAICompatibleProvider
     from .openai_provider import OpenAIProvider
     ProviderRegistry.register(ModelProvider.OPENAI, OpenAIProvider)
     ProviderRegistry.register(ModelProvider.ANTHROPIC, AnthropicProvider)
-    ProviderRegistry.register(ModelProvider.DEEPSEEK, DeepSeekProvider)
+    ProviderRegistry.register(ModelProvider.OPENAI_COMPATIBLE, OpenAICompatibleProvider)
+    ProviderRegistry.register(ModelProvider.DEEPSEEK, OpenAICompatibleProvider)  # Alias
     ProviderRegistry.register(ModelProvider.AZURE_OPENAI, AzureOpenAIProvider)
     ProviderRegistry.register(ModelProvider.OLLAMA, OllamaProvider)
     ProviderRegistry.register(ModelProvider.CLAUDE_SDK, ClaudeSdkProvider)
