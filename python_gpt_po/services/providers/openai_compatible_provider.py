@@ -57,8 +57,9 @@ class OpenAICompatibleProvider(ModelProviderInterface):
 
     def is_client_initialized(self, provider_clients: ProviderClients) -> bool:
         """Check if client is initialized."""
-        return (provider_clients.openai_compatible_api_key is not None and
-                provider_clients.openai_compatible_base_url is not None)
+        has_key = provider_clients.openai_compatible_api_key is not None
+        has_url = provider_clients.openai_compatible_base_url is not None
+        return has_key and has_url
 
     def get_fallback_models(self) -> List[str]:
         """Get fallback models."""
