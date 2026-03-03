@@ -135,7 +135,8 @@ class TranslationService:
         logging.info("Batch %d/%d: Translating %d entries...", chunk_num, total_chunks, len(chunk))
         try:
             translations = self.perform_translation(
-                chunk, target_language, is_bulk=True, detail_language=detail_language, context=context
+                chunk, target_language, is_bulk=True, detail_language=detail_language, context=context,
+                plural_metadata_list=plural_metadata
             )
             logging.info("Batch %d/%d: Successfully translated %d entries",
                          chunk_num, total_chunks, len(translations))
@@ -282,7 +283,8 @@ class TranslationService:
     @staticmethod
     def get_translation_prompt(target_language: str, is_bulk: bool, detail_language: Optional[str] = None,
                                context: Optional[str] = None, plural_form: Optional[str] = None,
-                               plural_sources: Optional[Dict[str, str]] = None) -> str:
+                               plural_sources: Optional[Dict[str, str]] = None,
+                               plural_metadata_list: Optional[List[Dict[str, Any]]] = None) -> str:
         """Returns the appropriate translation prompt based on the translation mode.
 
         Args:
@@ -292,11 +294,12 @@ class TranslationService:
             context: Message context from msgctxt (optional, e.g., "button", "menu item")
             plural_form: Plural form name being translated (e.g., "singular", "plural")
             plural_sources: Dict with 'singular' and 'plural' source texts for plural entries
+            plural_metadata_list: List of plural metadata dicts per text for bulk mode
         """
         # Use detailed language if provided, otherwise use the short target language code
         target_lang_text = detail_language if detail_language else target_language
 
-        # Build plural prefix if translating a plural form
+        # Build plural prefix if translating a plural form (single mode)
         plural_prefix = ""
         if plural_form and plural_sources:
             plural_prefix = (
@@ -305,6 +308,26 @@ class TranslationService:
                 f"Plural: \"{plural_sources['plural']}\"\n"
                 f"Translate the {plural_form} form appropriately for {target_lang_text}.\n\n"
             )
+
+        # Build per-text plural annotations for bulk mode
+        bulk_plural_prefix = ""
+        if is_bulk and plural_metadata_list:
+            annotations = []
+            for idx, meta in enumerate(plural_metadata_list, 1):
+                if isinstance(meta, dict) and meta.get("is_plural"):
+                    form_name = meta.get("form_name", "unknown")
+                    singular = meta.get("source_singular", "")
+                    plural = meta.get("source_plural", "")
+                    annotations.append(
+                        f"- Text {idx} is the \"{form_name}\" form "
+                        f"of \"{singular}\"/\"{plural}\""
+                    )
+            if annotations:
+                annotations_text = "\n".join(annotations)
+                bulk_plural_prefix = (
+                    f"PLURAL FORMS:\n{annotations_text}\n"
+                    f"Translate each plural form appropriately for {target_lang_text}.\n\n"
+                )
 
         # Build context prefix if provided
         context_prefix = ""
@@ -318,7 +341,7 @@ class TranslationService:
 
         if is_bulk:
             return (
-                f"{plural_prefix}"
+                f"{bulk_plural_prefix}"
                 f"{context_prefix}"
                 f"Translate the following list of texts from English to {target_lang_text}. "
                 "Provide only the translations in a JSON array format, maintaining the original order. "
@@ -348,7 +371,8 @@ class TranslationService:
             detail_language: Optional[str] = None,
             context: Optional[str] = None,
             plural_form: Optional[str] = None,
-            plural_sources: Optional[Dict[str, str]] = None) -> Any:
+            plural_sources: Optional[Dict[str, str]] = None,
+            plural_metadata_list: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Performs the actual translation using the selected provider's API."""
         logging.debug("Translating to '%s' via %s API", target_language, self.config.provider.value)
         if context:
@@ -356,7 +380,7 @@ class TranslationService:
         if plural_form:
             logging.debug("Translating plural form: %s", plural_form)
         prompt = self.get_translation_prompt(target_language, is_bulk, detail_language, context,
-                                             plural_form, plural_sources)
+                                             plural_form, plural_sources, plural_metadata_list)
 
         # For bulk mode, strip whitespace before sending to AI
         if is_bulk:
@@ -1031,9 +1055,17 @@ class TranslationService:
 
             # Final save and logging
             po_file.save(po_file_path)
+            translation_results = []
+            for idx, entry in enumerate(request.entries):
+                metadata = request.plural_metadata[idx] if request.plural_metadata else {}
+                if metadata.get("is_plural"):
+                    form_idx = metadata["form_index"]
+                    plural_trans = getattr(entry, 'msgstr_plural', {}) or {}
+                    translation_results.append(plural_trans.get(form_idx, ""))
+                else:
+                    translation_results.append(entry.msgstr)
             self.po_file_handler.log_translation_status(
-                po_file_path, request.texts,
-                [entry.msgstr for entry in request.entries]
+                po_file_path, request.texts, translation_results
             )
         except KeyboardInterrupt:
             logging.info("\nTranslation interrupted. Saving progress...")
@@ -1064,7 +1096,8 @@ class TranslationService:
 
         # Get translations for this batch
         translations = self.perform_translation(
-            batch_texts, target_language, is_bulk=True, detail_language=detail_language, context=batch_context
+            batch_texts, target_language, is_bulk=True, detail_language=detail_language, context=batch_context,
+            plural_metadata_list=batch_plural_metadata
         )
 
         # Aggregate plural translations by entry index

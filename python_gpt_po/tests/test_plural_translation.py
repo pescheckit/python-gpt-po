@@ -269,10 +269,94 @@ class TestPluralPromptGeneration:
 
         assert 'PLURAL FORM' not in prompt
 
+    def test_bulk_prompt_includes_per_text_plural_annotations(self):
+        """Test that bulk prompts include per-text plural annotations via plural_metadata_list."""
+        config = create_test_config(bulk_mode=True)
+        service = TranslationService(config)
+
+        plural_metadata_list = [
+            {"is_plural": False},
+            {"is_plural": True, "form_name": "singular", "source_singular": "One file", "source_plural": "%d files"},
+            {"is_plural": True, "form_name": "plural", "source_singular": "One file", "source_plural": "%d files"},
+        ]
+
+        prompt = service.get_translation_prompt(
+            target_language='nl',
+            is_bulk=True,
+            plural_metadata_list=plural_metadata_list
+        )
+
+        assert 'PLURAL FORMS:' in prompt
+        assert 'Text 2 is the "singular" form of "One file"/"%d files"' in prompt
+        assert 'Text 3 is the "plural" form of "One file"/"%d files"' in prompt
+        # Text 1 is not plural, should not appear in annotations
+        assert 'Text 1' not in prompt
+
+    def test_bulk_prompt_no_annotations_without_plural_entries(self):
+        """Test that bulk prompts have no plural annotations when all entries are regular."""
+        config = create_test_config(bulk_mode=True)
+        service = TranslationService(config)
+
+        plural_metadata_list = [
+            {"is_plural": False},
+            {"is_plural": False},
+        ]
+
+        prompt = service.get_translation_prompt(
+            target_language='nl',
+            is_bulk=True,
+            plural_metadata_list=plural_metadata_list
+        )
+
+        assert 'PLURAL FORMS' not in prompt
+
 
 @pytest.mark.integration
 class TestPluralTranslationIntegration:
     """Integration tests for plural translation."""
+
+    @patch('python_gpt_po.services.translation_service.TranslationService._get_provider_response')
+    def test_bulk_prompt_contains_plural_context_end_to_end(self, mock_provider):
+        """Test that the bulk translation prompt sent to the AI includes plural form context."""
+        mock_provider.return_value = '["Een bestand", "%d bestanden"]'
+
+        config = create_test_config(bulk_mode=True)
+        service = TranslationService(config)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.po', delete=False) as f:
+            po_content = """
+msgid ""
+msgstr ""
+"Language: nl\\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\\n"
+
+msgid "One file"
+msgid_plural "%d files"
+msgstr[0] ""
+msgstr[1] ""
+"""
+            f.write(po_content)
+            po_file_path = f.name
+
+        try:
+            po_file = polib.pofile(po_file_path)
+            request = service._prepare_translation_request(
+                po_file, po_file_path, 'nl', {}
+            )
+
+            service._process_with_incremental_save_bulk(request)
+
+            # Verify the prompt sent to the AI contained plural context
+            assert mock_provider.call_count >= 1
+            prompt_sent = mock_provider.call_args[0][0]
+            assert 'PLURAL FORMS:' in prompt_sent
+            assert '"singular"' in prompt_sent
+            assert '"plural"' in prompt_sent
+            assert 'One file' in prompt_sent
+            assert '%d files' in prompt_sent
+
+        finally:
+            Path(po_file_path).unlink()
 
     @patch('python_gpt_po.services.translation_service.TranslationService._get_provider_response')
     def test_translate_2_form_plural_bulk(self, mock_provider):

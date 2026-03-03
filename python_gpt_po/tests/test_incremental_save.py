@@ -215,7 +215,7 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Mock translations - interrupt during batch 2 (after batch 1 completes)
         def translate_with_interrupt(texts, lang, is_bulk=False, detail_language=None, context=None,
-                                    plural_form=None, plural_sources=None):
+                                    plural_form=None, plural_sources=None, plural_metadata_list=None):
             if mock_translate.call_count == 1:
                 # First batch completes successfully
                 return [f"Translation {i+1}" for i in range(1, 11)]
@@ -328,7 +328,7 @@ class TestIncrementalSave(unittest.TestCase):
 
         # Mock translations with batch 2 failing
         def translate_with_error(texts, lang, is_bulk=False, detail_language=None, context=None,
-                                plural_form=None, plural_sources=None):
+                                plural_form=None, plural_sources=None, plural_metadata_list=None):
             if mock_translate.call_count == 2:
                 raise Exception("API error for batch 2")
             return [f"Translation {i+1}" for i in range(len(texts))]
