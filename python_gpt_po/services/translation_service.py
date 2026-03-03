@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -17,6 +18,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed
 
 from ..models.config import TranslationConfig
 from ..utils.gitignore import create_gitignore_parser
+from ..utils.plural_form_helpers import get_plural_count, get_plural_form_names, is_plural_entry
 from ..utils.po_entry_helpers import add_ai_generated_comment, is_entry_untranslated
 from .po_file_handler import POFileHandler
 from .providers.registry import ProviderRegistry
@@ -63,6 +65,7 @@ class TranslationRequest:
     po_file_path: str
     detail_language: Optional[str] = None
     contexts: Optional[List[Optional[str]]] = None  # msgctxt for each entry
+    plural_metadata: Optional[List[Dict[str, Any]]] = None  # Metadata for plural form tracking
 
 
 @dataclass
@@ -128,11 +131,12 @@ class TranslationService:
 
     def _translate_chunk(self, chunk_data):
         """Translate a single chunk of texts."""
-        chunk, target_language, detail_language, chunk_num, total_chunks, context = chunk_data
+        chunk, target_language, detail_language, chunk_num, total_chunks, context, plural_metadata = chunk_data
         logging.info("Batch %d/%d: Translating %d entries...", chunk_num, total_chunks, len(chunk))
         try:
             translations = self.perform_translation(
-                chunk, target_language, is_bulk=True, detail_language=detail_language, context=context
+                chunk, target_language, is_bulk=True, detail_language=detail_language, context=context,
+                plural_metadata_list=plural_metadata
             )
             logging.info("Batch %d/%d: Successfully translated %d entries",
                          chunk_num, total_chunks, len(translations))
@@ -144,8 +148,22 @@ class TranslationService:
             for j, text in enumerate(chunk, 1):
                 try:
                     logging.info("  Translating entry %d/%d...", j, len(chunk))
+
+                    # Extract plural info for this specific text
+                    plural_form = None
+                    plural_sources = None
+                    if plural_metadata and j - 1 < len(plural_metadata):
+                        meta = plural_metadata[j - 1]
+                        if meta.get("is_plural"):
+                            plural_form = meta.get("form_name")
+                            plural_sources = {
+                                "singular": meta.get("source_singular"),
+                                "plural": meta.get("source_plural")
+                            }
+
                     translation = self.perform_translation(
-                        text, target_language, is_bulk=False, detail_language=detail_language, context=context
+                        text, target_language, is_bulk=False, detail_language=detail_language,
+                        context=context, plural_form=plural_form, plural_sources=plural_sources
                     )
                     results.append(translation)
                 except Exception as inner_e:
@@ -159,7 +177,8 @@ class TranslationService:
             target_language: str,
             po_file_path: str,
             detail_language: Optional[str] = None,
-            contexts: Optional[List[Optional[str]]] = None) -> List[str]:
+            contexts: Optional[List[Optional[str]]] = None,
+            plural_metadata: Optional[List[Dict[str, Any]]] = None) -> List[str]:
         """Translates a list of texts in bulk, processing in smaller chunks.
 
         Args:
@@ -168,6 +187,7 @@ class TranslationService:
             po_file_path: Path to PO file
             detail_language: Detailed language name (optional)
             contexts: List of msgctxt values for each text (optional)
+            plural_metadata: List of plural metadata dicts for each text (optional)
         """
         translated_texts = []
         total_chunks = (len(texts) - 1) // self.batch_size + 1
@@ -183,11 +203,16 @@ class TranslationService:
                 # Use most common non-None context, or None if all are None
                 non_none_contexts = [c for c in chunk_contexts if c]
                 if non_none_contexts:
-                    from collections import Counter
                     chunk_context = Counter(non_none_contexts).most_common(1)[0][0]
 
+            # Extract plural metadata for this chunk
+            chunk_plural_metadata = None
+            if plural_metadata:
+                chunk_plural_metadata = plural_metadata[i:i + self.batch_size]
+
             chunk_data = (
-                chunk_texts, target_language, detail_language, chunk_num, total_chunks, chunk_context
+                chunk_texts, target_language, detail_language, chunk_num, total_chunks,
+                chunk_context, chunk_plural_metadata
             )
             translations = self._translate_chunk(chunk_data)
             translated_texts.extend(translations)
@@ -205,7 +230,8 @@ class TranslationService:
         return translated_texts
 
     def translate_single(self, text: str, target_language: str, detail_language: Optional[str] = None,
-                         context: Optional[str] = None) -> str:
+                         context: Optional[str] = None, plural_form: Optional[str] = None,
+                         plural_sources: Optional[Dict[str, str]] = None) -> str:
         """Translates a single text.
 
         Args:
@@ -213,10 +239,13 @@ class TranslationService:
             target_language: Target language code
             detail_language: Detailed language name (optional)
             context: Message context from msgctxt (optional, e.g., "button", "menu item")
+            plural_form: Plural form name being translated (e.g., "singular", "plural")
+            plural_sources: Dict with 'singular' and 'plural' source texts for plural entries
         """
         try:
             translation = self.perform_translation(
-                text, target_language, is_bulk=False, detail_language=detail_language, context=context
+                text, target_language, is_bulk=False, detail_language=detail_language, context=context,
+                plural_form=plural_form, plural_sources=plural_sources
             )
             if not translation.strip():
                 display_text = text[:50] if len(text) > 50 else text
@@ -253,7 +282,9 @@ class TranslationService:
 
     @staticmethod
     def get_translation_prompt(target_language: str, is_bulk: bool, detail_language: Optional[str] = None,
-                               context: Optional[str] = None) -> str:
+                               context: Optional[str] = None, plural_form: Optional[str] = None,
+                               plural_sources: Optional[Dict[str, str]] = None,
+                               plural_metadata_list: Optional[List[Dict[str, Any]]] = None) -> str:
         """Returns the appropriate translation prompt based on the translation mode.
 
         Args:
@@ -261,11 +292,44 @@ class TranslationService:
             is_bulk: Whether translating in bulk mode
             detail_language: Detailed language name (optional)
             context: Message context from msgctxt (optional, e.g., "button", "menu item")
+            plural_form: Plural form name being translated (e.g., "singular", "plural")
+            plural_sources: Dict with 'singular' and 'plural' source texts for plural entries
+            plural_metadata_list: List of plural metadata dicts per text for bulk mode
         """
         # Use detailed language if provided, otherwise use the short target language code
         target_lang_text = detail_language if detail_language else target_language
 
-        # Build context prefix if provided (goes at the very beginning)
+        # Build plural prefix if translating a plural form (single mode)
+        plural_prefix = ""
+        if plural_form and plural_sources:
+            plural_prefix = (
+                f"PLURAL FORM: {plural_form}\n"
+                f"Singular: \"{plural_sources['singular']}\"\n"
+                f"Plural: \"{plural_sources['plural']}\"\n"
+                f"Translate the {plural_form} form appropriately for {target_lang_text}.\n\n"
+            )
+
+        # Build per-text plural annotations for bulk mode
+        bulk_plural_prefix = ""
+        if is_bulk and plural_metadata_list:
+            annotations = []
+            for idx, meta in enumerate(plural_metadata_list, 1):
+                if isinstance(meta, dict) and meta.get("is_plural"):
+                    form_name = meta.get("form_name", "unknown")
+                    singular = meta.get("source_singular", "")
+                    plural = meta.get("source_plural", "")
+                    annotations.append(
+                        f"- Text {idx} is the \"{form_name}\" form "
+                        f"of \"{singular}\"/\"{plural}\""
+                    )
+            if annotations:
+                annotations_text = "\n".join(annotations)
+                bulk_plural_prefix = (
+                    f"PLURAL FORMS:\n{annotations_text}\n"
+                    f"Translate each plural form appropriately for {target_lang_text}.\n\n"
+                )
+
+        # Build context prefix if provided
         context_prefix = ""
         if context:
             context_prefix = (
@@ -277,6 +341,7 @@ class TranslationService:
 
         if is_bulk:
             return (
+                f"{bulk_plural_prefix}"
                 f"{context_prefix}"
                 f"Translate the following list of texts from English to {target_lang_text}. "
                 "Provide only the translations in a JSON array format, maintaining the original order. "
@@ -288,6 +353,7 @@ class TranslationService:
                 "Texts to translate:\n"
             )
         return (
+            f"{plural_prefix}"
             f"{context_prefix}"
             f"Translate the following text from English to {target_lang_text}. "
             "Return only the direct translation without any explanation. "
@@ -303,12 +369,18 @@ class TranslationService:
             target_language: str,
             is_bulk: bool = False,
             detail_language: Optional[str] = None,
-            context: Optional[str] = None) -> Any:
+            context: Optional[str] = None,
+            plural_form: Optional[str] = None,
+            plural_sources: Optional[Dict[str, str]] = None,
+            plural_metadata_list: Optional[List[Dict[str, Any]]] = None) -> Any:
         """Performs the actual translation using the selected provider's API."""
         logging.debug("Translating to '%s' via %s API", target_language, self.config.provider.value)
         if context:
             logging.debug("Using context: %s", context)
-        prompt = self.get_translation_prompt(target_language, is_bulk, detail_language, context)
+        if plural_form:
+            logging.debug("Translating plural form: %s", plural_form)
+        prompt = self.get_translation_prompt(target_language, is_bulk, detail_language, context,
+                                             plural_form, plural_sources, plural_metadata_list)
 
         # For bulk mode, strip whitespace before sending to AI
         if is_bulk:
@@ -852,18 +924,59 @@ class TranslationService:
 
     def _prepare_translation_request(self, po_file, po_file_path, file_lang, detail_languages):
         """Prepare a translation request from PO file data."""
-        entries = [entry for entry in po_file if is_entry_untranslated(entry)]
-        texts = [entry.msgid for entry in entries]
+        untranslated_entries = [entry for entry in po_file if is_entry_untranslated(entry)]
 
-        # Extract contexts from entries, falling back to default_context if not present
+        # Get plural count for target language
+        plural_count = get_plural_count(po_file, file_lang)
+        form_names = get_plural_form_names(plural_count)
+
+        texts = []
         contexts = []
-        for entry in entries:
-            if hasattr(entry, 'msgctxt') and entry.msgctxt:
-                contexts.append(entry.msgctxt)
-            elif self.config.default_context:
-                contexts.append(self.config.default_context)
+        plural_metadata = []
+        expanded_entries = []
+
+        # Expand plural entries into multiple translation requests
+        for entry_idx, entry in enumerate(untranslated_entries):
+            if is_plural_entry(entry):
+                # Expand into N translation requests (one per plural form)
+                for form_idx in range(plural_count):
+                    # Use msgid for singular (form 0), msgid_plural for other forms
+                    source_text = entry.msgid if form_idx == 0 else entry.msgid_plural
+                    texts.append(source_text)
+
+                    # Extract base context
+                    base_context = None
+                    if hasattr(entry, 'msgctxt') and entry.msgctxt:
+                        base_context = entry.msgctxt
+                    elif self.config.default_context:
+                        base_context = self.config.default_context
+                    contexts.append(base_context)
+
+                    # Store plural metadata
+                    plural_metadata.append({
+                        "is_plural": True,
+                        "entry_index": entry_idx,
+                        "form_index": form_idx,
+                        "form_name": form_names[form_idx],
+                        "total_forms": plural_count,
+                        "source_singular": entry.msgid,
+                        "source_plural": entry.msgid_plural
+                    })
+                    expanded_entries.append(entry)
             else:
-                contexts.append(None)
+                # Regular entry - no expansion needed
+                texts.append(entry.msgid)
+
+                # Extract context
+                if hasattr(entry, 'msgctxt') and entry.msgctxt:
+                    contexts.append(entry.msgctxt)
+                elif self.config.default_context:
+                    contexts.append(self.config.default_context)
+                else:
+                    contexts.append(None)
+
+                plural_metadata.append({"is_plural": False})
+                expanded_entries.append(entry)
 
         detail_lang = detail_languages.get(file_lang) if detail_languages else None
 
@@ -893,12 +1006,13 @@ class TranslationService:
 
         return TranslationRequest(
             po_file=po_file,
-            entries=entries,
+            entries=expanded_entries,
             texts=texts,
             target_language=file_lang,
             po_file_path=po_file_path,
             detail_language=detail_lang,
-            contexts=contexts
+            contexts=contexts,
+            plural_metadata=plural_metadata
         )
 
     def process_po_file(
@@ -941,9 +1055,17 @@ class TranslationService:
 
             # Final save and logging
             po_file.save(po_file_path)
+            translation_results = []
+            for idx, entry in enumerate(request.entries):
+                metadata = request.plural_metadata[idx] if request.plural_metadata else {}
+                if metadata.get("is_plural"):
+                    form_idx = metadata["form_index"]
+                    plural_trans = getattr(entry, 'msgstr_plural', {}) or {}
+                    translation_results.append(plural_trans.get(form_idx, ""))
+                else:
+                    translation_results.append(entry.msgstr)
             self.po_file_handler.log_translation_status(
-                po_file_path, request.texts,
-                [entry.msgstr for entry in request.entries]
+                po_file_path, request.texts, translation_results
             )
         except KeyboardInterrupt:
             logging.info("\nTranslation interrupted. Saving progress...")
@@ -959,7 +1081,8 @@ class TranslationService:
 
     def _process_batch(self, batch_info, po_file, po_file_path, detail_language=None):
         """Process a single batch of translations."""
-        batch_texts, batch_entries, current_batch, total_batches, target_language, batch_contexts = batch_info
+        (batch_texts, batch_entries, current_batch, total_batches,
+         target_language, batch_contexts, batch_plural_metadata) = batch_info
         translated_count = 0
 
         # Determine most common context for this batch
@@ -967,23 +1090,53 @@ class TranslationService:
         if batch_contexts:
             non_none_contexts = [c for c in batch_contexts if c]
             if non_none_contexts:
-                from collections import Counter
                 batch_context = Counter(non_none_contexts).most_common(1)[0][0]
 
         logging.info("[BULK %d/%d] Translating %d entries...", current_batch, total_batches, len(batch_texts))
 
         # Get translations for this batch
         translations = self.perform_translation(
-            batch_texts, target_language, is_bulk=True, detail_language=detail_language, context=batch_context
+            batch_texts, target_language, is_bulk=True, detail_language=detail_language, context=batch_context,
+            plural_metadata_list=batch_plural_metadata
         )
 
+        # Aggregate plural translations by entry index
+        plural_aggregation = {}  # entry_index -> {form_index: translation}
+
         # Update entries with translations
-        for entry, translation in zip(batch_entries, translations):
-            if translation.strip():
-                entry.msgstr = translation
-                if self.config.flags.mark_ai_generated:
-                    add_ai_generated_comment(entry)
-                translated_count += 1
+        default_metadata = [{}] * len(batch_entries)
+        metadata_list = batch_plural_metadata if batch_plural_metadata else default_metadata
+        for entry, translation, metadata in zip(batch_entries, translations, metadata_list):
+            if not metadata.get("is_plural"):
+                # Regular entry
+                if translation.strip():
+                    entry.msgstr = translation
+                    if self.config.flags.mark_ai_generated:
+                        add_ai_generated_comment(entry)
+                    translated_count += 1
+            else:
+                # Plural entry - collect forms
+                entry_idx = metadata["entry_index"]
+                form_idx = metadata["form_index"]
+
+                if entry_idx not in plural_aggregation:
+                    plural_aggregation[entry_idx] = {}
+
+                plural_aggregation[entry_idx][form_idx] = translation
+
+                # When all forms collected, write to entry
+                if len(plural_aggregation[entry_idx]) == metadata["total_forms"]:
+                    if not hasattr(entry, 'msgstr_plural') or entry.msgstr_plural is None:
+                        entry.msgstr_plural = {}
+
+                    for idx, trans in plural_aggregation[entry_idx].items():
+                        if trans.strip():
+                            entry.msgstr_plural[idx] = trans
+
+                    if entry.msgstr_plural:
+                        if self.config.flags.mark_ai_generated:
+                            add_ai_generated_comment(entry)
+                        translated_count += 1
 
         # Save after batch
         po_file.save(po_file_path)
@@ -999,13 +1152,16 @@ class TranslationService:
         for i in range(0, total_entries, self.batch_size):
             batch_num = i // self.batch_size + 1
             batch_contexts = request.contexts[i:i + self.batch_size] if request.contexts else None
+            batch_plural_metadata = (request.plural_metadata[i:i + self.batch_size]
+                                     if request.plural_metadata else None)
             batch_info = (
                 request.texts[i:i + self.batch_size],
                 request.entries[i:i + self.batch_size],
                 batch_num,
                 total_batches,
                 request.target_language,
-                batch_contexts
+                batch_contexts,
+                batch_plural_metadata
             )
 
             try:
@@ -1029,17 +1185,57 @@ class TranslationService:
         total_entries = len(request.texts)
         save_interval = max(10, total_entries // 10) if total_entries > 100 else 10
 
+        # Track plural form aggregation
+        plural_aggregation = {}  # entry_index -> {form_index: translation}
+
         for i, (text, entry) in enumerate(zip(request.texts, request.entries), 1):
             try:
                 context = request.contexts[i - 1] if request.contexts else None
+                metadata = request.plural_metadata[i - 1] if request.plural_metadata else {}
+
                 logging.info("[SINGLE %d/%d] Translating entry...", i, total_entries)
 
-                translation = self.translate_single(text, request.target_language, request.detail_language, context)
+                # Extract plural info if applicable
+                plural_form = None
+                plural_sources = None
+                if metadata.get("is_plural"):
+                    plural_form = metadata.get("form_name")
+                    plural_sources = {
+                        "singular": metadata.get("source_singular"),
+                        "plural": metadata.get("source_plural")
+                    }
 
-                if translation.strip():
-                    entry.msgstr = translation
-                    if self.config.flags.mark_ai_generated:
-                        add_ai_generated_comment(entry)
+                translation = self.translate_single(text, request.target_language, request.detail_language,
+                                                    context, plural_form, plural_sources)
+
+                if not metadata.get("is_plural"):
+                    # Regular entry
+                    if translation.strip():
+                        entry.msgstr = translation
+                        if self.config.flags.mark_ai_generated:
+                            add_ai_generated_comment(entry)
+                else:
+                    # Plural entry - collect forms
+                    entry_idx = metadata["entry_index"]
+                    form_idx = metadata["form_index"]
+
+                    if entry_idx not in plural_aggregation:
+                        plural_aggregation[entry_idx] = {}
+
+                    plural_aggregation[entry_idx][form_idx] = translation
+
+                    # When all forms collected, write to entry
+                    if len(plural_aggregation[entry_idx]) == metadata["total_forms"]:
+                        if not hasattr(entry, 'msgstr_plural') or entry.msgstr_plural is None:
+                            entry.msgstr_plural = {}
+
+                        for idx, trans in plural_aggregation[entry_idx].items():
+                            if trans.strip():
+                                entry.msgstr_plural[idx] = trans
+
+                        if entry.msgstr_plural:
+                            if self.config.flags.mark_ai_generated:
+                                add_ai_generated_comment(entry)
 
                 # Save periodically
                 if i % save_interval == 0 or i == total_entries:
@@ -1081,7 +1277,8 @@ class TranslationService:
             target_language: str,
             po_file_path: str,
             detail_language: Optional[str] = None,
-            contexts: Optional[List[Optional[str]]] = None) -> List[str]:
+            contexts: Optional[List[Optional[str]]] = None,
+            plural_metadata: Optional[List[Dict[str, Any]]] = None) -> List[str]:
         """
         Retrieves translations for the given texts using either bulk or individual translation.
 
@@ -1091,17 +1288,32 @@ class TranslationService:
             po_file_path: Path to PO file
             detail_language: Detailed language name (optional)
             contexts: List of msgctxt values for each text (optional)
+            plural_metadata: List of plural metadata dicts for each text (optional)
         """
         if self.config.flags.bulk_mode:
-            return self.translate_bulk(texts, target_language, po_file_path, detail_language, contexts)
+            return self.translate_bulk(texts, target_language, po_file_path, detail_language,
+                                       contexts, plural_metadata)
 
         # Single mode with progress tracking
         translations = []
         total = len(texts)
         for i, text in enumerate(texts, 1):
             context = contexts[i - 1] if contexts else None
+            metadata = plural_metadata[i - 1] if plural_metadata else {}
+
+            # Extract plural info if applicable
+            plural_form = None
+            plural_sources = None
+            if metadata.get("is_plural"):
+                plural_form = metadata.get("form_name")
+                plural_sources = {
+                    "singular": metadata.get("source_singular"),
+                    "plural": metadata.get("source_plural")
+                }
+
             logging.info("[SINGLE %d/%d] Translating entry...", i, total)
-            translation = self.translate_single(text, target_language, detail_language, context)
+            translation = self.translate_single(text, target_language, detail_language, context,
+                                                plural_form, plural_sources)
             translations.append(translation)
             if i % 10 == 0 or i == total:  # Progress update every 10 items or at the end
                 logging.info("Progress: %d/%d entries completed (%.1f%%)", i, total, 100.0 * i / total)
